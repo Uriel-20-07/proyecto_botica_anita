@@ -1,0 +1,69 @@
+<div class="brands-page">
+
+    <!-- HERO -->
+
+    <section class="brands-hero">
+
+        <div class="hero-content">
+
+            <span class="hero-badge">
+                MARCAS DESTACADAS
+            </span>
+ 
+            <h1>
+                Las marcas farmacéuticas
+                <span>más confiables del Perú</span>
+            </h1>
+
+            <p>
+                Descubre productos originales de las mejores marcas en
+                medicamentos, vitaminas, dermocosmética, cuidado personal
+                y bienestar integral.
+            </p>
+
+        </div>
+
+        <div class="hero-image">
+            <img src="https://i.pinimg.com/736x/a4/20/61/a42061c3baa123b559ae0d69571de350.jpg"
+                alt="Farmacia">
+        </div>
+
+    </section>
+
+    <!-- FILTERS -->
+
+    <section class="brands-filters">
+
+        <button
+            class="filter"
+            [class.active]="categoriaActiva === cat"
+            *ngFor="let cat of categorias"
+            (click)="filtrarPorCategoria(cat)">
+            {{ cat }}
+        </button>
+
+    </section>
+
+    <!-- GRID -->
+
+    <section class="brands-grid" *ngIf="marcasFiltradas.length > 0; else noMarcas">
+
+        <div class="brand-card" *ngFor="let marca of marcasFiltradas">
+
+            <img [src]="marca.imgUrl || 'assets/placeholder-image.png'" [alt]="marca.nombre">
+
+            <h3>{{ marca.nombre }}</h3>
+
+            <button (click)="filtrarPorMarca(marca.idMarca)">Ver productos</button>
+
+        </div>
+
+    </section>
+
+    <ng-template #noMarcas>
+        <div style="text-align: center; width: 100%; padding: 3rem;">
+            <p>Cargando marcas o no hay marcas disponibles...</p>
+        </div>
+    </ng-template>
+
+</div>

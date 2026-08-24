@@ -1,0 +1,11 @@
+<app-navbar *ngIf="!isDashboard"></app-navbar>
+
+<main class="app-shell">
+  <router-outlet></router-outlet>
+</main>
+
+<app-footer *ngIf="!isDashboard"></app-footer>
+
+<app-auth-modal *ngIf="!isDashboard"></app-auth-modal>
+
+<app-chatbot *ngIf="!isDashboard"></app-chatbot>

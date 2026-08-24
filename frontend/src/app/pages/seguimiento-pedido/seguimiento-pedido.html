@@ -1,0 +1,73 @@
+<div class="seguimiento-container" *ngIf="pedido()">
+
+    <div class="header-card">
+
+        <div>
+
+            <span class="pedido-label">
+                Pedido #{{ numeroPedido() }}
+            </span>
+
+            <h2>Seguimiento del pedido</h2>
+
+            <p>
+                Realizado el
+                {{ pedido().fecha | date:'dd/MM/yyyy HH:mm' }}
+            </p>
+
+        </div>
+
+        <div class="estado-badge">
+            {{ estadoTexto() }}
+        </div>
+
+    </div>
+
+    <!-- BOTÓN VOLVER -->
+    <div class="acciones">
+        <button class="btn-volver" routerLink="/pedidos">
+
+            ← Volver a Mis Pedidos
+
+        </button>
+    </div>
+
+    <div class="timeline-card">
+
+        <div class="timeline-header">
+
+            <div>
+                <h3>Estado del envío</h3>
+                <p class="timeline-subtitle">
+                    Sigue el progreso de tu pedido en tiempo real.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="timeline-item" *ngFor="let paso of pasos; let i = index">
+
+            <div class="circle" [class.completed]="i <= estadoActual()"
+                [class.current]="i === estadoActual() && estadoActual() < 4">
+
+                <span *ngIf="i < estadoActual()">✓</span>
+
+            </div>
+
+            <div class="content">
+
+                <h4>{{ paso.titulo }}</h4>
+
+                <p>{{ paso.descripcion }}</p>
+
+                <span class="fecha" *ngIf="i < estadoActual() || i === 0 || (i === 4 && estadoActual() === 4)">
+                    {{ paso.fecha | date:'dd/MM/yyyy HH:mm' }}
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

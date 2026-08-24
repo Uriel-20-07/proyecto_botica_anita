@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # El ecosistema que usa tu proyecto de Node.js
+    directory: "/"           # Ubicación del archivo package.json
+    schedule:
+      interval: "daily"      # Frecuencia con la que el bot busca actualizaciones

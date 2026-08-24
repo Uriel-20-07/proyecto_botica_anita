@@ -1,0 +1,19 @@
+:root {
+  --fc-primary: #0056B3;      /* Azul Corporativo */
+  --fc-light-blue: #E1F5FE;   /* Celeste Suave */
+  --fc-white: #FFFFFF;
+  --fc-dark: #1a1d1d;         /* Negro Elegante para Footer */
+  --fc-accent: #2b78e4;       /* Azul Vibrante */
+  --fc-orange: #ea580c;       /* Naranja Acción */
+  --fc-red: #dc2626;          /* Rojo Ofertas */
+}
+
+/* Animación de entrada para que la web no aparezca de golpe */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animado {
+  animation: fadeInUp 0.6s ease-out forwards;
+}

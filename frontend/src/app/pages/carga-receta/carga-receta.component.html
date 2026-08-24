@@ -1,0 +1,38 @@
+<div class="carga-receta-container">
+  <h2>Cargar Nueva Receta Médica</h2>
+
+  <div *ngIf="mensajeExito" class="alerta alerta-exito">{{ mensajeExito }}</div>
+  <div *ngIf="mensajeError" class="alerta alerta-error">{{ mensajeError }}</div>
+
+  <form (ngSubmit)="enviarReceta()">
+    <input type="hidden" [(ngModel)]="nuevaReceta.pacienteId" name="pacienteId">
+
+    <div class="campo">
+      <label for="medicoId">Nombre del Médico</label>
+      <input type="text" id="medicoId" [(ngModel)]="nuevaReceta.medicoId" name="medicoId" required>
+    </div>
+
+    <div class="campo">
+      <label for="fechaEmision">Fecha de Emisión</label>
+      <input type="date" id="fechaEmision" [(ngModel)]="nuevaReceta.fechaEmision" name="fechaEmision" required>
+    </div>
+
+    <div class="campo">
+      <label for="documento">Adjuntar Receta (PDF/Imagen)</label>
+      <input type="file" id="documento" (change)="onFileSelected($event)" accept=".pdf,.jpg,.jpeg,.png">
+      <small *ngIf="nuevaReceta.documentoUrl">Archivo seleccionado: {{ nuevaReceta.documentoUrl }}</small>
+    </div>
+
+    <h4>Medicamentos</h4>
+    <div *ngFor="let med of nuevaReceta.medicamentos; let i = index" class="fila-medicamento">
+      <input type="text" [(ngModel)]="med.nombre" [name]="'medNombre' + i" placeholder="Nombre del medicamento" required>
+      <input type="text" [(ngModel)]="med.dosis" [name]="'medDosis' + i" placeholder="Dosis (ej. 1 pastilla c/8h)" required>
+      <button type="button" class="btn-eliminar" (click)="eliminarMedicamento(i)">Eliminar</button>
+    </div>
+    <button type="button" class="btn-secundario" (click)="agregarMedicamento()">+ Agregar Medicamento</button>
+
+    <button type="submit" class="btn-primario" [disabled]="enviando">
+      {{ enviando ? 'Enviando...' : 'Enviar Receta para Revisión' }}
+    </button>
+  </form>
+</div>

@@ -1,0 +1,293 @@
+.fc-footer {
+    margin-top: 60px;
+}
+
+/* ── WAVE ──────────────────────────────── */
+.footer-wave {
+    display: block;
+    line-height: 0;
+
+    svg {
+        display: block;
+        width: 100%;
+        height: 60px;
+    }
+}
+
+/* ── BODY ──────────────────────────────── */
+.footer-body {
+    background: #1a2a4a;
+    padding: 56px 0 40px;
+}
+
+.footer-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+/* ── GRID ──────────────────────────────── */
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr;
+    gap: 56px;
+    padding-bottom: 44px;
+}
+
+/* ── BRAND COL ─────────────────────────── */
+.footer-logo {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    text-decoration: none;
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 14px;
+
+    .text-orange {
+        color: var(--fc-orange, #ea580c);
+    }
+}
+
+.brand-desc {
+    color: #8fa8c8;
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 22px;
+    max-width: 34ch;
+}
+
+.social-links {
+    display: flex;
+    gap: 12px;
+}
+
+.social-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 14px;
+    color: #8fa8c8;
+    transition: color 0.2s, border-color 0.2s;
+
+    &:hover {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+}
+
+/* ── HEADINGS ──────────────────────────── */
+.footer-heading {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 20px;
+}
+
+/* ── LISTS ─────────────────────────────── */
+.footer-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+        margin-bottom: 11px;
+
+        a {
+            color: #8fa8c8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+
+            &:hover {
+                color: #fff;
+            }
+        }
+    }
+}
+
+/* ── CONTACT LINE ──────────────────────── */
+.contact-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #8fa8c8;
+
+    i {
+        color: var(--fc-primary-lt, #2b78e4);
+        font-size: 14px;
+    }
+
+    strong {
+        color: #fff;
+    }
+}
+
+/* ── DIVIDER ───────────────────────────── */
+.footer-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 32px;
+}
+
+/* ── PAYMENTS ──────────────────────────── */
+.footer-payments {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-bottom: 8px;
+}
+
+.payments-label {
+    font-size: 13px;
+    color: #8fa8c8;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.payment-cards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.p-card {
+    background: #fff;
+    border-radius: 6px;
+    height: 36px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+        height: 20px;
+        width: auto;
+    }
+
+    &.amex img {
+        height: 16px;
+    }
+
+    &.yape {
+        background: #5b21b6;
+
+        span {
+            color: #fff;
+            font-weight: 900;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+    }
+
+    &.plin {
+        background: #0ea5e9;
+
+        span {
+            color: #fff;
+            font-weight: 900;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+    }
+
+    &.diners {
+        background: #1a1a1a;
+
+        span {
+            color: #fff;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+    }
+}
+
+/* ── BAR FINAL ─────────────────────────── */
+.footer-bar {
+    background: #111d2e;
+    padding: 16px 0;
+}
+
+.footer-bar-inner {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    p {
+        font-size: 12px;
+        color: #4a6480;
+        margin: 0;
+    }
+
+    .footer-bar-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        a {
+            font-size: 12px;
+            color: #4a6480;
+            text-decoration: none;
+
+            &:hover {
+                color: #8fa8c8;
+            }
+        }
+
+        span {
+            color: #2a3a50;
+        }
+    }
+}
+
+/* ── RESPONSIVE ────────────────────────── */
+@media (max-width: 1024px) {
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+    }
+
+    .footer-brand {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .footer-brand {
+        grid-column: auto;
+    }
+
+    .footer-payments {
+        flex-direction: column;
+        gap: 14px;
+        text-align: center;
+    }
+
+    .footer-bar-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: 6px;
+    }
+}

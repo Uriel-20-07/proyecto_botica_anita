@@ -1,0 +1,230 @@
+@if (isOpen) {
+  <div class="auth-backdrop" (click)="close()">
+    <div class="auth-modal" (click)="$event.stopPropagation()">
+      <button type="button" class="auth-close" (click)="close()" aria-label="Cerrar">×</button>
+
+      <div class="auth-brand">FarmaCode</div>
+
+      <div class="auth-header">
+        <h2>{{ mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta' }}</h2>
+        <p>{{ mode === 'login' ? 'Accede a tu cuenta desde esta ventana' : 'Regístrate sin salir de la página' }}</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" [class.active]="mode === 'login'" (click)="setMode('login')">Entrar</button>
+        <button type="button" [class.active]="mode === 'registro'" (click)="setMode('registro')">Registrar</button>
+        <button type="button" [class.active]="mode === 'recuperar'" (click)="setMode('recuperar')">Recuperar</button>
+      </div>
+
+      @if (error) {
+        <div class="alert alert-danger">
+          {{ error }}
+        </div>
+      }
+
+      @if (success) {
+        <div class="alert alert-success">
+          {{ success }}
+        </div>
+      }
+
+      @if (mode === 'login') {
+        <form [formGroup]="loginForm" (ngSubmit)="submitLogin()" class="auth-form">
+          <div class="form-group">
+            <label for="modal-login-email">Correo Electrónico</label>
+            <input
+              id="modal-login-email"
+              type="email"
+              class="form-control"
+              formControlName="email"
+              placeholder="tu@email.com"
+            />
+            @if (loginControls['email'].touched && loginControls['email'].errors) {
+              <small class="field-error">Ingresa un correo válido</small>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="modal-login-password">Contraseña</label>
+            <div class="password-field password-field--action">
+              <input
+                id="modal-login-password"
+                [type]="showLoginPassword ? 'text' : 'password'"
+                class="form-control"
+                formControlName="password"
+                placeholder="Tu contraseña"
+              />
+              <button type="button" class="password-toggle" (click)="toggleLoginPassword()">
+                {{ showLoginPassword ? 'Ocultar' : 'Ver' }}
+              </button>
+            </div>
+            @if (loginControls['password'].touched && loginControls['password'].errors) {
+              <small class="field-error">La contraseña debe tener al menos 6 caracteres</small>
+            }
+            <button type="button" class="mini-link" (click)="openRecovery()">Olvidé mi contraseña</button>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+            @if (loading) {
+              <span class="spinner-border spinner-border-sm mr-2"></span>
+            }
+            Iniciar sesión
+          </button>
+        </form>
+      } @else if (mode === 'registro') {
+        <form [formGroup]="registroForm" (ngSubmit)="submitRegistro()" class="auth-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="modal-nombre">Nombre</label>
+              <input id="modal-nombre" type="text" class="form-control" formControlName="nombre" placeholder="Tu nombre" />
+            </div>
+
+            <div class="form-group">
+              <label for="modal-apellido">Apellido</label>
+              <input id="modal-apellido" type="text" class="form-control" formControlName="apellido" placeholder="Tu apellido" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-email">Correo Electrónico</label>
+            <input id="modal-email" type="email" class="form-control" formControlName="email" placeholder="tu@email.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="modal-telefono">Teléfono (Opcional)</label>
+            <input id="modal-telefono" type="tel" class="form-control" formControlName="telefono" placeholder="+51 999 999 999" />
+          </div>
+
+          <div class="form-group">
+            <label for="modal-password">Contraseña</label>
+            <div class="password-field password-field--action">
+              <input
+                id="modal-password"
+                [type]="showRegisterPassword ? 'text' : 'password'"
+                class="form-control"
+                formControlName="password"
+                placeholder="Mínimo 6 caracteres"
+              />
+              <button type="button" class="password-toggle" (click)="toggleRegisterPassword()">
+                {{ showRegisterPassword ? 'Ocultar' : 'Ver' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-confirm-password">Confirmar contraseña</label>
+            <div class="password-field password-field--action">
+              <input
+                id="modal-confirm-password"
+                [type]="showRegisterConfirmPassword ? 'text' : 'password'"
+                class="form-control"
+                formControlName="confirmPassword"
+                placeholder="Repite tu contraseña"
+              />
+              <button type="button" class="password-toggle" (click)="toggleRegisterConfirmPassword()">
+                {{ showRegisterConfirmPassword ? 'Ocultar' : 'Ver' }}
+              </button>
+            </div>
+            @if (registroForm.errors?.['passwordMismatch']) {
+              <small class="field-error">Las contraseñas no coinciden</small>
+            }
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+            @if (loading) {
+              <span class="spinner-border spinner-border-sm mr-2"></span>
+            }
+            Crear cuenta
+          </button>
+        </form>
+      } @else {
+        <form [formGroup]="recoveryForm" (ngSubmit)="submitRecovery()" class="auth-form">
+          @if (recoveryStep === 1) {
+            <div class="recovery-note">
+              <strong>Recuperación por token</strong>
+              <span>Te enviaremos un token al correo para restablecer tu contraseña.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-recovery-email">Correo Electrónico</label>
+              <input
+                id="modal-recovery-email"
+                type="email"
+                class="form-control"
+                formControlName="email"
+                placeholder="tu@email.com"
+              />
+              @if (recoveryControls['email'].touched && recoveryControls['email'].errors) {
+                <small class="field-error">Ingresa un correo válido</small>
+              }
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+              @if (loading) {
+                <span class="spinner-border spinner-border-sm mr-2"></span>
+              }
+              Enviar token
+            </button>
+          } @else {
+            <div class="recovery-note">
+              <strong>Revisa tu correo</strong>
+              <span>Escribe el token recibido y tu nueva contraseña.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-recovery-token">Token</label>
+              <input
+                id="modal-recovery-token"
+                type="text"
+                class="form-control"
+                formControlName="token"
+                placeholder="Escribe el token recibido"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="modal-recovery-password">Nueva contraseña</label>
+              <div class="password-field password-field--action">
+                <input
+                  id="modal-recovery-password"
+                  [type]="showRecoveryPassword ? 'text' : 'password'"
+                  class="form-control"
+                  formControlName="password"
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <button type="button" class="password-toggle" (click)="toggleRecoveryPassword()">
+                  {{ showRecoveryPassword ? 'Ocultar' : 'Ver' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-recovery-confirm-password">Confirmar nueva contraseña</label>
+              <div class="password-field password-field--action">
+                <input
+                  id="modal-recovery-confirm-password"
+                  type="password"
+                  class="form-control"
+                  formControlName="confirmPassword"
+                  placeholder="Repite la nueva contraseña"
+                />
+              </div>
+              @if (recoveryForm.errors?.['passwordMismatch']) {
+                <small class="field-error">Las contraseñas no coinciden</small>
+              }
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+              @if (loading) {
+                <span class="spinner-border spinner-border-sm mr-2"></span>
+              }
+              Cambiar contraseña
+            </button>
+          }
+
+          <button type="button" class="mini-link centered" (click)="backToLogin()">Volver a iniciar sesión</button>
+        </form>
+      }
+    </div>
+  </div>
+}

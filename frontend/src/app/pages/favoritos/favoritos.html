@@ -1,0 +1,99 @@
+<div class="favoritos-container fade-in">
+    <div class="favoritos-header">
+        <div class="header-title">
+            <h2>Mis Productos Favoritos</h2>
+            <div class="header-line"></div>
+        </div>
+        <a [routerLink]="['/catalogo']" class="btn-back-catalog">← Volver al catálogo</a>
+    </div>
+
+    <!-- Mensaje de éxito/información -->
+    @if (mensaje) {
+        <section class="mensaje-panel">{{ mensaje }}</section>
+    }
+
+    <!-- Estado: No autenticado -->
+    @if (!authService.isAuthenticated()) {
+        <div class="estado-vacio-panel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+                stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            <h3>Inicia sesión para ver tus favoritos</h3>
+            <p>Guarda los productos que más usas para comprarlos de forma rápida y sencilla en cualquier momento.</p>
+            <button class="btn-primary-orange" (click)="abrirLogin()">Iniciar Sesión / Registrarse</button>
+        </div>
+    } @else {
+        <!-- Estado: Cargando favoritos -->
+        @if (cargando) {
+            <div class="estado-loading">
+                <div class="spinner"></div>
+                Cargando tu lista de favoritos...
+            </div>
+        } @else if (productos.length === 0) {
+            <!-- Estado: Sin favoritos guardados -->
+            <div class="estado-vacio-panel">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+                    stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+                <h3>Tu lista de favoritos está vacía</h3>
+                <p>Navega en el catálogo y haz click en el corazón de cualquier producto para guardarlo aquí.</p>
+                <a routerLink="/catalogo" class="btn-primary-orange">Explorar Productos</a>
+            </div>
+        } @else {
+            <!-- Estado: Con favoritos -->
+            <div class="productos-grid">
+                <div class="producto-card" *ngFor="let producto of productos">
+                    <a [routerLink]="['/catalogo/producto']" [queryParams]="{ producto: producto.id }" class="producto-link">
+                        <div class="producto-imagen-container">
+                            <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img">
+                            @if (producto.etiquetaPromo) {
+                                <span class="promo-badge" [class.bg-red]="producto.colorPromo === 'red'"
+                                    [class.bg-orange]="producto.colorPromo === 'orange'">
+                                    {{ producto.etiquetaPromo }}
+                                </span>
+                            }
+                            <!-- Botón Favorito en Tarjeta -->
+                            <button type="button" class="btn-card-fav active" (click)="toggleFavorito(producto.id, $event)" title="Quitar de favoritos">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" 
+                                     fill="#ea580c" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="producto-info">
+                            <span class="producto-marca">FARMACODE</span>
+                            <h3 class="producto-nombre">{{ producto.nombre }}</h3>
+                            <p class="producto-unidad">{{ producto.descripcion }}</p>
+                            <div class="producto-precios">
+                                <div class="precios-wrapper">
+                                    @if (producto.descuentoInfo && producto.descuentoInfo.percentage > 0) {
+                                        <span class="precio-actual">S/ {{ producto.precio | number:'1.2-2' }}</span>
+                                        <span class="precio-original">S/ {{ producto.precioOriginal | number:'1.2-2' }}</span>
+                                    } @else {
+                                        <span class="precio-actual">S/ {{ producto.precio | number:'1.2-2' }}</span>
+                                    }
+                                </div>
+                                <span class="precio-regular">
+                                    @if (producto.descuentoInfo && producto.descuentoInfo.percentage > 0) {
+                                        {{ producto.descuentoInfo.message }}
+                                    } @else {
+                                        Precio regular
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                    <button type="button" class="btn-agregar" (click)="agregarProducto(producto)">
+                        <span>Agregar</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                            stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>

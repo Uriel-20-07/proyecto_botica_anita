@@ -1,0 +1,92 @@
+<div class="carrito-page">
+  <section class="carrito-hero">
+    <div>
+      <p class="eyebrow">Tu carrito</p>
+      <h1>Revisa tus productos y continúa al pago</h1>
+      <p class="subtitle">Los productos que agregaste se guardan en esta sesión del navegador.</p>
+    </div>
+    <a routerLink="/catalogo" class="volver-link">Seguir comprando</a>
+  </section>
+
+  <div class="carrito-layout" *ngIf="getCount() > 0; else emptyState">
+    <section class="items-panel">
+      <div class="panel-header">
+        <h2>Productos seleccionados</h2>
+        <button type="button" class="text-button" (click)="clear()">Vaciar carrito</button>
+      </div>
+
+      <div class="cart-item" *ngFor="let item of getItems()">
+        <div class="item-image">
+          <img [src]="getProductImage(item.producto)" [alt]="item.producto.nombre" class="cart-product-img" />
+        </div>
+
+        <div class="item-info">
+          <h3>{{ item.producto.nombre }}</h3>
+          <p>{{ item.producto.descripcion }}</p>
+          <span class="item-category">{{ item.producto.categoria?.nombre || 'General' }}</span>
+
+          <div *ngIf="getDiscountInfo(item.producto).message" class="promo-badge"
+            [class.expired-badge]="getDiscountInfo(item.producto).isExpired">
+            {{ getDiscountInfo(item.producto).message }}
+          </div>
+        </div>
+
+        <div class="item-actions">
+          <div class="qty-control" *ngIf="!getDiscountInfo(item.producto).isExpired">
+            <button type="button" (click)="decrease(item.producto.idProducto)">-</button>
+            <span>{{ item.cantidad }}</span>
+            <button type="button" (click)="increase(item.producto.idProducto)">+</button>
+          </div>
+
+          <div class="price-block">
+            <span class="old-price" style="text-decoration: line-through; color: #888; font-size: 0.9em;"
+              *ngIf="getDiscountInfo(item.producto).percentage > 0 && !getDiscountInfo(item.producto).isExpired">
+              S/ {{ (item.producto.precioVenta * item.cantidad) | number:'1.2-2' }}
+            </span>
+
+            <strong *ngIf="!getDiscountInfo(item.producto).isExpired">
+              S/ {{ (getFinalPrice(item.producto) * item.cantidad) | number:'1.2-2' }}
+            </strong>
+
+            <button type="button" class="remove-link" (click)="remove(item.producto.idProducto)">Quitar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="checkout-panel">
+      <h2>Resumen de compra</h2>
+
+      <div *ngIf="hasExpiredProducts" class="alert-box"
+        style="background-color: #fee2e2; color: #991b1b; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9em;">
+        <strong>Atención:</strong> Tienes productos vencidos en tu carrito. Por políticas de salud, debes eliminarlos
+        para poder proceder al pago.
+      </div>
+
+      <div class="summary-row">
+        <span>Productos</span>
+        <strong>{{ getCount() }}</strong>
+      </div>
+      <div class="summary-row total">
+        <span>Total a Pagar</span>
+        <strong>S/ {{ getSubtotal() | number:'1.2-2' }}</strong>
+      </div>
+
+      <button type="button" class="pay-button" (click)="pagar()" [disabled]="hasExpiredProducts"
+        [style.opacity]="hasExpiredProducts ? '0.5' : '1'"
+        [style.cursor]="hasExpiredProducts ? 'not-allowed' : 'pointer'">
+        Pagar ahora
+      </button>
+
+      <p class="checkout-note">Esta es una simulación de pago. Luego puedes conectarla a tu pasarela real.</p>
+    </aside>
+  </div>
+
+  <ng-template #emptyState>
+    <section class="empty-state">
+      <h2>No hay productos en el carrito</h2>
+      <p>Agrega productos desde el catálogo para verlos aquí.</p>
+      <a routerLink="/catalogo" class="volver-link primary">Ir al catálogo</a>
+    </section>
+  </ng-template>
+</div>

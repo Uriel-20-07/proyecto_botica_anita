@@ -1,0 +1,45 @@
+name: Release Automatizado
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcular Versión Semántica
+        id: calc_version
+        run: |
+          RUN_NUMBER=${{ github.run_number }}
+          if [ $((RUN_NUMBER % 11)) -eq 0 ]; then
+            MAJOR=$((RUN_NUMBER / 11 + 1))
+            MINOR=0
+          else
+            MAJOR=$((RUN_NUMBER / 11 + 1))
+            MINOR=$((RUN_NUMBER % 11))
+          fi
+          echo "version=${MAJOR}.${MINOR}.0" >> $GITHUB_OUTPUT
+
+      - name: Crear GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.calc_version.outputs.version }}
+          name: Release v${{ steps.calc_version.outputs.version }}
+          body: |
+            ## Changelog Automático
+            - Se han integrado nuevas funcionalidades desde la rama los desarrolladores.
+            - Despliegue completado a Staging/Producción.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

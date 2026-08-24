@@ -1,0 +1,86 @@
+<div class="blog-page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <span class="hero-label">MUNDO DERMO BLOG</span>
+      <h1>Salud, belleza y<br>rutina diaria en<br>un solo lugar</h1>
+      <p>Consejos expertos, ingredientes, rutinas y mucho más para cuidar tu piel, cabello y bienestar.</p>
+    </div>
+    <div class="hero-image">
+      <img src="https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=480&q=80" alt="Skincare products">
+    </div>
+  </section>
+
+  <!-- SEARCH BAR -->
+  <div class="search-wrapper">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Busca un tema, ingrediente o consejo" [(ngModel)]="searchQuery">
+      <button class="btn-search">Buscar</button>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-wrapper">
+    <div class="filters">
+      <button
+        *ngFor="let f of filters"
+        class="filter-btn"
+        [class.active]="f === activeFilter"
+        (click)="setFilter(f)">
+        {{ f }}
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN FEATURE + QUICK CARDS -->
+  <section class="feature-section">
+    <div class="feature-card">
+      <div class="feature-text">
+        <span class="tema-tag">TEMA PRINCIPAL</span>
+        <h2>Consejos prácticos para una piel que se ve fresca todos los días</h2>
+        <p>Un espacio editorial inspirado en tu referencia, con bloques limpios, acentos azules y tarjetas que ponen primero el contenido.</p>
+        <div class="feature-actions">
+          <button class="btn-primary" (click)="openArticle('https://kidshealth.org/es/teens/tips-better-skin.html')">Ver artículo</button>
+        </div>
+      </div>
+      <div class="feature-image">
+        <img src="https://ojo.pe/resizer/v2/63OSAHDUENHVZGXGEE3IYNRD3U.jpg?auth=48e4d07e602acdf006df98d08e22e54d06a58f75ecdfe7597a1adb96948b7bc6&width=1200&height=900&quality=75&smart=true" alt="Skincare">
+      </div>
+    </div>
+
+    <div class="quick-cards">
+      <div *ngFor="let card of quickCards" class="quick-card" [ngClass]="card.color">
+        <span class="qcard-icon">{{ card.icon }}</span>
+        <div>
+          <span class="qcard-label">{{ card.label }}</span>
+          <p class="qcard-title">{{ card.title }}</p>
+          <a class="qcard-link" (click)="openArticle(card.url)">Leer más →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+<!-- ARTICLES GRID -->
+<section class="articles-section">
+  <div class="section-header">
+    <h3><span class="accent-bar"></span> Artículos destacados</h3>
+  </div>
+  <div class="articles-grid">
+    <div *ngFor="let art of filteredArticles" class="article-card">
+      <div class="article-img">
+        <img [src]="art.image" [alt]="art.title">
+        <span class="article-tag" [ngClass]="art.categoryColor">{{ art.category }}</span>
+      </div>
+      <div class="article-body">
+        <span class="article-date">{{ art.date }}</span>
+        <h4>{{ art.title }}</h4>
+        <p>{{ art.description }}</p>
+        <a class="read-link" (click)="openArticle(art.url)">Leer artículo →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>

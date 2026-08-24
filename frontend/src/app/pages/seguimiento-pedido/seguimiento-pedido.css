@@ -1,0 +1,257 @@
+.seguimiento-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+}
+
+/* ===========================
+   BOTÓN VOLVER
+=========================== */
+
+.acciones {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+}
+
+.btn-volver {
+    background: white;
+    color: #1a2e4a;
+    border: 2px solid #1a2e4a;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .25s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .05);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-volver:hover {
+    background: #1a2e4a;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(26, 46, 74, .2);
+}
+
+/* ===========================
+   CABECERA
+=========================== */
+
+.header-card {
+    background: linear-gradient(135deg, #1a2e4a, #0f2347);
+    color: white;
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 15px 40px rgba(26, 46, 74, .25);
+    margin-bottom: 30px;
+}
+
+.pedido-label {
+    display: inline-block;
+    background: rgba(255, 255, 255, .15);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.header-card h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.header-card p {
+    margin-top: 8px;
+    opacity: .85;
+    font-size: 14px;
+}
+
+/* Badge de estado actual */
+.estado-badge {
+    background: #e85d04;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 14px;
+    box-shadow: 0 6px 15px rgba(232, 93, 4, .35);
+    white-space: nowrap;
+}
+
+/* ===========================
+   TIMELINE CARD
+=========================== */
+
+.timeline-card {
+    background: white;
+    border-radius: 20px;
+    padding: 35px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .07);
+    border: 1px solid #e2e8f0;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.timeline-card h3 {
+    margin: 0;
+    color: #1a2e4a;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -.015em;
+}
+
+.timeline-subtitle {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* ===========================
+   ÍTEMS DEL TIMELINE
+=========================== */
+
+.timeline-item {
+    display: flex;
+    gap: 20px;
+    position: relative;
+    padding-bottom: 40px;
+    transition: all .25s ease;
+}
+
+.timeline-item:hover {
+    transform: translateX(4px);
+}
+
+/* Línea vertical entre pasos */
+.timeline-item:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 18px;
+    top: 38px;
+    width: 3px;
+    height: 100%;
+    background: #e2e8f0;
+    border-radius: 2px;
+}
+
+/* Círculo del paso */
+.circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 15px;
+    flex-shrink: 0;
+    z-index: 2;
+    transition: all .25s ease;
+}
+
+/* Completado: naranja */
+.circle.completed {
+    background: #e85d04;
+    box-shadow: 0 0 0 4px rgba(232, 93, 4, .15);
+}
+
+/* Actual: naranja oscuro con pulso */
+.circle.current {
+    background: #c2410c;
+    box-shadow: 0 0 0 6px rgba(194, 65, 12, .2);
+}
+
+/* ===========================
+   CONTENIDO DEL PASO
+=========================== */
+
+.content {
+    background: #f8fafc;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    transition: all .25s ease;
+}
+
+.content:hover {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+/* Paso completado: borde naranja sutil */
+.timeline-item.is-completed .content {
+    border-color: rgba(232, 93, 4, .15);
+    background: #fff7ed;
+}
+
+/* Paso actual: naranja más intenso */
+.timeline-item.is-current .content {
+    border-color: rgba(232, 93, 4, .3);
+    background: #ffedd5;
+}
+
+.content h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a2e4a;
+}
+
+.content p {
+    margin-top: 4px;
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 13.5px;
+    line-height: 1.45;
+}
+
+.fecha {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+@media (max-width: 768px) {
+
+    .header-card {
+        flex-direction: column;
+        gap: 20px;
+        align-items: flex-start;
+    }
+
+    .estado-badge {
+        align-self: flex-start;
+    }
+
+    .timeline-card {
+        padding: 25px 18px;
+    }
+}

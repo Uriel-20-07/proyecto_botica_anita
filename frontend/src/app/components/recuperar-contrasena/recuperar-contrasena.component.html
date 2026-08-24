@@ -1,0 +1,120 @@
+<div class="recuperar-container">
+  <div class="recuperar-card">
+    @if (step === 1) {
+      <div class="recuperar-header">
+        <h1>Recuperar Contraseña</h1>
+        <p>Ingresa tu correo para recibir instrucciones</p>
+      </div>
+    } @else {
+      <div class="recuperar-header">
+        <h1>Crear Nueva Contraseña</h1>
+        <p>Define una contraseña segura</p>
+      </div>
+    }
+
+    @if (error) {
+      <div class="alert alert-danger">
+        {{ error }}
+      </div>
+    }
+
+    @if (success) {
+      <div class="alert alert-success">
+        {{ success }}
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      @if (step === 1) {
+        <div class="form-group">
+          <label for="email">Correo Electrónico</label>
+          <input
+            type="email"
+            class="form-control"
+            id="email"
+            formControlName="email"
+            [class.is-invalid]="submitted && f['email'].errors"
+            placeholder="tu@email.com"
+          />
+          @if (submitted && f['email'].errors) {
+            <div class="invalid-feedback">
+              @if (f['email'].errors['required']) {
+                El email es requerido
+              }
+              @if (f['email'].errors['email']) {
+                El email no es válido
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="form-group">
+          <label for="password">Nueva Contraseña</label>
+          <input
+            type="password"
+            class="form-control"
+            id="password"
+            formControlName="password"
+            [class.is-invalid]="submitted && f['password'].errors"
+            placeholder="Mínimo 6 caracteres"
+          />
+          @if (submitted && f['password'].errors) {
+            <div class="invalid-feedback">
+              @if (f['password'].errors['required']) {
+                La contraseña es requerida
+              }
+              @if (f['password'].errors['minlength']) {
+                La contraseña debe tener al menos 6 caracteres
+              }
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirmar Contraseña</label>
+          <input
+            type="password"
+            class="form-control"
+            id="confirmPassword"
+            formControlName="confirmPassword"
+            [class.is-invalid]="submitted && (f['confirmPassword'].errors || form.errors?.['passwordMismatch'])"
+            placeholder="Repite tu contraseña"
+          />
+          @if (submitted && f['confirmPassword'].errors) {
+            <div class="invalid-feedback">
+              @if (f['confirmPassword'].errors['required']) {
+                Confirma tu contraseña
+              }
+            </div>
+          }
+          @if (submitted && form.errors?.['passwordMismatch']) {
+            <div class="invalid-feedback">Las contraseñas no coinciden</div>
+          }
+        </div>
+      }
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="loading"
+      >
+        @if (loading) {
+          <span class="spinner-border spinner-border-sm mr-2"></span>
+        }
+        @if (step === 1) {
+          Enviar Instrucciones
+        } @else {
+          Cambiar Contraseña
+        }
+      </button>
+    </form>
+
+    <div class="recuperar-footer">
+      <p>
+        <button type="button" class="link-button" (click)="goToLogin()">
+          Volver a iniciar sesión
+        </button>
+      </p>
+    </div>
+  </div>
+</div>

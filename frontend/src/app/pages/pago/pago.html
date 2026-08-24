@@ -1,0 +1,361 @@
+<div class="exito-overlay" *ngIf="pagoExitoso">
+  <div class="exito-card">
+    <div class="exito-check-wrap">
+      <svg class="exito-check-svg" viewBox="0 0 52 52">
+        <circle class="check-circle" cx="26" cy="26" r="25" fill="none" />
+        <path class="check-mark" fill="none" d="M14 27 l8 8 l16-16" />
+      </svg>
+    </div>
+    <h2 class="exito-titulo">¡Pago finalizado correctamente!</h2>
+    <p class="exito-folio">Folio de compra: <strong>{{ folioGenerado }}</strong></p>
+    <div class="exito-detalle">
+      <div class="exito-fila">
+        <span>Total pagado</span>
+        <span class="exito-valor">S/ {{ total | number:'1.2-2' }}</span>
+      </div>
+      <div class="exito-fila">
+        <span>{{ formPago.esUrgente ? 'Dirección de envío' : 'Establecimiento de recojo' }}</span>
+        <span class="exito-valor">{{ direccionFinal }}</span>
+      </div>
+    </div>
+    <p class="exito-sub">Te enviaremos la confirmación a tu correo. Redirigiendo al catálogo...</p>
+    <div class="exito-barra-wrap">
+      <div class="exito-barra"></div>
+    </div>
+  </div>
+</div>
+
+<div class="pago-container" *ngIf="!pagoExitoso">
+  <header class="pago-header">
+    <div class="header-left">
+      <span class="secure-badge">Conexión Segura (TLS)</span>
+      <h1>Procesar Pedido</h1>
+    </div>
+    <a routerLink="/carrito" class="btn-regresar">← Volver al carrito</a>
+  </header>
+
+  <div class="pago-grid">
+    <main class="panel-formularios">
+
+      <section class="pago-seccion">
+        <div class="seccion-header">
+          <span class="paso-num">1</span>
+          <h2>Información de Entrega</h2>
+        </div>
+
+        <!-- Selector de Tipo de Envío -->
+        <div class="envio-tipo-selector" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+          <label
+            style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 12px; border: 1px solid rgba(26, 42, 74, 0.12); border-radius: 12px; cursor: pointer; background: white;"
+            [style.borderColor]="!formPago.esUrgente ? '#1a2e4a' : 'rgba(26, 42, 74, 0.12)'"
+            [style.background]="!formPago.esUrgente ? '#f8fafc' : 'white'">
+            <input type="radio" name="tipoEnvio" [value]="false" [(ngModel)]="formPago.esUrgente"
+              (change)="onTipoEnvioChange()" style="accent-color: #1a2e4a;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: #1a2e4a;">Recojo en Tienda</span>
+              <span style="font-size: 0.75rem; color: #64748b;">S/ 5.00 o Gratis (> S/ 50.00)</span>
+            </div>
+          </label>
+          <label
+            style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 12px; border: 1px solid rgba(26, 42, 74, 0.12); border-radius: 12px; cursor: pointer; background: white;"
+            [style.borderColor]="formPago.esUrgente ? '#1a2e4a' : 'rgba(26, 42, 74, 0.12)'"
+            [style.background]="formPago.esUrgente ? '#f8fafc' : 'white'">
+            <input type="radio" name="tipoEnvio" [value]="true" [(ngModel)]="formPago.esUrgente"
+              (change)="onTipoEnvioChange()" style="accent-color: #e85d04;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: #e85d04;"> Envío Urgente</span>
+              <span style="font-size: 0.75rem; color: #64748b;">Entrega a domicilio (S/ 10.00)</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-row-doble">
+          <div class="form-group">
+            <label>Distrito <span class="req">*</span></label>
+            <select [(ngModel)]="formPago.distrito" (change)="onDistritoChange()" class="form-input form-select">
+              <option value="" disabled>Selecciona tu distrito</option>
+              <option *ngFor="let d of distritosArequipa" [value]="d">{{ d }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Departamento</label>
+            <input type="text" value="Arequipa" class="form-input" readonly />
+          </div>
+        </div>
+
+        <div *ngIf="!formPago.esUrgente">
+          <div class="form-group" *ngIf="formPago.distrito">
+            <label>Establecimiento de Recojo (Tienda / Bodega) <span class="req">*</span></label>
+            <select [(ngModel)]="formPago.puntoSeleccionado" (change)="onPuntoRecojoChange()"
+              class="form-input form-select">
+              <option value="" disabled selected>Selecciona una tienda o bodega de recojo</option>
+              <option *ngFor="let punto of puntosRecojoPorDistrito[formPago.distrito]" [value]="punto.nombre">
+                {{ punto.nombre }} ({{ punto.direccion }})
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">
+            <label>Dirección del Establecimiento</label>
+            <input type="text" [(ngModel)]="formPago.direccionDetalle" class="form-input" readonly />
+            <span class="field-hint">Dirección de la tienda o bodega donde se dejará el medicamento</span>
+          </div>
+
+          <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">
+            <label>Referencia del Establecimiento</label>
+            <input type="text" [(ngModel)]="formPago.referencia" class="form-input" readonly />
+          </div>
+        </div>
+
+        <div *ngIf="formPago.esUrgente">
+          <div class="form-group" *ngIf="formPago.distrito">
+            <label>Dirección Domiciliaria Detallada <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="formPago.direccionDetalle" class="form-input"
+              placeholder="Ej: Calle Melgar 123, Dpto 202" />
+            <span class="field-hint">Ingresa la dirección exacta en Arequipa para el delivery a domicilio</span>
+          </div>
+
+          <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">
+            <label>Referencia de Entrega <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="formPago.referencia" class="form-input"
+              placeholder="Ej: Frente al parque Melgar, portón marrón" />
+          </div>
+        </div>
+
+        <div class="direccion-preview" *ngIf="formPago.distrito && formPago.direccionDetalle && !formPago.esUrgente">
+          <span><strong>Lugar de recojo:</strong> {{ formPago.direccionDetalle }}<span *ngIf="formPago.referencia"> — {{
+              formPago.referencia }}</span>,
+            <strong>{{ formPago.distrito }}</strong>, Arequipa</span>
+        </div>
+
+        <div class="direccion-preview urgent"
+          *ngIf="formPago.distrito && formPago.direccionDetalle && formPago.esUrgente"
+          style="border-left: 4px solid #e85d04; background: #fff8f5; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <span><strong style="color: #e85d04;"> Envío Urgente a Domicilio:</strong> {{ formPago.direccionDetalle
+            }}<span *ngIf="formPago.referencia"> — {{ formPago.referencia }}</span>,
+            <strong>{{ formPago.distrito }}</strong>, Arequipa</span>
+        </div>
+      </section>
+
+      <!-- SECCIÓN: RECETA MÉDICA REQUERIDA (PASO INTERMEDIO) -->
+      <section class="pago-seccion" *ngIf="requiereReceta">
+        <div class="seccion-header">
+          <span class="paso-num" style="background: #1a2e4a; display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: white;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </span>
+          <h2 style="color: #1a2e4a;">Cargar Receta Médica Obligatoria</h2>
+        </div>
+        <p style="font-size: 0.88rem; color: #4b5563; margin-top: 10px;">
+          En tu carrito se encuentra productos que necesitan receta medica.
+        </p>
+
+        <div *ngIf="!recetaSubidaExito" style="margin-top: 15px;" class="anim-fade">
+          <div class="form-group">
+            <label>Nombre / Colegiatura del Médico <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="recetaForm.medicoId" placeholder="Ej: Dr. Carlos Pérez - CMP 12345" class="form-input" />
+          </div>
+          <div class="form-row-doble">
+            <div class="form-group">
+              <label>Fecha de Emisión de la Receta <span class="req">*</span></label>
+              <input type="date" [(ngModel)]="recetaForm.fechaEmision" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>Imagen/Documento de la Receta (.jpg, .png, .pdf) <span class="req">*</span></label>
+              <input type="file" (change)="onRecetaFileSelected($event)" accept="image/*,.pdf" style="display:none;" #fileInput />
+              <button type="button" (click)="fileInput.click()" class="btn-action" style="width:100%; text-align:center; padding: 10px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                {{ recetaFileName || 'Seleccionar Archivo' }}
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="recetaMensajeError" style="color: #991b1b; background: #fee2e2; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-top: 8px; font-weight: bold; border: 1px solid #fecaca;">
+            ⚠ {{ recetaMensajeError }}
+          </div>
+
+          <button type="button" (click)="subirRecetaCheckout()" [disabled]="subiendoReceta" class="btn-primary" style="margin-top: 15px; background: #1a2e4a; border: none; padding: 10px 16px; border-radius: 8px; color: white; font-weight: 700; width: 100%; cursor: pointer;">
+            {{ subiendoReceta ? 'Subiendo y validando receta...' : 'Subir y Vincular Receta' }}
+          </button>
+        </div>
+
+        <div *ngIf="recetaSubidaExito" style="margin-top: 15px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 6px; text-align: center; color: #166534; font-weight: 600;" class="anim-fade">
+          Receta vinculada
+        </div>
+      </section>
+
+      <section class="pago-seccion">
+        <div class="seccion-header">
+          <span class="paso-num">2</span>
+          <h2>Método de Pago</h2>
+        </div>
+
+        <div class="metodos-tabs">
+          <button class="tab-btn" [class.active]="metodoSeleccionado === 'TARJETA'"
+            (click)="seleccionarMetodo('TARJETA')">
+            Tarjeta Crédito/Débito
+          </button>
+          <button class="tab-btn" [class.active]="metodoSeleccionado === 'YAPE'" (click)="seleccionarMetodo('YAPE')">
+            Yape
+          </button>
+        </div>
+
+        <div *ngIf="metodoSeleccionado === 'TARJETA'" class="form-dinamico anim-fade">
+          <div class="tarjeta-indicador">
+            <span class="tipo-badge" style="background: #6366f1;">Pago Seguro por Stripe</span>
+          </div>
+
+          <div class="form-group">
+            <label>Nombre del titular <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="formPago.nombreTarjeta" placeholder="Ej: JUNIOR CASTILLA"
+              class="form-input uppercase" />
+          </div>
+
+          <div class="form-group">
+            <label>Número de Tarjeta <span class="req">*</span></label>
+            <div id="stripe-card-number" class="form-input" style="padding: 12px; background: white; min-height: 44px;">
+            </div>
+          </div>
+
+          <div class="form-row-doble">
+            <div class="form-group">
+              <label>Vencimiento <span class="req">*</span></label>
+              <div id="stripe-card-expiry" class="form-input"
+                style="padding: 12px; background: white; min-height: 44px;"></div>
+            </div>
+            <div class="form-group">
+              <label>CVV / CVC <span class="req">*</span></label>
+              <div id="stripe-card-cvc" class="form-input" style="padding: 12px; background: white; min-height: 44px;">
+              </div>
+            </div>
+          </div>
+
+          <div id="card-errors" role="alert"
+            style="color: #e11d48; font-size: 13px; margin-top: 8px; font-weight: 500;"></div>
+        </div>
+
+        <div *ngIf="metodoSeleccionado === 'YAPE'" class="form-dinamico anim-fade yape-panel">
+
+          <div *ngIf="yapePaso === 1">
+            <div class="yape-header-info">
+              <div class="yape-badge-logo">Yape</div>
+              <p>Te enviaremos un código de 6 dígitos a tu correo para confirmar el pago.</p>
+            </div>
+            <div class="form-group">
+              <label>Número de celular Yape <span class="req">*</span></label>
+              <div class="input-prefix-wrap">
+                <span class="input-prefix">+51</span>
+                <input type="text" [(ngModel)]="formPago.numeroCelular" maxlength="9" placeholder="9XX XXX XXX"
+                  class="form-input with-prefix font-mono" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Correo donde recibirás el código <span class="req">*</span></label>
+              <input type="email" [(ngModel)]="formPago.correoYape" placeholder="tucorreo@gmail.com"
+                class="form-input" />
+              <span class="field-hint">Revisa también tu carpeta de spam</span>
+            </div>
+            <button class="btn-enviar-codigo" (click)="enviarCodigoYape()" [disabled]="enviandoCodigo">
+              <span *ngIf="!enviandoCodigo">Enviar código de verificación</span>
+              <span *ngIf="enviandoCodigo">Enviando...</span>
+            </button>
+            <div *ngIf="mensajeExito" class="feedback-exito">{{ mensajeExito }}</div>
+          </div>
+
+          <div *ngIf="yapePaso === 2">
+            <div class="cuenta-verificada">
+              <span class="badge-ok">✓ Código enviado a {{ correoDestino }}</span>
+              <button class="btn-link" (click)="yapePaso = 1">Cambiar</button>
+            </div>
+            <div class="sms-card">
+              <div class="sms-card-header">
+                <span class="sms-card-icon">📱</span>
+                <div>
+                  <strong>Yape BCP</strong>
+                  <p>Revisa tu correo con el asunto: <em>"Tu código de aprobación Yape"</em></p>
+                </div>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+              <label>Ingresa el código de 6 dígitos</label>
+              <input type="text" [(ngModel)]="formPago.tokenYape" maxlength="6" placeholder="000000"
+                class="form-input font-mono token-input" />
+              <span class="field-hint">El código es válido por 10 minutos</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="mensajeError" class="feedback-error">⚠ {{ mensajeError }}</div>
+      </section>
+    </main>
+
+    <aside class="panel-boleta">
+      <div class="boleta-header">
+        <h3>FarmaCode</h3>
+        <p class="fecha-boleta">Resumen de pedido</p>
+      </div>
+
+      <div class="boleta-productos">
+        <p class="productos-titulo">Productos</p>
+        <div class="producto-item" *ngFor="let item of productosCarrito">
+          <div class="producto-info">
+            <span class="producto-nombre">{{ item.producto.nombre }}</span>
+            <span class="producto-cantidad">× {{ item.cantidad }}</span>
+          </div>
+          <span class="producto-precio">
+            S/ {{ (item.producto.precioVenta * item.cantidad) | number:'1.2-2' }}
+          </span>
+        </div>
+        <div *ngIf="productosCarrito.length === 0" class="sin-productos">
+          No se pudieron cargar los productos.
+        </div>
+      </div>
+
+      <div class="boleta-body">
+
+        <div class="resumen-linea">
+          <span>Subtotal (Base Imponible)</span>
+          <span>S/ {{ subtotalBase | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-linea">
+          <span>IGV (18%)</span>
+          <span>S/ {{ igv | number:'1.2-2' }}</span>
+        </div>
+        
+        <div class="resumen-linea descuento" *ngIf="descuentoTotal > 0">
+          <span>Descuento</span>
+          <span style="color: #dc2626; font-weight: 700;">− S/ {{ descuentoTotal | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="resumen-linea">
+          <span>Envío</span>
+          <span [class.envio-gratis]="costoEnvio === 0">
+            {{ costoEnvio === 0 ? 'Gratis' : 'S/ ' + (costoEnvio | number:'1.2-2') }}
+          </span>
+        </div>
+
+        <div class="cupon-area">
+          <label>Código Promocional</label>
+          <div class="cupon-input-box">
+            <input type="text" [(ngModel)]="codigoCupon" placeholder="BIENVENIDA-XXXXX" [disabled]="cuponAplicado"
+              class="form-input cupon-input" />
+            <button (click)="aplicarCupon()" [disabled]="cuponAplicado" class="btn-aplicar">Canjear</button>
+          </div>
+        </div>
+        <p class="cupon-exito-msg" *ngIf="cuponAplicado"> Cupón {{ codigoAplicado }} aplicado (−{{ (descuento /
+          subtotal) * 100 | number:'1.0-0' }}%)</p>
+      </div>
+
+      <div class="boleta-footer">
+        <div class="total-linea">
+          <span>Total a pagar</span>
+          <span class="precio-final">S/ {{ total | number:'1.2-2' }}</span>
+        </div>
+        <button class="btn-pagar-checkout" (click)="ejecutarPago()" [disabled]="procesandoPago || (requiereReceta && !recetaSubidaExito)"
+          [style.opacity]="procesandoPago || (requiereReceta && !recetaSubidaExito) ? '0.5' : '1'">
+          <span *ngIf="!procesandoPago">Procesar Pago Seguro</span>
+          <span *ngIf="procesandoPago">Procesando...</span>
+        </button>
+        <p class="legal-text">Transacción cifrada bajo estándar PCI-DSS.</p>
+      </div>
+    </aside>
+  </div>
+</div>

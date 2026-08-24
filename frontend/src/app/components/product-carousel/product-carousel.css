@@ -1,0 +1,156 @@
+/* ===== TÍTULO OFERTAS IMPERDIBLES ===== */
+.ofertas-title {
+  font-size: 1.25rem;
+  background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.3px;
+}
+
+/* ===== BADGE "HOT DEAL" ANIMADO ===== */
+.badge-oferta-pulse {
+  display: inline-block;
+  background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  animation: pulseOffer 1.8s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+@keyframes pulseOffer {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35); }
+  50%       { transform: scale(1.06); box-shadow: 0 6px 18px rgba(239, 68, 68, 0.55); }
+}
+
+/* ===== BADGE DE PORCENTAJE DE DESCUENTO ===== */
+.descuento-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 8px;
+  z-index: 2;
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
+  letter-spacing: 0.3px;
+}
+
+/* ===== PRECIO TACHADO (original) ===== */
+.precio-tachado {
+  display: block;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 500;
+  margin-bottom: 1px;
+}
+
+/* =========================================================
+   CARRUSEL ANGULAR NATIVO
+   ========================================================= */
+
+.carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Viewport: ventana recortada que muestra solo el slide activo */
+.carousel-viewport {
+  flex: 1;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+/* Track: fila de slides alineados horizontalmente */
+.carousel-track {
+  display: flex;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Cada slide ocupa exactamente el 100% del viewport */
+.carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+}
+
+/* ===== BOTONES DE FLECHA ===== */
+.carousel-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  padding: 0;
+}
+
+.carousel-btn:hover:not(:disabled) {
+  background: #2b78e4;
+  border-color: #2b78e4;
+  color: white;
+  box-shadow: 0 4px 14px rgba(43, 120, 228, 0.3);
+  transform: scale(1.08);
+}
+
+.carousel-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== DOTS INDICADORES ===== */
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.carousel-dot.active {
+  background: #2b78e4;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* ===== ESTADO VACÍO ===== */
+.sin-ofertas-msg {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 2px dashed #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}

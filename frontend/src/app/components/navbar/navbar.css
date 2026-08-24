@@ -1,0 +1,512 @@
+.fc-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── CONTAINER ────────────────────────── */
+.fc-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* ── TOP BAR ──────────────────────────── */
+.fc-topbar {
+    background: #0b2350;
+    padding: 8px 0;
+
+    .fc-container {
+        gap: 0;
+    }
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+}
+
+.topbar-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+
+    svg {
+        flex-shrink: 0;
+        opacity: 0.85;
+        stroke: rgba(255, 255, 255, 0.85);
+    }
+
+    strong {
+        color: #ffffff;
+        font-weight: 700;
+    }
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.topbar-user {
+    font-size: 12px;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.topbar-link {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    transition: color 0.2s;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+
+    &:hover {
+        color: #ffffff;
+    }
+}
+
+.topbar-action {
+    font: inherit;
+}
+
+.topbar-logout {
+    color: #fca5a5;
+
+    &:hover {
+        color: #ffffff;
+    }
+}
+
+.topbar-sep {
+    width: 1px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.25);
+    display: block;
+}
+
+/* ── MAIN BAR ─────────────────────────── */
+.fc-mainbar {
+    background: #ffffff;
+    padding: 18px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.fc-mainbar .fc-container {
+    justify-content: space-between;
+}
+
+/* ── LOGO ─────────────────────────────── */
+.fc-logo {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    text-decoration: none;
+    flex-shrink: 0;
+
+    .logo-farma {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0b2350;
+        letter-spacing: -0.5px;
+        line-height: 1;
+    }
+
+    .logo-code {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ea580c;
+        letter-spacing: -0.5px;
+        line-height: 1;
+    }
+}
+
+/* ── SEARCH ───────────────────────────── */
+.fc-search-wrapper {
+    flex: 1;
+    max-width: 700px;
+    margin: 0 40px;
+    position: relative;
+}
+
+.fc-search {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1.5px solid #dee2e6;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+
+    &:focus-within {
+        border-color: #2b78e4;
+    }
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0 16px;
+    font-size: 14px;
+    color: #495057;
+    height: 44px;
+    font-family: inherit;
+
+    &::placeholder {
+        color: #adb5bd;
+    }
+}
+
+.search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: #495057;
+    border: none;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.2s;
+
+    &:hover {
+        color: #0b2350;
+    }
+}
+
+/* ── TOOLS ────────────────────────────── */
+.fc-tools {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-shrink: 0;
+}
+
+.tools-sep {
+    width: 1px;
+    height: 22px;
+    background: #e9ecef;
+}
+
+.tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #0b2350;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: color 0.2s;
+    position: relative;
+
+    svg {
+        stroke: currentColor;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        color: #2b78e4;
+    }
+}
+
+.cart-badge {
+    background: #ea580c;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+/* ── CATEGORY BAR ─────────────────────── */
+.fc-catbar {
+    background: #ffffff;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.bn-inner {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 0;
+    gap: 28px;
+}
+
+.cats-dropdown-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.cats-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0b2350;
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+
+    svg {
+        stroke: #ffffff;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background: #0056b3;
+    }
+}
+
+.cats-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 1001;
+    min-width: 220px;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px -6px rgba(11, 35, 80, 0.2);
+    overflow: hidden;
+}
+
+.cats-dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #1f263e;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+    text-transform: capitalize;
+}
+
+.cats-dropdown-item:first-letter {
+    text-transform: uppercase;
+}
+
+.cats-dropdown-item:hover {
+    background: #e1f5fe;
+    color: #0b2350;
+}
+
+.bn-links {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.bn-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #1f263e;
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: color 0.2s;
+    white-space: nowrap;
+
+    svg {
+        flex-shrink: 0;
+        stroke: currentColor;
+        opacity: 0.6;
+    }
+
+    &:hover {
+        color: #2b78e4;
+    }
+}
+
+
+/* ── AUTOCOMPLETE (Algolia) ───────────────────────────────────────────── */
+.navbar-autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+    z-index: 1100;
+    overflow: hidden;
+}
+
+.navbar-autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.navbar-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.navbar-autocomplete-item:hover {
+    background: #f5f7ff;
+}
+
+.navbar-sug-thumb {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #f0f3fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.navbar-sug-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.navbar-sug-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.navbar-sug-nombre {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d3436;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.navbar-sug-categoria {
+    font-size: 11px;
+    color: #999;
+}
+
+.navbar-sug-precio {
+    font-size: 14px;
+    font-weight: 700;
+    color: #2b78e4;
+    white-space: nowrap;
+}
+
+.navbar-sug-add-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: #e8edff;
+    color: #2b78e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.navbar-sug-add-btn:hover {
+    background: #2b78e4;
+    color: #ffffff;
+}
+
+@media (max-width: 768px) {
+    .navbar-autocomplete-dropdown {
+        position: fixed;
+        top: 110px;
+        left: 14px;
+        right: 14px;
+    }
+}
+
+/* ── RESPONSIVE ───────────────────────── */
+@media (max-width: 768px) {
+    .fc-topbar {
+        display: none;
+    }
+
+    .fc-container {
+        padding: 0 14px;
+        gap: 12px;
+    }
+
+    .fc-search-wrapper {
+        margin: 0;
+        max-width: none;
+    }
+
+
+    .logo-farma,
+    .logo-code {
+        font-size: 20px;
+    }
+
+    .fc-tools .tool-label {
+        display: none;
+    }
+
+    .fc-catbar .fc-container {
+        overflow-x: auto;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    .bn-inner {
+        padding: 10px 0;
+        gap: 18px;
+    }
+
+    .bn-link {
+        font-size: 12.5px;
+    }
+
+    .cats-btn {
+        padding: 8px 14px;
+        font-size: 12.5px;
+    }
+}

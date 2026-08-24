@@ -1,0 +1,175 @@
+<div class="catalogo-container fade-in">
+    <section class="hero-carousel">
+        <div class="carousel-overlay">
+            <div class="carousel-text">
+                <button class="btn-banner" (click)="verOfertas()">Ver ofertas</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- DISPOSICIÓN DE DOS COLUMNAS -->
+    <div class="catalogo-layout">
+        <!-- COLUMNA IZQUIERDA: FILTROS LATERALES -->
+        <aside class="filtros-sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Filtros</span>
+                <button *ngIf="hayFiltrosActivos()" class="btn-limpiar-sidebar" (click)="limpiarFiltros()">
+                    Limpiar Filtros
+                </button>
+            </div>
+
+            <!-- Filtro de Categorías -->
+            <div class="filtro-grupo-sidebar">
+                <h4 class="filtro-titulo-sidebar">Categorías</h4>
+                <div class="categorias-vertical-list">
+                    <button type="button" class="categoria-item-sidebar"
+                        [class.active]="categoriaSeleccionadaId === null"
+                        (click)="seleccionarCategoria(null)">
+                        Todas
+                    </button>
+                    <button type="button" class="categoria-item-sidebar"
+                        *ngFor="let categoria of categorias"
+                        [class.active]="categoriaSeleccionadaId === categoria.idCategoria"
+                        (click)="seleccionarCategoria(categoria.idCategoria)">
+                        {{ categoria.nombre }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtro de Promociones -->
+            <div class="filtro-grupo-sidebar">
+                <h4 class="filtro-titulo-sidebar">Promociones</h4>
+                <div class="categorias-vertical-list">
+                    <button type="button" class="categoria-item-sidebar"
+                        [class.active]="soloOfertas"
+                        (click)="toggleSoloOfertas()">
+                        Solo en Oferta %
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtro de Ordenamiento -->
+            <div class="filtro-grupo-sidebar">
+                <h4 class="filtro-titulo-sidebar">Ordenar por</h4>
+                <select class="filtro-select-sidebar" [(ngModel)]="ordenamiento" (change)="aplicarOrdenamiento()">
+                    <option value="relevancia">Relevancia</option>
+                    <option value="precio_asc">Precio: menor a mayor</option>
+                    <option value="precio_desc">Precio: mayor a menor</option>
+                    <option value="nombre_asc">Nombre A-Z</option>
+                </select>
+            </div>
+
+            <!-- Filtro de Rango de Precio -->
+            <div class="filtro-grupo-sidebar">
+                <h4 class="filtro-titulo-sidebar">Precio Máximo</h4>
+                <div class="precio-rango-info">
+                    <span class="precio-label-range">S/ {{ precioMaximo }}</span>
+                </div>
+                <input type="range" class="filtro-range-sidebar"
+                    min="0" [max]="precioMaximoTotal"
+                    [(ngModel)]="precioMaximo"
+                    (input)="aplicarFiltros()" />
+            </div>
+        </aside>
+
+        <!-- COLUMNA DERECHA: MAIN CONTENT -->
+        <main class="catalogo-main-content">
+            <!-- Mensaje de estado -->
+            @if (mensaje) {
+                <section class="mensaje-panel">{{ mensaje }}</section>
+            }
+
+            <section class="productos-section">
+                <div class="section-header">
+                    <div class="header-title">
+                        <h2>
+                            @if (busqueda) {
+                                Resultados para "{{ busqueda }}"
+                                <span class="resultados-count">({{ productosFiltrados.length }})</span>
+                            } @else {
+                                Elegidos para ti
+                            }
+                        </h2>
+                        <div class="header-line"></div>
+                    </div>
+                    <button type="button" class="ver-mas ver-mas-btn" (click)="limpiarFiltros()">Ver todo →</button>
+                </div>
+
+                @if (cargando) {
+                    <div class="estado-vacio">
+                        <div class="spinner"></div>
+                        Buscando productos...
+                    </div>
+                } @else if (productosFiltrados.length === 0) {
+                    <div class="estado-vacio no-resultados">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none"
+                            stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <p>No encontramos productos para <strong>"{{ busqueda }}"</strong>.</p>
+                        <button class="btn-limpiar-filtros" (click)="limpiarFiltros()">Ver todos los productos</button>
+                    </div>
+                } @else {
+                    <div class="productos-grid">
+                        <div class="producto-card" *ngFor="let producto of productosFiltrados; trackBy: trackByProductoId">
+                            <a [routerLink]="['/catalogo/producto']" [queryParams]="{ producto: producto.id }" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex-grow: 1; cursor: pointer;">
+                                <div class="producto-imagen-container">
+                                    <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img">
+                                    @if (producto.etiquetaPromo) {
+                                        <span class="promo-badge" [class.bg-red]="producto.colorPromo === 'red'"
+                                            [class.bg-orange]="producto.colorPromo === 'orange'">
+                                            {{ producto.etiquetaPromo }}
+                                        </span>
+                                    }
+                                    @if (producto.requiereReceta) {
+                                        <span class="promo-badge" style="background-color: #8b5cf6 !important; right: auto; left: 15px; font-size: 10px; padding: 4px 8px; font-weight: 700; border-radius: 6px;">
+                                            Requiere Receta
+                                        </span>
+                                    }
+                                    <button type="button" class="btn-card-fav" [class.active]="isFavorito(producto.id)" 
+                                            (click)="toggleFavorito(producto.id, $event)" title="Favorito">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" 
+                                             [attr.fill]="isFavorito(producto.id) ? '#ea580c' : 'none'" 
+                                             [attr.stroke]="isFavorito(producto.id) ? '#ea580c' : 'currentColor'" 
+                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="producto-info">
+                                    <span class="producto-marca">FARMACODE</span>
+                                    <h3 class="producto-nombre" [innerHTML]="resaltarTexto(producto.nombre)"></h3>
+                                    <p class="producto-unidad">{{ producto.descripcion }}</p>
+                                    <div class="producto-precios">
+                                        <div class="precios-wrapper">
+                                            @if (producto.descuentoInfo && producto.descuentoInfo.percentage > 0) {
+                                                <span class="precio-actual">S/ {{ producto.precio | number:'1.2-2' }}</span>
+                                                <span class="precio-original">S/ {{ producto.precioOriginal | number:'1.2-2' }}</span>
+                                            } @else {
+                                                <span class="precio-actual">S/ {{ producto.precio | number:'1.2-2' }}</span>
+                                            }
+                                        </div>
+                                        <span class="precio-regular">
+                                            @if (producto.descuentoInfo && producto.descuentoInfo.percentage > 0) {
+                                                {{ producto.descuentoInfo.message }}
+                                            } @else {
+                                                Precio regular
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
+                            </a>
+                            <button type="button" class="btn-agregar" (click)="agregarProducto(producto)">
+                                <span>Agregar</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </section>
+        </main>
+    </div>
+</div>

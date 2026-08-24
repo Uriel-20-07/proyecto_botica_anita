@@ -1,0 +1,698 @@
+/* ==========================================================================
+   Contenedor Principal de la Página de Pedidos
+   ========================================================================== */
+.pedidos-page-wrapper {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+/* --- Animaciones de Entrada --- */
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  to {
+    opacity: 1;
+    max-height: 1200px;
+  }
+}
+
+/* ==========================================================================
+   Encabezado & Breadcrumbs
+   ========================================================================== */
+.pedidos-header {
+  margin-bottom: 2rem;
+}
+
+.header-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.breadcrumb-link {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+  color: #e85d04;
+}
+
+.breadcrumb-separator {
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.breadcrumb-current {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.page-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #1a2e4a;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.025em;
+}
+
+.page-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Estados Especiales (Carga, Error y Vacío)
+   ========================================================================== */
+
+/* --- Loading --- */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.spinner-ring {
+  width: 42px;
+  height: 42px;
+  border: 3.5px solid #f1f5f9;
+  border-top-color: #e85d04;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1.25rem;
+}
+
+.loading-state p {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Error --- */
+.error-state {
+  display: flex;
+  gap: 1.25rem;
+  padding: 2rem;
+  background: #fef2f2;
+  border-radius: 12px;
+  border: 1px solid #fee2e2;
+  margin: 2rem 0;
+}
+
+.error-icon {
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.error-content h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 0.35rem 0;
+}
+
+.error-content p {
+  font-size: 0.9rem;
+  color: #b91c1c;
+  margin: 0 0 1rem 0;
+}
+
+.btn-retry {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-retry:hover {
+  background: #dc2626;
+}
+
+/* --- Empty --- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4.5rem 2rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.empty-icon-wrapper {
+  background: #fff7ed;
+  color: #e85d04;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.empty-state h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a2e4a;
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-state p {
+  max-width: 500px;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+.btn-primary-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #1a2e4a;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(26, 46, 74, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-primary-custom:hover {
+  background: #e85d04;
+  box-shadow: 0 4px 12px rgba(232, 93, 4, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Listado de Pedidos (Tarjetas del Historial)
+   ========================================================================== */
+.pedidos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pedido-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.pedido-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  border-color: #cbd5e1;
+}
+
+.pedido-card.is-expanded {
+  border-color: #e85d04;
+  box-shadow: 0 10px 20px -5px rgba(232, 93, 4, 0.1);
+}
+
+/* --- Cabecera de la Tarjeta --- */
+.pedido-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  user-select: none;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.order-number-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.order-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.order-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.order-date {
+  font-size: 0.85rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.header-status-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.order-total-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.total-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.total-amount {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* --- Estados (Badges) --- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.status-badge.pagado,
+.status-badge.completado {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.status-badge.pagado .status-dot,
+.status-badge.completado .status-dot {
+  background: #10b981;
+}
+
+.status-badge.pendiente {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.status-badge.pendiente .status-dot {
+  background: #f59e0b;
+}
+
+.status-badge.cancelado {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.status-badge.cancelado .status-dot {
+  background: #ef4444;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* --- Acciones de Cabecera --- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-pdf-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #fff7ed;
+  color: #e85d04;
+  border: 1px solid #fed7aa;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-pdf-header:hover {
+  background: #e85d04;
+  color: white;
+  border-color: #e85d04;
+}
+
+.btn-toggle-details {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-toggle-details:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.pedido-card.is-expanded .btn-toggle-details {
+  transform: rotate(180deg);
+  background: #fff7ed;
+  color: #e85d04;
+  border-color: #fed7aa;
+}
+
+/* ==========================================================================
+   Detalles Expandidos del Pedido (Cuerpo)
+   ========================================================================== */
+.pedido-card-body {
+  display: none;
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.pedido-card.is-expanded .pedido-card-body {
+  display: block;
+}
+
+.details-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin-bottom: 1.25rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 2rem;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- Lista de Productos --- */
+.products-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.88rem;
+}
+
+.product-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.product-item:hover {
+  background: #f8fafc;
+}
+
+.product-img-wrapper {
+  width: 52px;
+  height: 52px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.product-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-placeholder {
+  color: #94a3b8;
+}
+
+.product-info-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.2rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-qty-price {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.product-item-subtotal {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+/* --- Resumen de Costos (Derecha) --- */
+.summary-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  padding: 1.25rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.summary-row .row-val {
+  font-weight: 600;
+  color: #334155;
+}
+
+.discount-row {
+  color: #dc2626;
+}
+
+.discount-row .row-val {
+  color: #dc2626;
+}
+
+.total-row {
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1a2e4a;
+}
+
+.total-row .row-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #e85d04;
+}
+
+/* --- Botón PDF Completo --- */
+.summary-actions {
+  margin-top: 1.25rem;
+}
+
+.btn-download-pdf-full {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #e85d04;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(232, 93, 4, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-download-pdf-full:hover {
+  background: #c2410c;
+  box-shadow: 0 4px 12px rgba(232, 93, 4, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-download-pdf-full:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   Responsive Design (Media Queries)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .pedidos-page-wrapper {
+    padding: 1rem 0.5rem 2.5rem;
+  }
+
+  .page-title {
+    font-size: 1.55rem;
+  }
+
+  .pedido-card-header {
+    padding: 1rem;
+  }
+
+  .order-number {
+    font-size: 0.95rem;
+  }
+
+  .total-amount {
+    font-size: 1rem;
+  }
+
+  .pedido-card-body {
+    padding: 0 1rem 1rem 1rem;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .summary-box {
+    padding: 1rem;
+  }
+
+  .header-status-info {
+    width: 100%;
+    justify-content: space-between;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+  }
+}
+
+.order-number-link {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  text-decoration: none;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.order-number-link:hover {
+  color: #f97316;
+  text-decoration: underline;
+}

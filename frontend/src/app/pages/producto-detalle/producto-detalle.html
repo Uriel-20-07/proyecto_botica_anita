@@ -1,0 +1,141 @@
+<div class="detalle-page-container">
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb">
+    <a [routerLink]="['/']">Inicio</a>
+    <span class="separator">/</span>
+    <a [routerLink]="['/catalogo']">Catálogo</a>
+    <span class="separator" *ngIf="producto">/</span>
+    <span class="active-item" *ngIf="producto">{{ producto.nombre }}</span>
+  </nav>
+
+  <!-- CARGANDO / ESTADO VACÍO -->
+  <div *ngIf="cargando" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando detalles del producto...</p>
+  </div>
+
+  <div *ngIf="!cargando && mensaje" class="error-container">
+    <p>{{ mensaje }}</p>
+    <a [routerLink]="['/catalogo']" class="btn-back">Volver al catálogo</a>
+  </div>
+
+  <!-- DETALLE DEL PRODUCTO -->
+  <div *ngIf="!cargando && producto" class="detalle-grid">
+    <!-- COLUMNA IZQUIERDA: IMAGEN -->
+    <div class="imagen-column">
+      <div class="card-imagen">
+        <span *ngIf="descuentoInfo && descuentoInfo.percentage > 0" class="promo-badge">
+          {{ descuentoInfo.message }}
+        </span>
+        <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img" />
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: INFORMACIÓN -->
+    <div class="info-column">
+      <!-- Mensaje de éxito al agregar -->
+      <div *ngIf="mensaje" class="alert-success">
+        {{ mensaje }}
+      </div>
+
+      <span class="brand-tag">{{ producto.categoriaNombre | uppercase }}</span>
+      <h1 class="product-name">{{ producto.nombre }}</h1>
+
+      <!-- Requiere receta warning -->
+      <div *ngIf="producto.requiereReceta" style="margin: 10px 0 15px; display: inline-flex; align-items: center; gap: 8px; background-color: #f3e8ff; border: 1.5px dashed #8b5cf6; border-radius: 10px; padding: 10px 16px; color: #6d28d9; font-weight: 700; font-size: 0.85rem;">
+          🔑 Requiere receta médica obligatoria para la compra.
+      </div>
+
+      <p class="product-summary">{{ producto.descripcion }}</p>
+
+      <!-- PRECIOS -->
+      <div class="price-section">
+        <div class="price-wrapper" *ngIf="descuentoInfo && descuentoInfo.percentage > 0">
+          <span class="label-regular">Precio regular:</span>
+          <span class="price-regular">S/ {{ producto.precioVenta | number:'1.2-2' }}</span>
+        </div>
+        <div class="price-wrapper promo">
+          <span class="label-promo" *ngIf="descuentoInfo && descuentoInfo.percentage > 0">Precio promocional:</span>
+          <span class="price-final">S/ {{ getPrecioFinal() | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <!-- PRESENTACIÓN -->
+      <div class="section-presentation">
+        <span class="label-section">Presentación</span>
+        <div class="presentation-chips">
+          <button class="chip active">Estándar</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- DESPACHO Y LOGÍSTICA -->
+      <div class="logistics-info">
+        <p><strong>Vendido y despachado por:</strong> <span class="vendor-highlight">FarmaCode</span></p>
+
+        <div class="delivery-methods">
+          <span class="label-section">Métodos de entrega disponibles:</span>
+          <div class="methods-grid">
+            <div class="method-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+              <div>
+                <span class="method-title">Despacho a domicilio</span>
+                <span class="method-status available">Disponible</span>
+              </div>
+            </div>
+
+            <div class="method-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <div>
+                <span class="method-title">Retiro en bodega</span>
+                <span class="method-status free">Gratis</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ACCIONES -->
+      <div class="actions-section">
+        <!-- Selector de Cantidad -->
+        <div class="qty-selector">
+          <button (click)="decrementar()" class="qty-btn">-</button>
+          <span class="qty-value">{{ cantidad }}</span>
+          <button (click)="incrementar()" class="qty-btn">+</button>
+        </div>
+
+        <!-- Botón Agregar -->
+        <button (click)="agregarAlCarrito()" class="btn-add-to-cart">
+          Agregar al carrito
+        </button>
+
+        <!-- Botón Favoritos -->
+        <button class="btn-fav" [class.active]="isFavorito()" (click)="toggleFavorito()" title="Agregar a favoritos">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" 
+            [attr.fill]="isFavorito() ? '#ea580c' : 'none'"
+            [attr.stroke]="isFavorito() ? '#ea580c' : 'currentColor'"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+            </path>
+          </svg>
+        </button>
+      </div>
+
+      <a [routerLink]="['/catalogo']" class="link-back-catalog">← Volver a todos los productos</a>
+    </div>
+  </div>
+</div>

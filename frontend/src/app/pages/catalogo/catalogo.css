@@ -1,0 +1,826 @@
+:host {
+    --primary-orange: #ff6b00;
+    --primary-red: #e63946;
+    --accent-blue: #00b4d8;
+    --bg-light: #f4f7f6;
+    --text-dark: #2d3436;
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.catalogo-container {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 30px 20px;
+    background-color: #ffffff;
+}
+
+/* Layout de dos columnas para filtros y catálogo */
+.catalogo-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 40px;
+    margin-top: 30px;
+    align-items: start;
+}
+
+@media (max-width: 992px) {
+    .catalogo-layout {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+}
+
+/* Sidebar de Filtros */
+.filtros-sidebar {
+    background: #ffffff;
+    border: 1px solid rgba(26, 42, 74, 0.08);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+}
+
+.filtros-sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.filtros-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.filtros-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(26, 42, 74, 0.1);
+    border-radius: 99px;
+}
+
+.filtros-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(26, 42, 74, 0.2);
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba(26, 42, 74, 0.06);
+    padding-bottom: 12px;
+}
+
+.sidebar-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1a2a4a;
+}
+
+.btn-limpiar-sidebar {
+    background: none;
+    border: none;
+    color: #ff6b00;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+}
+
+.btn-limpiar-sidebar:hover {
+    color: #d05303;
+    text-decoration: underline;
+}
+
+/* Grupos de filtro */
+.filtro-grupo-sidebar {
+    margin-bottom: 24px;
+}
+
+.filtro-grupo-sidebar:last-child {
+    margin-bottom: 0;
+}
+
+.filtro-titulo-sidebar {
+    font-size: 0.9rem;
+    font-weight: 750;
+    color: #1a2a4a;
+    margin: 0 0 14px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Categorías en lista vertical */
+.categorias-vertical-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.categoria-item-sidebar {
+    background: none;
+    border: 1px solid rgba(26, 42, 74, 0.08);
+    color: #2d3436;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.categoria-item-sidebar:hover {
+    border-color: #ff6b00;
+    color: #ff6b00;
+    background-color: rgba(255, 107, 0, 0.02);
+}
+
+.categoria-item-sidebar.active {
+    background-color: #1a2a4a;
+    border-color: #1a2a4a;
+    color: #ffffff;
+}
+
+/* Selector de ordenar */
+.filtro-select-sidebar {
+    width: 100%;
+    border: 1px solid rgba(26, 42, 74, 0.14);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #2d3436;
+    background: #ffffff;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filtro-select-sidebar:focus {
+    border-color: #ff6b00;
+}
+
+/* Slider de precio */
+.precio-rango-info {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1a2a4a;
+    margin-bottom: 8px;
+}
+
+.filtro-range-sidebar {
+    width: 100%;
+    accent-color: #ff6b00;
+    cursor: pointer;
+}
+
+.ver-mas-btn {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, color 0.2s;
+}
+.ver-mas-btn:hover {
+    transform: translateY(-1px);
+}
+
+.mensaje-panel,
+.estado-vacio {
+    background: #ffffff;
+    border: 1px solid rgba(26, 42, 74, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    color: var(--text-dark);
+    box-shadow: var(--shadow-soft);
+}
+
+/* --- Animación de Entrada --- */
+.fade-in {
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Hero Banner --- */
+.hero-carousel {
+    position: relative;
+    height: 350px;
+    background-image: url('/cuidate.png');
+    background-position: right top;
+    background-repeat: no-repeat;
+    background-size: cover;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 60px;
+}
+
+.carousel-text h1 {
+    color: white;
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.carousel-text h1 span {
+    color: var(--primary-orange);
+}
+
+.carousel-text p {
+    color: #ccc;
+    font-size: 1.2rem;
+    margin-bottom: 25px;
+}
+
+.btn-banner {
+    background: #0056B3;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+    margin-top: 150px;
+}
+
+.btn-banner:hover,
+.btn-banner:focus {
+    background: #004494;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,86,179,0.25);
+    outline: none;
+}
+
+/* --- Sección de Productos --- */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header-title h2 {
+    font-size: 28px;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.header-line {
+    width: 60px;
+    height: 4px;
+    background: var(--primary-orange, #ff6b00);
+    margin-top: 8px;
+    border-radius: 2px;
+}
+
+.ver-mas {
+    color: #000000;
+    font-weight: 600;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+.ver-mas:hover {
+    color: var(--primary-orange, #ff6b00);
+}
+
+/* --- Grid de Productos --- */
+.productos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 25px;
+}
+
+.producto-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    position: relative;
+}
+
+.producto-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.producto-imagen-container {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.producto-img {
+    max-height: 100%;
+    transition: 0.3s;
+}
+
+.producto-card:hover .producto-img {
+    transform: scale(1.05);
+}
+
+/* Badges */
+.promo-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 12px;
+    color: white;
+    z-index: 10;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.bg-orange {
+    background-color: #ff6b00 !important;
+}
+
+.bg-red {
+    background-color: #e63946 !important;
+}
+
+/* Tipografía */
+.producto-marca {
+    font-size: 10px;
+    color: #999;
+    letter-spacing: 1px;
+}
+
+.producto-nombre {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 5px 0;
+    color: var(--text-dark);
+    height: 42px;
+    overflow: hidden;
+}
+
+.tag-interesar {
+    background: #e0f7fa;
+    color: #007c89;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin: 10px 0;
+    align-self: center;
+}
+
+/* Precios */
+.producto-precios {
+    margin-top: auto;
+    text-align: center;
+}
+
+.precio-actual {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.precio-original {
+    font-size: 14px;
+    color: #bbb;
+    text-decoration: line-through;
+    margin-left: 8px;
+}
+
+.precio-regular {
+    display: block;
+    font-size: 10px;
+    color: #999;
+}
+
+/* Botón Agregar */
+.btn-agregar {
+    margin-top: 15px;
+    background: #0056B3;
+    border: 2px solid #0056B3;
+    color: white;
+    padding: 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-agregar:hover {
+    background: #004494;
+    border-color: #004494;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .hero-carousel {
+        padding: 0 24px;
+        height: 300px;
+    }
+
+    /* Disable background image on small screens for readability */
+    .hero-carousel {
+        background-image: url('/cuidate.png');
+        background-position: center;
+        background-size: cover;
+    }
+
+    .carousel-text {
+        max-width: 100%;
+    }
+
+    .carousel-text h1 {
+        font-size: 2.2rem;
+    }
+
+    .section-header {
+        align-items: flex-start;
+        gap: 12px;
+        flex-direction: column;
+    }
+
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ALGOLIA: Búsqueda, autocomplete y filtros avanzados
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sección de búsqueda Algolia ──────────────────────────────────────────── */
+.search-section {
+    margin: 0 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-input-group {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 2px solid rgba(26, 42, 74, 0.12);
+    border-radius: 16px;
+    padding: 6px 8px 6px 16px;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input-group:focus-within {
+    border-color: #003DFF;
+    box-shadow: 0 4px 20px rgba(0, 61, 255, 0.12);
+}
+
+.search-icon {
+    color: #999;
+    flex-shrink: 0;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: #2d3436;
+    background: transparent;
+    padding: 6px 0;
+}
+
+.search-input::placeholder {
+    color: #bbb;
+}
+
+.search-clear {
+    background: none;
+    border: none;
+    color: #bbb;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 50%;
+    transition: background 0.2s, color 0.2s;
+}
+
+.search-clear:hover {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.search-btn {
+    background: #003DFF;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    white-space: nowrap;
+}
+
+.search-btn:hover {
+    background: #0031cc;
+    transform: translateY(-1px);
+}
+
+/* ── Autocomplete dropdown ────────────────────────────────────────────────── */
+.autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+    overflow: hidden;
+    animation: dropdownFade 0.15s ease;
+}
+
+@keyframes dropdownFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover {
+    background: #f5f7ff;
+}
+
+.sug-add-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: #e8edff;
+    color: #003DFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.sug-add-btn:hover {
+    background: #003DFF;
+    color: #ffffff;
+}
+
+.sug-add-btn:active {
+    transform: scale(0.92);
+}
+
+.sug-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sug-nombre {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d3436;
+}
+
+.sug-categoria {
+    font-size: 11px;
+    color: #999;
+}
+
+.sug-precio {
+    font-size: 14px;
+    font-weight: 700;
+    color: #003DFF;
+}
+
+/* ── Badge Algolia ────────────────────────────────────────────────────────── */
+.algolia-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+    font-size: 11px;
+    color: #bbb;
+    padding-right: 4px;
+}
+
+/* ── Filtros avanzados (extendidos) ───────────────────────────────────────── */
+.filtros-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.filtros-controles {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.filtro-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filtro-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filtro-select {
+    border: 1px solid rgba(26, 42, 74, 0.14);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2d3436;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filtro-select:focus {
+    border-color: #003DFF;
+}
+
+.filtro-range {
+    width: 160px;
+    accent-color: #003DFF;
+    cursor: pointer;
+}
+
+.btn-limpiar-filtros {
+    background: none;
+    border: 1px solid #e63946;
+    color: #e63946;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+.btn-limpiar-filtros:hover {
+    background: #e63946;
+    color: white;
+}
+
+/* ── Estado vacío mejorado ────────────────────────────────────────────────── */
+.no-resultados {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.no-resultados p {
+    color: #888;
+    font-size: 16px;
+    margin: 0;
+}
+
+/* ── Spinner de carga ─────────────────────────────────────────────────────── */
+.estado-vacio {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 61, 255, 0.15);
+    border-top-color: #003DFF;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Resaltado de búsqueda ────────────────────────────────────────────────── */
+mark {
+    background: #fff3cd;
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 2px;
+}
+
+/* ── Contador de resultados ───────────────────────────────────────────────── */
+.resultados-count {
+    font-size: 16px;
+    font-weight: 400;
+    color: #888;
+    margin-left: 8px;
+}
+
+/* ── Responsive (Algolia) ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .search-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    .filtros-controles {
+        gap: 12px;
+    }
+
+    .filtro-range {
+        width: 120px;
+    }
+
+    .autocomplete-dropdown {
+        border-radius: 0 0 14px 14px;
+    }
+}
+
+/* Floating Card Favorite Button */
+.btn-card-fav {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #94a3b8;
+    z-index: 15;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+}
+
+.btn-card-fav:hover {
+    transform: scale(1.1);
+    color: var(--primary-orange, #e85d04);
+    background: #ffffff;
+}
+
+.btn-card-fav.active {
+    color: var(--primary-orange, #e85d04);
+    border-color: rgba(232, 93, 4, 0.1);
+    background: #fff3e6;
+}
