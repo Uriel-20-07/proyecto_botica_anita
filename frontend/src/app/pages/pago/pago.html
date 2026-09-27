@@ -74,12 +74,12 @@
             <label>Distrito <span class="req">*</span></label>
             <select [(ngModel)]="formPago.distrito" (change)="onDistritoChange()" class="form-input form-select">
               <option value="" disabled>Selecciona tu distrito</option>
-              <option *ngFor="let d of distritosArequipa" [value]="d">{{ d }}</option>
+              <option *ngFor="let d of distritosLima" [value]="d">{{ d }}</option>
             </select>
           </div>
           <div class="form-group">
             <label>Departamento</label>
-            <input type="text" value="Arequipa" class="form-input" readonly />
+            <input type="text" value="Lima" class="form-input" readonly />
           </div>
         </div>
 
@@ -112,7 +112,7 @@
             <label>Dirección Domiciliaria Detallada <span class="req">*</span></label>
             <input type="text" [(ngModel)]="formPago.direccionDetalle" class="form-input"
               placeholder="Ej: Calle Melgar 123, Dpto 202" />
-            <span class="field-hint">Ingresa la dirección exacta en Arequipa para el delivery a domicilio</span>
+            <span class="field-hint">Ingresa la dirección exacta en Lima para el delivery a domicilio</span>
           </div>
 
           <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">
@@ -125,7 +125,7 @@
         <div class="direccion-preview" *ngIf="formPago.distrito && formPago.direccionDetalle && !formPago.esUrgente">
           <span><strong>Lugar de recojo:</strong> {{ formPago.direccionDetalle }}<span *ngIf="formPago.referencia"> — {{
               formPago.referencia }}</span>,
-            <strong>{{ formPago.distrito }}</strong>, Arequipa</span>
+            <strong>{{ formPago.distrito }}</strong>, Lima</span>
         </div>
 
         <div class="direccion-preview urgent"
@@ -133,7 +133,7 @@
           style="border-left: 4px solid #e85d04; background: #fff8f5; padding: 12px; border-radius: 8px; margin-top: 15px;">
           <span><strong style="color: #e85d04;"> Envío Urgente a Domicilio:</strong> {{ formPago.direccionDetalle
             }}<span *ngIf="formPago.referencia"> — {{ formPago.referencia }}</span>,
-            <strong>{{ formPago.distrito }}</strong>, Arequipa</span>
+            <strong>{{ formPago.distrito }}</strong>, Lima</span>
         </div>
       </section>
 

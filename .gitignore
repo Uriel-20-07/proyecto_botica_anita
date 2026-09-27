@@ -416,3 +416,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Agregados locales (compilados)
+backend/target/
+frontend/dist/
+frontend/.angular/
+*.log

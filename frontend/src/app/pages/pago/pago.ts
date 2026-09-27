@@ -67,225 +67,115 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   codigoYapeGenerado: string = '';
   correoDestino: string = '';
 
-  readonly distritosArequipa: string[] = [
-    'Alto Selva Alegre', 'Arequipa (Cercado)', 'Cayma', 'Cerro Colorado',
-    'Characato', 'Chiguata', 'Jacobo Hunter', 'José Luis Bustamante y Rivero',
-    'La Joya', 'Mariano Melgar', 'Miraflores', 'Mollebaya', 'Paucarpata',
-    'Pocsi', 'Polobaya', 'Quequeña', 'Sabandía', 'Sachaca', 'San Juan de Siguas',
-    'San Juan de Tarucani', 'Santa Isabel de Siguas', 'Santa Rita de Siguas',
-    'Socabaya', 'Tiabaya', 'Uchumayo', 'Vitor', 'Yanahuara', 'Yarabamba',
-    'Yura'
+  readonly distritosLima: string[] = [
+    'Miraflores', 'San Isidro', 'Santiago de Surco', 'La Molina',
+    'San Borja', 'Jesús María', 'Lince', 'Pueblo Libre',
+    'Magdalena del Mar', 'San Miguel', 'Barranco', 'Chorrillos',
+    'Surquillo', 'Los Olivos', 'San Martín de Porres', 'Comas',
+    'Independencia', 'San Juan de Lurigancho', 'Santa Anita', 'Ate',
   ];
 
   readonly puntosRecojoPorDistrito: { [key: string]: { nombre: string; direccion: string; referencia: string }[] } = {
-    'Alto Selva Alegre': [
-      { nombre: 'Bodega San Lucho', direccion: 'Av. Arequipa 302', referencia: 'Frente a la Plaza de Alto Selva Alegre' },
-      { nombre: 'Minimarket Lucerito', direccion: 'Calle España 512', referencia: 'A una cuadra de la comisaría' },
-      { nombre: 'Tienda La Esperanza', direccion: 'Av. Las Torres 104', referencia: 'Al lado de la I.E. Santa Rosa de Lima' },
-      { nombre: 'Bodega Rosita', direccion: 'Pasaje Florida 205', referencia: 'Frente al Parque de la Juventud' },
-      { nombre: 'Minimarket El Sol', direccion: 'Calle Arica 418', referencia: 'Cerca al mercado principal de ASA' }
-    ],
-    'Arequipa (Cercado)': [
-      { nombre: 'Bodega La Merced', direccion: 'Calle La Merced 204', referencia: 'A media cuadra de la Plaza de Armas' },
-      { nombre: 'Minimarket El Misti', direccion: 'Calle San Juan de Dios 315', referencia: 'Frente a la galería comercial' },
-      { nombre: 'Tienda Jerusalén', direccion: 'Calle Jerusalén 408', referencia: 'Al costado del banco de la Nación' },
-      { nombre: 'Bodega Santo Domingo', direccion: 'Calle Santo Domingo 112', referencia: 'Frente a la iglesia Santo Domingo' },
-      { nombre: 'Minimarket Central', direccion: 'Calle Mercaderes 220', referencia: 'Cerca al pasaje peatonal' }
-    ],
-    'Cayma': [
-      { nombre: 'Bodega Cayma Centro', direccion: 'Av. Cayma 605', referencia: 'Frente a la plaza principal de Cayma' },
-      { nombre: 'Minimarket El Solitario', direccion: 'Calle Melgar 102', referencia: 'Cerca al mirador de Carmen Alto' },
-      { nombre: 'Tienda Bolognesi', direccion: 'Av. Bolognesi 410', referencia: 'Al lado del policlínico de Cayma' },
-      { nombre: 'Bodega La Tradición', direccion: 'Calle Tronchadero 304', referencia: 'Frente a la posta médica' },
-      { nombre: 'Minimarket Los Arcos', direccion: 'Av. Ramón Castilla 715', referencia: 'Cerca al puente Chilina' }
-    ],
-    'Cerro Colorado': [
-      { nombre: 'Bodega El Misti Colorado', direccion: 'Av. Aviación 1102', referencia: 'Frente al centro comercial Arequipa Center' },
-      { nombre: 'Minimarket Zamácola', direccion: 'Calle Italia 205', referencia: 'Cerca a la Plaza de Zamácola' },
-      { nombre: 'Tienda Libertad', direccion: 'Av. Villa Hermosa 412', referencia: 'Al lado del mercado de Cerro Colorado' },
-      { nombre: 'Bodega Las Flores', direccion: 'Calle Alfonso Ugarte 308', referencia: 'Frente a la comisaría de Cerro Colorado' },
-      { nombre: 'Minimarket Challapampa', direccion: 'Av. Metropolitana 501', referencia: 'Cerca a la zona residencial Challapampa' }
-    ],
-    'Characato': [
-      { nombre: 'Bodega Characato Real', direccion: 'Calle Grau 105', referencia: 'Frente a la Plaza de Armas de Characato' },
-      { nombre: 'Minimarket Sabandía', direccion: 'Av. Characato 304', referencia: 'Al lado del paradero final de buses' },
-      { nombre: 'Tienda El Manantial', direccion: 'Calle Bolognesi 201', referencia: 'Frente al ojo de agua de Characato' },
-      { nombre: 'Bodega Tradición Loncca', direccion: 'Av. Arequipa 512', referencia: 'Cerca de la municipalidad' },
-      { nombre: 'Minimarket El Campo', direccion: 'Calle Melgar 108', referencia: 'Frente a la cancha de toros' }
-    ],
-    'Chiguata': [
-      { nombre: 'Bodega Chiguata Centro', direccion: 'Calle Real 204', referencia: 'Frente a la Plaza Principal de Chiguata' },
-      { nombre: 'Tienda El Pino', direccion: 'Av. Pichu Pichu 102', referencia: 'A una cuadra de la iglesia Espíritu Santo' },
-      { nombre: 'Bodega La Campiña', direccion: 'Calle La Libertad 305', referencia: 'Cerca al complejo deportivo' },
-      { nombre: 'Minimarket San Bernardo', direccion: 'Calle Bolognesi 115', referencia: 'Frente a la posta de salud de Chiguata' },
-      { nombre: 'Tienda El Mirador de Chiguata', direccion: 'Calle Melgar 402', referencia: 'Cerca a la entrada del distrito' }
-    ],
-    'Jacobo Hunter': [
-      { nombre: 'Bodega Hunter', direccion: 'Av. Viña del Mar 402', referencia: 'Frente al municipio de Jacobo Hunter' },
-      { nombre: 'Minimarket El Bosque', direccion: 'Calle Arica 215', referencia: 'Cerca al mirador de Hunter' },
-      { nombre: 'Tienda San Francisco', direccion: 'Av. San Miguel 308', referencia: 'Frente al colegio República de Francia' },
-      { nombre: 'Bodega La Colina', direccion: 'Calle Los Libertadores 120', referencia: 'Al costado de la posta de salud' },
-      { nombre: 'Minimarket Milagritos', direccion: 'Av. Mariscal Cáceres 604', referencia: 'Frente al mercado principal de Hunter' }
-    ],
-    'José Luis Bustamante y Rivero': [
-      { nombre: 'Minimarket Bustamante', direccion: 'Av. Dolores 124', referencia: 'Frente a la zona de restaurantes' },
-      { nombre: 'Bodega Las Brisas', direccion: 'Av. Estados Unidos 315', referencia: 'Cerca al óvalo de los Bomberos' },
-      { nombre: 'Tienda Los Portales', direccion: 'Calle Colón 208', referencia: 'Frente a la urbanización Satélite' },
-      { nombre: 'Bodega La Alborada', direccion: 'Av. Pizarro 410', referencia: 'Al costado de la comisaría de Bustamante' },
-      { nombre: 'Minimarket Tres de Octubre', direccion: 'Calle Lambayeque 502', referencia: 'Cerca a la Av. Andres Avelino Cáceres' }
-    ],
-    'La Joya': [
-      { nombre: 'Bodega La Joya Centro', direccion: 'Av. 2 de Mayo 104', referencia: 'Frente a la plaza principal de La Joya' },
-      { nombre: 'Minimarket El Cruce', direccion: 'Panamericana Sur Km. 965', referencia: 'En el cruce principal de La Joya' },
-      { nombre: 'Tienda San Isidro', direccion: 'Calle Bolognesi 302', referencia: 'Cerca al hospital de La Joya' },
-      { nombre: 'Bodega El Valle', direccion: 'Av. Ferrocarril 205', referencia: 'Frente a la estación de tren' },
-      { nombre: 'Minimarket Santa Rosa', direccion: 'Calle Real 410', referencia: 'Cerca a la municipalidad' }
-    ],
-    'Mariano Melgar': [
-      { nombre: 'Bodega Melgar Centro', direccion: 'Av. Lima 602', referencia: 'Frente a la plaza Umachiri de Mariano Melgar' },
-      { nombre: 'Minimarket La Victoria', direccion: 'Calle Comandante Canga 315', referencia: 'Cerca de la posta médica' },
-      { nombre: 'Tienda El Misti Melgariano', direccion: 'Av. Simón Bolívar 804', referencia: 'Al lado del mercadillo El Filtro' },
-      { nombre: 'Bodega Santa Rosa', direccion: 'Calle San Martín 208', referencia: 'Cerca al complejo deportivo' },
-      { nombre: 'Minimarket Las Flores', direccion: 'Av. Argentina 412', referencia: 'Frente a la comisaría de Mariano Melgar' }
-    ],
     'Miraflores': [
-      { nombre: 'Bodega Miraflores Centro', direccion: 'Av. Unión 502', referencia: 'Frente a la Plaza Mayta Cápac' },
-      { nombre: 'Minimarket San Antonio', direccion: 'Calle Teniente Rodríguez 314', referencia: 'A una cuadra del hospital Goyeneche' },
-      { nombre: 'Tienda Alameda', direccion: 'Av. Progreso 802', referencia: 'Frente al cuartel Salaverry' },
-      { nombre: 'Bodega Chapi', direccion: 'Calle Pasaje San Pedro 105', referencia: 'Cerca a la Iglesia Chapi Chico' },
-      { nombre: 'Minimarket El Porvenir', direccion: 'Calle Puno 408', referencia: 'Frente al complejo deportivo Miramar' }
+      { nombre: 'Bodega Larco', direccion: 'Av. Larco 880', referencia: 'Frente al óvalo de Miraflores' },
+      { nombre: 'Minimarket Kennedy', direccion: 'Av. Diagonal 360', referencia: 'Al lado del parque Kennedy' },
+      { nombre: 'Tienda Berlín', direccion: 'Calle Berlín 320', referencia: 'Cerca al malecón' },
     ],
-    'Mollebaya': [
-      { nombre: 'Bodega Mollebaya Centro', direccion: 'Calle Principal 102', referencia: 'Frente a la Plaza de Armas de Mollebaya' },
-      { nombre: 'Tienda El Mirador', direccion: 'Calle Bolognesi 205', referencia: 'Cerca al municipio' },
-      { nombre: 'Bodega Machahuaya', direccion: 'Av. Arequipa S/N', referencia: 'Frente al paradero final de colectivos' },
-      { nombre: 'Minimarket El Trigal', direccion: 'Calle Libertad 304', referencia: 'A una cuadra de la posta de salud' },
-      { nombre: 'Tienda San Pedro de Mollebaya', direccion: 'Calle Melgar 112', referencia: 'Cerca a la zona arqueológica de Mollebaya' }
+    'San Isidro': [
+      { nombre: 'Bodega El Olivar', direccion: 'Calle Los Libertadores 240', referencia: 'Frente al bosque El Olivar' },
+      { nombre: 'Minimarket Camino Real', direccion: 'Av. Camino Real 390', referencia: 'Dentro del centro comercial' },
+      { nombre: 'Tienda Corpac', direccion: 'Av. Guardia Civil 820', referencia: 'Cerca a la zona empresarial' },
     ],
-    'Paucarpata': [
-      { nombre: 'Bodega Paucarpata Centro', direccion: 'Av. Kennedy 702', referencia: 'Frente a la Plaza de Paucarpata' },
-      { nombre: 'Minimarket Miguel Grau', direccion: 'Calle El Sol 204', referencia: 'Cerca al mercado 3 de Octubre' },
-      { nombre: 'Tienda Los Balcones', direccion: 'Calle Colón 315', referencia: 'Al lado del centro de salud Pedro P. Díaz' },
-      { nombre: 'Bodega Bellavista', direccion: 'Av. Jesús 1104', referencia: 'Frente al cementerio de Paucarpata' },
-      { nombre: 'Minimarket La Campiña Paucarpata', direccion: 'Calle Progreso 508', referencia: 'Cerca al arco de Paucarpata' }
+    'Santiago de Surco': [
+      { nombre: 'Bodega Surco Viejo', direccion: 'Av. Ayacucho 640', referencia: 'Frente a la plaza de Surco' },
+      { nombre: 'Minimarket El Polo', direccion: 'Av. El Polo 520', referencia: 'Cerca a la universidad' },
+      { nombre: 'Tienda Los Precursores', direccion: 'Av. Los Precursores 1050', referencia: 'Al lado del Jockey Plaza' },
     ],
-    'Pocsi': [
-      { nombre: 'Bodega Pocsi Centro', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza Principal de Pocsi' },
-      { nombre: 'Tienda La Tradición de Pocsi', direccion: 'Calle Bolognesi S/N', referencia: 'Cerca de la Iglesia de Pocsi' },
-      { nombre: 'Bodega El Misti Pocsi', direccion: 'Av. Chiguata S/N', referencia: 'Al lado de la posta de Pocsi' },
-      { nombre: 'Minimarket El Campo Pocsi', direccion: 'Calle Principal 104', referencia: 'Frente a la municipalidad' },
-      { nombre: 'Tienda San Salvador', direccion: 'Calle Melgar 202', referencia: 'Cerca al paradero comunal' }
+    'La Molina': [
+      { nombre: 'Bodega La Molina Centro', direccion: 'Av. La Molina 1165', referencia: 'Frente a la municipalidad' },
+      { nombre: 'Minimarket Rinconada', direccion: 'Av. La Rinconada 980', referencia: 'Cerca a la universidad agraria' },
+      { nombre: 'Tienda Santa Patricia', direccion: 'Av. Santa Patricia 410', referencia: 'Frente al parque' },
     ],
-    'Polobaya': [
-      { nombre: 'Bodega Polobaya Centro', direccion: 'Calle Principal 105', referencia: 'Frente a la Plaza de Polobaya' },
-      { nombre: 'Tienda Santuario', direccion: 'Camino a Chapi S/N', referencia: 'Cerca al Santuario de la Virgen de Chapi' },
-      { nombre: 'Bodega Polobaya Chico', direccion: 'Calle Real S/N', referencia: 'Frente a la capilla principal' },
-      { nombre: 'Minimarket San José', direccion: 'Calle Bolognesi S/N', referencia: 'Al lado del puesto de salud' },
-      { nombre: 'Tienda El Agricultor', direccion: 'Calle Melgar S/N', referencia: 'Cerca al local comunal' }
+    'San Borja': [
+      { nombre: 'Bodega San Borja Sur', direccion: 'Av. San Borja Sur 890', referencia: 'Frente a la rambla' },
+      { nombre: 'Minimarket La Cultura', direccion: 'Av. De la Cultura 400', referencia: 'Cerca a los ministerios' },
+      { nombre: 'Tienda Las Artes', direccion: 'Av. Las Artes 560', referencia: 'Al lado del teatro' },
     ],
-    'Quequeña': [
-      { nombre: 'Bodega Quequeña Centro', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza de Quequeña' },
-      { nombre: 'Tienda Los Mártires', direccion: 'Calle Libertad S/N', referencia: 'Cerca a la quebrada de Quequeña' },
-      { nombre: 'Bodega Quequeña Antigua', direccion: 'Calle Sucre S/N', referencia: 'Frente a la capilla tradicional' },
-      { nombre: 'Minimarket El Valle Quequeña', direccion: 'Calle Bolognesi S/N', referencia: 'Al lado de la posta médica' },
-      { nombre: 'Tienda El Mirador Quequeña', direccion: 'Av. Arequipa S/N', referencia: 'Cerca a la zona turística' }
+    'Jesús María': [
+      { nombre: 'Bodega Jesús María', direccion: 'Av. Brasil 2450', referencia: 'Frente al mercado San José' },
+      { nombre: 'Minimarket Real Plaza', direccion: 'Av. Garcilaso 2300', referencia: 'Dentro del centro comercial' },
+      { nombre: 'Tienda Arnaldo Márquez', direccion: 'Av. Arnaldo Márquez 1750', referencia: 'Cerca a la municipalidad' },
     ],
-    'Sabandía': [
-      { nombre: 'Bodega El Molino Sabandía', direccion: 'Av. Sabandía 204', referencia: 'Frente al Molino de Sabandía' },
-      { nombre: 'Minimarket Sabandía Real', direccion: 'Calle Grau 102', referencia: 'A una cuadra de la plaza principal' },
-      { nombre: 'Tienda Los Andenes', direccion: 'Av. Characato 305', referencia: 'Frente al paradero principal de Sabandía' },
-      { nombre: 'Bodega La Campiña Sabandía', direccion: 'Calle Bolognesi 410', referencia: 'Cerca del restaurant El Turco' },
-      { nombre: 'Minimarket San Martín', direccion: 'Calle Melgar 212', referencia: 'Frente al colegio de Sabandía' }
+    'Lince': [
+      { nombre: 'Bodega Lince Centro', direccion: 'Av. Petit Thouars 2200', referencia: 'Frente al parque Castilla' },
+      { nombre: 'Minimarket Risso', direccion: 'Jr. Risso 360', referencia: 'Dentro de la galería' },
+      { nombre: 'Tienda Canevaro', direccion: 'Av. Canevaro 900', referencia: 'Cerca al hospital' },
     ],
-    'Sachaca': [
-      { nombre: 'Bodega Sachaca Centro', direccion: 'Calle Mariscal Castilla 302', referencia: 'Frente a la Plaza de Sachaca' },
-      { nombre: 'Minimarket Pampa de Camarones', direccion: 'Av. Fernandini 415', referencia: 'Cerca a la Iglesia de Pampa de Camarones' },
-      { nombre: 'Tienda Tahuaycani', direccion: 'Av. Tahuaycani 104', referencia: 'Al lado de la urbanización Tahuaycani' },
-      { nombre: 'Bodega El Mirador Sachaca', direccion: 'Calle Bolognesi 504', referencia: 'Cerca al mirador tradicional' },
-      { nombre: 'Minimarket Arrayanes', direccion: 'Calle Los Arrayanes 210', referencia: 'Frente al club de golf' }
+    'Pueblo Libre': [
+      { nombre: 'Bodega Bolívar', direccion: 'Av. Bolívar 1200', referencia: 'Frente a la municipalidad' },
+      { nombre: 'Minimarket Sucre', direccion: 'Av. Sucre 1080', referencia: 'Cerca a la cruz del viajero' },
+      { nombre: 'Tienda La Mar', direccion: 'Av. La Mar 2275', referencia: 'Al lado del mercado' },
     ],
-    'San Juan de Siguas': [
-      { nombre: 'Bodega Siguas Centro', direccion: 'Panamericana Sur Km. 940', referencia: 'En la plaza de San Juan de Siguas' },
-      { nombre: 'Tienda El Valle de Siguas', direccion: 'Calle Real S/N', referencia: 'Frente al puesto de salud de Siguas' },
-      { nombre: 'Bodega La Unión Siguas', direccion: 'Av. Arequipa S/N', referencia: 'Cerca al puente Siguas' },
-      { nombre: 'Minimarket San Juan', direccion: 'Calle Bolognesi S/N', referencia: 'Frente a la municipalidad' },
-      { nombre: 'Tienda Agraria Siguas', direccion: 'Calle Melgar S/N', referencia: 'Al lado de la junta de regantes' }
+    'Magdalena del Mar': [
+      { nombre: 'Bodega Magdalena', direccion: 'Jr. Castilla 620', referencia: 'Frente a la plaza principal' },
+      { nombre: 'Minimarket Brasil', direccion: 'Av. Brasil 3800', referencia: 'Cerca al malecón' },
+      { nombre: 'Tienda Echenique', direccion: 'Jr. Echenique 450', referencia: 'Al lado de la iglesia' },
     ],
-    'San Juan de Tarucani': [
-      { nombre: 'Bodega Tarucani Centro', direccion: 'Calle Principal S/N', referencia: 'Frente a la Plaza de San Juan de Tarucani' },
-      { nombre: 'Tienda El Altiplano', direccion: 'Av. Salinas S/N', referencia: 'Cerca a la laguna de Salinas' },
-      { nombre: 'Bodega Vicuña Tarucani', direccion: 'Calle Real S/N', referencia: 'Frente a la posta de salud' },
-      { nombre: 'Minimarket Tarucani', direccion: 'Calle Bolognesi S/N', referencia: 'Al lado del puesto policial' },
-      { nombre: 'Tienda San Juanito', direccion: 'Calle Melgar S/N', referencia: 'Cerca al colegio agropecuario' }
+    'San Miguel': [
+      { nombre: 'Bodega San Miguel', direccion: 'Av. Universitaria 2200', referencia: 'Frente a Plaza San Miguel' },
+      { nombre: 'Minimarket Costanera', direccion: 'Av. Costanera 1500', referencia: 'Cerca al malecón' },
+      { nombre: 'Tienda Riva Agüero', direccion: 'Av. Riva Agüero 1400', referencia: 'Frente al parque' },
     ],
-    'Santa Isabel de Siguas': [
-      { nombre: 'Bodega Santa Isabel', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza de Santa Isabel de Siguas' },
-      { nombre: 'Tienda La Finca Siguas', direccion: 'Calle Bolognesi S/N', referencia: 'Cerca de la iglesia tradicional' },
-      { nombre: 'Bodega El Paraíso Siguas', direccion: 'Av. Siguas S/N', referencia: 'Frente a la posta médica' },
-      { nombre: 'Minimarket San Isidro Siguas', direccion: 'Calle Melgar S/N', referencia: 'Al lado de la municipalidad' },
-      { nombre: 'Tienda Isabelina', direccion: 'Calle Libertad S/N', referencia: 'Cerca al puente colgante de Siguas' }
+    'Barranco': [
+      { nombre: 'Bodega Barranco', direccion: 'Av. Grau 620', referencia: 'Frente al puente de los suspiros' },
+      { nombre: 'Minimarket Pedro de Osma', direccion: 'Av. Pedro de Osma 220', referencia: 'Cerca a la plaza' },
+      { nombre: 'Tienda El Faro', direccion: 'Jr. Centenario 130', referencia: 'Frente al faro' },
     ],
-    'Santa Rita de Siguas': [
-      { nombre: 'Bodega Santa Rita Centro', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza de Santa Rita de Siguas' },
-      { nombre: 'Minimarket Santa Rita', direccion: 'Calle Libertad 102', referencia: 'Al lado de la posta de salud' },
-      { nombre: 'Tienda Agrícola Siguas', direccion: 'Av. Panamericana S/N', referencia: 'Frente al banco de la Nación' },
-      { nombre: 'Bodega La Joyita Siguas', direccion: 'Calle Bolognesi S/N', referencia: 'Cerca al mercado de abastos' },
-      { nombre: 'Minimarket El Solitario Siguas', direccion: 'Calle Melgar S/N', referencia: 'Frente al complejo deportivo' }
+    'Chorrillos': [
+      { nombre: 'Bodega Chorrillos', direccion: 'Av. Huaylas 580', referencia: 'Frente a la plaza Matriz' },
+      { nombre: 'Minimarket Los Cedros', direccion: 'Av. Los Cedros 340', referencia: 'Cerca a la villa militar' },
+      { nombre: 'Tienda La Curva', direccion: 'Av. Defensores del Morro 1600', referencia: 'Frente al morro solar' },
     ],
-    'Socabaya': [
-      { nombre: 'Bodega Socabaya Centro', direccion: 'Av. Salaverry 402', referencia: 'Frente a la Plaza de Socabaya' },
-      { nombre: 'Minimarket San Martín de Socabaya', direccion: 'Calle San Martín 305', referencia: 'Cerca a la Villa Olímpica' },
-      { nombre: 'Tienda Horacio Zeballos', direccion: 'Calle Los Claveles 104', referencia: 'Frente al paradero final de Horacio Zeballos' },
-      { nombre: 'Bodega Lara', direccion: 'Calle Lara 208', referencia: 'Cerca de la posta médica de Lara' },
-      { nombre: 'Minimarket San Agustín', direccion: 'Av. Las Peñas 610', referencia: 'Frente a la urbanización Lara' }
+    'Surquillo': [
+      { nombre: 'Bodega Surquillo', direccion: 'Av. Angamos 1800', referencia: 'Frente al mercado N°2' },
+      { nombre: 'Minimarket Villarán', direccion: 'Av. Villarán 900', referencia: 'Cerca al estadio municipal' },
+      { nombre: 'Tienda Recavarren', direccion: 'Av. Recavarren 500', referencia: 'Al lado de la municipalidad' },
     ],
-    'Tiabaya': [
-      { nombre: 'Bodega Tiabaya Centro', direccion: 'Calle Real 304', referencia: 'Frente a la Plaza de Tiabaya' },
-      { nombre: 'Minimarket San José de Tiabaya', direccion: 'Av. Arequipa 512', referencia: 'Cerca del estadio municipal de Tiabaya' },
-      { nombre: 'Tienda Los Perales', direccion: 'Calle Melgar 104', referencia: 'Cerca a la zona de campiña' },
-      { nombre: 'Bodega Alata', direccion: 'Calle Alata 208', referencia: 'Frente a la posta de salud de Alata' },
-      { nombre: 'Minimarket El Túnel Tiabaya', direccion: 'Calle Bolognesi 410', referencia: 'Cerca a la entrada del túnel de Tiabaya' }
+    'Los Olivos': [
+      { nombre: 'Bodega Los Olivos', direccion: 'Av. Naranjal 1100', referencia: 'Cerca al mercado Covida' },
+      { nombre: 'Minimarket Covida', direccion: 'Av. Antúnez de Mayolo 900', referencia: 'Dentro de la urb. Covida' },
+      { nombre: 'Tienda Villa Sol', direccion: 'Av. Universitaria 5400', referencia: 'Frente al paradero' },
     ],
-    'Uchumayo': [
-      { nombre: 'Bodega Congata', direccion: 'Calle Principal Congata 402', referencia: 'Frente a la Plaza de Congata' },
-      { nombre: 'Minimarket Uchumayo Centro', direccion: 'Calle Real 204', referencia: 'Frente a la Plaza de Armas de Uchumayo' },
-      { nombre: 'Tienda Cerro Verde', direccion: 'Calle Bolognesi 105', referencia: 'Cerca de la garita de Cerro Verde' },
-      { nombre: 'Bodega El Misti de Uchumayo', direccion: 'Av. Arequipa S/N', referencia: 'Al lado de la posta de Uchumayo' },
-      { nombre: 'Minimarket La Estación Uchumayo', direccion: 'Calle Melgar 312', referencia: 'Cerca de la antigua estación de tren' }
+    'San Martín de Porres': [
+      { nombre: 'Bodega SMP', direccion: 'Av. Perú 3200', referencia: 'Frente al mercado Caquetá' },
+      { nombre: 'Minimarket Dueñas', direccion: 'Av. Dueñas 420', referencia: 'Cerca a la municipalidad' },
+      { nombre: 'Tienda Tomás Valle', direccion: 'Av. Tomás Valle 1500', referencia: 'Frente al hospital' },
     ],
-    'Vitor': [
-      { nombre: 'Bodega Vitor Centro', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza de Armas de Vitor' },
-      { nombre: 'Minimarket La Hacienda Vitor', direccion: 'Panamericana Sur Km. 950', referencia: 'Cerca de la entrada al valle de Vitor' },
-      { nombre: 'Tienda El Porvenir Vitor', direccion: 'Av. Arequipa S/N', referencia: 'Frente a la posta médica de Vitor' },
-      { nombre: 'Bodega San José Vitor', direccion: 'Calle Bolognesi S/N', referencia: 'Al lado de la municipalidad' },
-      { nombre: 'Minimarket Vitoriano', direccion: 'Calle Melgar S/N', referencia: 'Cerca a la cooperativa agraria' }
+    'Comas': [
+      { nombre: 'Bodega Comas', direccion: 'Av. Túpac Amaru 5200', referencia: 'Cerca a MegaPlaza' },
+      { nombre: 'Minimarket Retablo', direccion: 'Av. El Retablo 700', referencia: 'Dentro de la urb. El Retablo' },
+      { nombre: 'Tienda La Pascana', direccion: 'Av. La Pascana 300', referencia: 'Frente al mercado' },
     ],
-    'Yanahuara': [
-      { nombre: 'Bodega El Mirador Yanahuara', direccion: 'Calle Roma 102', referencia: 'A media cuadra del Mirador de Yanahuara' },
-      { nombre: 'Minimarket Yanahuara Centro', direccion: 'Av. Ejército 315', referencia: 'Frente al centro comercial Plaza Vea' },
-      { nombre: 'Tienda San Vicente', direccion: 'Calle Misti 408', referencia: 'Al lado del templo de Yanahuara' },
-      { nombre: 'Bodega Umacollo', direccion: 'Calle Melgar 212', referencia: 'Frente al parque de Umacollo' },
-      { nombre: 'Minimarket Chullo', direccion: 'Calle Chullo 504', referencia: 'Cerca a la clínica San Juan de Dios' },
-      { nombre: 'Bodega Los Arces', direccion: 'Calle Los Arces 118', referencia: 'Frente al parque Los Arces, Umacollo' },
-      { nombre: 'Minimarket La Estación', direccion: 'Av. Víctor Andrés Belaunde 240', referencia: 'A dos cuadras del óvalo Quiñones' },
-      { nombre: 'Bodega Santa Rosa Yanahuara', direccion: 'Calle Santa Rosa 325', referencia: 'Al costado de la parroquia Santa Rosa' },
-      { nombre: 'Tienda El Volcán', direccion: 'Calle El Volcán 510', referencia: 'Frente a la plazuela El Volcán' },
-      { nombre: 'Minimarket Yanahuara Express', direccion: 'Av. Ejército 620', referencia: 'Cerca al grifo Primax de Av. Ejército' }
+    'Independencia': [
+      { nombre: 'Bodega Independencia', direccion: 'Av. Los Jazmines 410', referencia: 'Cerca al colegio 3048 Santiago Antúnez de Mayolo' },
+      { nombre: 'Minimarket Payet', direccion: 'Av. Panamericana Norte 5100', referencia: 'Cerca al óvalo Payet' },
+      { nombre: 'Tienda Tahuantinsuyo', direccion: 'Av. Tahuantinsuyo 2100', referencia: 'Frente al mercado' },
     ],
-    'Yarabamba': [
-      { nombre: 'Bodega Yarabamba Centro', direccion: 'Calle Principal S/N', referencia: 'Frente a la Plaza de Armas de Yarabamba' },
-      { nombre: 'Tienda Tradición Yarabambina', direccion: 'Calle Libertad S/N', referencia: 'Cerca de la posta médica' },
-      { nombre: 'Bodega El Valle Sagrado Yarabamba', direccion: 'Av. Arequipa S/N', referencia: 'Frente al paradero final de buses' },
-      { nombre: 'Minimarket Yarabamba', direccion: 'Calle Bolognesi S/N', referencia: 'Al lado de la municipalidad' },
-      { nombre: 'Tienda El Mirador de Yarabamba', direccion: 'Calle Melgar S/N', referencia: 'Cerca de la zona campestre' }
+    'San Juan de Lurigancho': [
+      { nombre: 'Bodega SJL', direccion: 'Av. Próceres 4800', referencia: 'Frente a la estación del tren' },
+      { nombre: 'Minimarket Canto Grande', direccion: 'Av. Canto Grande 900', referencia: 'Cerca al mercado' },
+      { nombre: 'Tienda Bayóvar', direccion: 'Av. Bayóvar 600', referencia: 'Frente al paradero' },
     ],
-    'Yura': [
-      { nombre: 'Bodega Yura Viejo', direccion: 'Calle Real S/N', referencia: 'Frente a la Plaza de Yura Viejo' },
-      { nombre: 'Minimarket La Calera Yura', direccion: 'Calle Los Baños S/N', referencia: 'Cerca a los baños termales de Yura' },
-      { nombre: 'Tienda Estación Yura', direccion: 'Av. Principal S/N', referencia: 'Frente a la estación de tren' },
-      { nombre: 'Bodega Ciudad de Dios Yura', direccion: 'Av. Asociación Ciudad de Dios S/N', referencia: 'Cerca al mercado Ciudad de Dios' },
-      { nombre: 'Minimarket Yura Express', direccion: 'Calle Bolognesi S/N', referencia: 'Frente a la planta de cemento Yura' }
-    ]
+    'Santa Anita': [
+      { nombre: 'Bodega Santa Anita', direccion: 'Av. Los Eucaliptos 800', referencia: 'Frente al óvalo' },
+      { nombre: 'Minimarket Mall Aventura', direccion: 'Av. La Cultura 2100', referencia: 'Dentro del mall' },
+      { nombre: 'Tienda Colectora', direccion: 'Av. Colectora 350', referencia: 'Cerca a la municipalidad' },
+    ],
+    'Ate': [
+      { nombre: 'Bodega Ate', direccion: 'Av. Nicolás Ayllón 4200', referencia: 'Frente al mercado Ceres' },
+      { nombre: 'Minimarket Santa Clara', direccion: 'Av. Santa Clara 600', referencia: 'Dentro del centro comercial' },
+      { nombre: 'Tienda Salamanca', direccion: 'Av. Los Quechuas 1200', referencia: 'Frente al parque' },
+    ],
   };
 
   formPago: any = {
@@ -615,7 +505,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
       this.pagoService.procesarPago(datosPago).subscribe({
           next: () => {
               this.folioGenerado = `FC-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
-              this.direccionFinal = `${this.formPago.direccionDetalle}, ${this.formPago.distrito}, Arequipa`;
+              this.direccionFinal = `${this.formPago.direccionDetalle}, ${this.formPago.distrito}, Lima`;
               this.pagoExitoso = true;
               this.procesandoPago = false;
 

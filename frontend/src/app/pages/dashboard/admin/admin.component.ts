@@ -90,13 +90,12 @@ export class AdminDashboardComponent implements OnInit {
   reporteData: any = null;
   cargandoReportes: boolean = false;
 
-  readonly distritosArequipa: string[] = [
-    'Alto Selva Alegre', 'Arequipa (Cercado)', 'Cayma', 'Cerro Colorado',
-    'Characato', 'Chiguata', 'Jacobo Hunter', 'José Luis Bustamante y Rivero',
-    'La Joya', 'Mariano Melgar', 'Miraflores', 'Mollebaya', 'Paucarpata',
-    'Pocsi', 'Polobaya', 'Quequeña', 'Sabandía', 'Sachaca', 'San Juan de Siguas',
-    'San Juan de Tarucani', 'Santa Isabel de Siguas', 'Santa Rita de Siguas',
-    'Socabaya', 'Tiabaya', 'Uchumayo', 'Vitor', 'Yanahuara', 'Yarabamba', 'Yura'
+  readonly distritosLima: string[] = [
+    'Miraflores', 'San Isidro', 'Santiago de Surco', 'La Molina',
+    'San Borja', 'Jesús María', 'Lince', 'Pueblo Libre',
+    'Magdalena del Mar', 'San Miguel', 'Barranco', 'Chorrillos',
+    'Surquillo', 'Los Olivos', 'San Martín de Porres', 'Comas',
+    'Independencia', 'San Juan de Lurigancho', 'Santa Anita', 'Ate',
   ];
 
   distritoSeleccionado: string = '';
@@ -449,7 +448,7 @@ export class AdminDashboardComponent implements OnInit {
     let activeVentas = this.ventas;
     if (!activeVentas || activeVentas.length === 0) {
       const mockVentas: any[] = [];
-      const distritosDemo = ['Yanahuara', 'Cayma', 'Cerro Colorado', 'José Luis Bustamante y Rivero', 'Paucarpata', 'Cercado', 'Socabaya'];
+      const distritosDemo = ['Miraflores', 'San Isidro', 'Santiago de Surco', 'La Molina', 'San Borja', 'Lince', 'San Juan de Lurigancho'];
 
       for (let i = 0; i < 40; i++) {
         const fecha = new Date();
@@ -469,7 +468,7 @@ export class AdminDashboardComponent implements OnInit {
         mockVentas.push({
           idPedido: 1000 + i,
           fecha: fecha.toISOString(),
-          direccionEnvio: `Urb. Las Flores ${100 + i}, ${dist}, Arequipa`,
+          direccionEnvio: `Urb. Las Flores ${100 + i}, ${dist}, Lima`,
           detalles: detalles,
           total: detalles.reduce((acc, d) => acc + (d.producto.precioVenta * d.cantidad), 0)
         });
@@ -593,7 +592,7 @@ export class AdminDashboardComponent implements OnInit {
         if (nombreLower.includes('ibuprofeno') || nombreLower.includes('paracetamol') || nombreLower.includes('antigripal') || nombreLower.includes('resfrio') || nombreLower.includes('tabletas')) {
           esEstacional = true;
           incrementoDemanda = 45;
-          recomendacion = 'Incrementar abastecimiento. El clima frío en Arequipa eleva casos de infecciones respiratorias.';
+          recomendacion = 'Incrementar abastecimiento. El clima frío en Lima eleva casos de infecciones respiratorias.';
         }
       } else if (estacionActual.nombre.includes('Verano')) {
         if (nombreLower.includes('solar') || nombreLower.includes('bloqueador') || nombreLower.includes('suero') || nombreLower.includes('rehidratante')) {
@@ -639,7 +638,7 @@ export class AdminDashboardComponent implements OnInit {
 
     activeVentas.forEach(venta => {
       const dir = (venta.direccionEnvio || '').trim();
-      let distritoDetectado = 'Yanahuara'; // Fallback: distrito con más ventas
+      let distritoDetectado = 'Miraflores'; // Fallback: distrito con más ventas
 
       // El formato de direccionEnvio es: "Bodega Nombre - Av. Calle 123, Distrito"
       // El distrito va siempre en el último segmento después de la última coma
@@ -647,12 +646,11 @@ export class AdminDashboardComponent implements OnInit {
       const ultimaParteRaw = (partes[partes.length - 1] || '').trim().toLowerCase();
 
       const distritosList = [
-        'alto selva alegre', 'arequipa', 'cercado', 'cayma', 'cerro colorado',
-        'characato', 'chiguata', 'jacobo hunter', 'josé luis bustamante y rivero',
-        'la joya', 'mariano melgar', 'miraflores', 'mollebaya', 'paucarpata',
-        'pocsi', 'polobaya', 'quequeña', 'sabandía', 'sachaca', 'san juan de siguas',
-        'san juan de tarucani', 'santa isabel de siguas', 'santa rita de siguas',
-        'socabaya', 'tiabaya', 'uchumayo', 'vitor', 'yanahuara', 'yarabamba', 'yura'
+        'miraflores', 'san isidro', 'santiago de surco', 'la molina',
+        'san borja', 'jesús maría', 'lince', 'pueblo libre',
+        'magdalena del mar', 'san miguel', 'barranco', 'chorrillos',
+        'surquillo', 'los olivos', 'san martín de porres', 'comas',
+        'independencia', 'san juan de lurigancho', 'santa anita', 'ate',
       ];
 
       // Buscar en la última parte (más preciso)
@@ -713,7 +711,7 @@ export class AdminDashboardComponent implements OnInit {
     });
 
     if (tempLocalizada.length === 0) {
-      const distritosDemo = ['Yanahuara', 'Cayma', 'Cerro Colorado', 'José Luis Bustamante y Rivero', 'Paucarpata'];
+      const distritosDemo = ['Miraflores', 'San Isidro', 'Santiago de Surco', 'San Borja', 'La Molina'];
       distritosDemo.forEach((dist, idx) => {
         const prod = this.productos[idx % this.productos.length];
         tempLocalizada.push({

@@ -257,7 +257,7 @@ export class PedidosComponent implements OnInit {
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(colorTextOscuro[0], colorTextOscuro[1], colorTextOscuro[2]);
-    const puntoRecojo = pedido.direccionEnvio || (pedido.esUrgente ? 'Domicilio predeterminado en Arequipa' : 'Establecimiento predeterminado en Arequipa');
+    const puntoRecojo = pedido.direccionEnvio || (pedido.esUrgente ? 'Domicilio predeterminado en Lima' : 'Establecimiento predeterminado en Lima');
     doc.text(puntoRecojo, 19, 76);
 
     autoTable(doc, {
@@ -371,7 +371,7 @@ export class PedidosComponent implements OnInit {
     doc.setFontSize(8);
     doc.setTextColor(203, 213, 225); // Slate claro
     doc.text('Gracias por su compra en FarmaCode. Este documento es su comprobante de pago.', 105, pageHeight - 10, { align: 'center' });
-    doc.text('www.farmacode.pe | atencion@farmacode.pe | Arequipa, Peru', 105, pageHeight - 5, { align: 'center' });
+    doc.text('www.farmacode.pe | atencion@farmacode.pe | Lima, Peru', 105, pageHeight - 5, { align: 'center' });
 
     // Descargar el archivo PDF en el navegador
     doc.save(`FarmaCode_Boleta_Pedido_${nroBoleta}.pdf`);
