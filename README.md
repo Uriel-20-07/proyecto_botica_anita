@@ -6,12 +6,12 @@
 
 Para una gestión eficiente del repositorio, nos hemos dividido las responsabilidades de la siguiente manera:
 
-* **Líder de Proyecto (Uriel):** Encargado de la arquitectura del repositorio, revisión de *Pull Requests* y organización de las ramas principales.
-* **Desarrolladores Frontend (Karolina y Stephano):** Stephano: Desarrollo de la estructura HTML.
-    * Karolina: Diseño y estilos con CSS en VS Code.
-* **Encargado de QA / Testing (Aldo):** Responsable de verificar que las páginas funcionen correctamente en diferentes navegadores y no tengan errores.
-* **Documentador (Junior):** Mantenimiento de este archivo README y redacción de comentarios técnicos en el código.
-* **Gestor de GitHub (Deku-Andy):** Creación y seguimiento de *Issues* (tareas) y asignación de *Labels* (etiquetas).
+* **Product Owner (Uriel):** Encargado de la arquitectura del repositorio, revisión de *Pull Requests* y organización de las ramas principales.
+* **Scrum Master (Marcelo):** Coordinador del flujo de trabajo ágil, gestión de entregas y facilitador del equipo.
+* **Base de Datos (Jamie):** Responsable del diseño, modelado y administración de la base de datos.
+* **Backend (Miguel):** Encargado de la lógica del servidor, API y comunicación con la base de datos.
+* **Encargado de QA / Testing (Franco):** Responsable de verificar que las páginas funcionen correctamente en diferentes navegadores y no tengan errores.
+* **Desarrollador Frontend (Felix):** Desarrollo de la estructura visual, interfaz de usuario y estilos del proyecto.
 
 ## Herramientas Utilizadas
 * **Editor de código:** Visual Studio Code
