@@ -1,15 +1,30 @@
 package com.example.demo.controllers;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestTemplate;
+
 import com.example.demo.models.Producto;
 import com.example.demo.services.ProductoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.*;
 
 @RestController
 @RequestMapping("/api/chatbot")
@@ -21,8 +36,44 @@ public class ChatbotController {
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
+    // Modelo principal (mejor calidad, cuota gratuita muy baja: ~20 solicitudes/día).
+    @Value("${gemini.model.primary:gemini-3.8-flash}")
+    private String geminiModelPrimary;
+
+    // Modelo de respaldo: se usa automáticamente si el principal responde 429 (cuota) o 503
+    // (saturado). Flash-Lite tiene cuota gratuita mucho más generosa (~500 solicitudes/día).
+    @Value("${gemini.model.fallback:gemini-3.5-flash-lite}")
+    private String geminiModelFallback;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * Llama a Gemini con el modelo principal; si responde 429 (cuota agotada) o 503
+     * (modelo saturado), reintenta automáticamente una vez con el modelo de respaldo.
+     */
+    private ResponseEntity<Map> callGemini(Map<String, Object> payload) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("x-goog-api-key", geminiApiKey);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+        String primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + geminiModelPrimary + ":generateContent";
+        try {
+            return restTemplate.postForEntity(primaryUrl, entity, Map.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            int status = e.getStatusCode().value();
+            boolean cuotaOSaturado = status == 429 || status == 503;
+            if (cuotaOSaturado && geminiModelFallback != null && !geminiModelFallback.isBlank()
+                    && !geminiModelFallback.equals(geminiModelPrimary)) {
+                String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/"
+                        + geminiModelFallback + ":generateContent";
+                return restTemplate.postForEntity(fallbackUrl, entity, Map.class);
+            }
+            throw e;
+        }
+    }
 
     public static class ChatMessage {
         public String role; // "user", "model" or "function"
@@ -39,7 +90,7 @@ public class ChatbotController {
         if (geminiApiKey == null || geminiApiKey.trim().isEmpty() || geminiApiKey.contains("YOUR_GEMINI_API_KEY")) {
             ChatMessage errorResponse = new ChatMessage();
             errorResponse.role = "model";
-            errorResponse.content = "Hola! Soy el asistente de FarmaCode. Para poder ayudarte de forma inteligente, necesitas configurar una clave de API válida para Gemini (`gemini.api.key`) en el archivo `application.properties` del backend. ¡Es muy sencillo y gratuito!";
+            errorResponse.content = "¡Hola! Soy SofIA, la asistente virtual de BoticaAnita. Para poder ayudarte de forma inteligente, necesitas configurar una clave de API válida para Gemini (`gemini.api.key`) en el archivo `application.properties` del backend. ¡Es muy sencillo y gratuito!";
             return ResponseEntity.ok(errorResponse);
         }
 
@@ -66,13 +117,7 @@ public class ChatbotController {
             int maxIterations = 5;
             while (maxIterations-- > 0) {
                 Map<String, Object> geminiPayload = buildGeminiPayload(contents);
-                String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(geminiPayload, headers);
-
-                ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+                ResponseEntity<Map> response = callGemini(geminiPayload);
                 if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                     Map<String, Object> body = response.getBody();
                     
@@ -97,24 +142,31 @@ public class ChatbotController {
                                         String query = args != null && args.containsKey("query") ? (String) args.get("query") : "";
                                         List<Producto> productos = productoService.buscarPorNombre(query);
                                         
-                                        // Agregar la llamada a la función al historial
+                                        // Agregar la llamada a la función al historial.
+                                        // IMPORTANTE (Gemini 3.x): se reutiliza "firstPart" tal cual lo devolvió
+                                        // Gemini, porque además de "functionCall" puede traer "thoughtSignature",
+                                        // y hay que reenviarlo exactamente igual o la siguiente llamada falla
+                                        // con 400 "missing thought_signature".
                                         Map<String, Object> modelCallMap = new HashMap<>();
                                         modelCallMap.put("role", "model");
                                         List<Map<String, Object>> modelParts = new ArrayList<>();
-                                        Map<String, Object> modelPart = new HashMap<>();
-                                        modelPart.put("functionCall", functionCall);
-                                        modelParts.add(modelPart);
+                                        modelParts.add(firstPart);
                                         modelCallMap.put("parts", modelParts);
                                         contents.add(modelCallMap);
 
-                                        // Agregar la respuesta de la función al historial
+                                        // Agregar la respuesta de la función al historial.
+                                        // Gemini 3.x ya NO acepta role "function": exige role "user",
+                                        // y hace "strict response matching" del id de la llamada.
                                         Map<String, Object> functionRespMap = new HashMap<>();
-                                        functionRespMap.put("role", "function");
+                                        functionRespMap.put("role", "user");
                                         List<Map<String, Object>> funcParts = new ArrayList<>();
                                         Map<String, Object> funcPart = new HashMap<>();
                                         
                                         Map<String, Object> functionResponse = new HashMap<>();
                                         functionResponse.put("name", "buscarProductos");
+                                        if (functionCall.get("id") != null) {
+                                            functionResponse.put("id", functionCall.get("id"));
+                                        }
                                         
                                         Map<String, Object> responseContent = new HashMap<>();
                                         List<Map<String, Object>> simplifiedProductos = new ArrayList<>();
@@ -173,6 +225,21 @@ public class ChatbotController {
             defaultFail.content = "Lo siento, tuve un problema procesando tu solicitud con Gemini. Por favor intenta de nuevo.";
             return ResponseEntity.ok(defaultFail);
 
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            e.printStackTrace();
+            ChatMessage err = new ChatMessage();
+            err.role = "model";
+            int status = e.getStatusCode().value();
+            if (status == 401 || status == 403) {
+                err.content = "No se pudo autenticar con Gemini (error " + status + "). Verifica en Google AI Studio que la clave en `gemini.api.key` sea de tipo Auth (empieza con 'AQ.'), esté activa, y que la 'Generative Language API' esté habilitada en el proyecto.";
+            } else if (status == 429) {
+                err.content = "Se alcanzó el límite de solicitudes de Gemini, incluso en el modelo de respaldo (error 429). Espera unos minutos antes de volver a intentar, o revisa tu cuota diaria en Google AI Studio.";
+            } else if (status == 503) {
+                err.content = "El asistente está temporalmente saturado por alta demanda (error 503), incluso tras intentar con el modelo de respaldo. Intenta de nuevo en unos segundos.";
+            } else {
+                err.content = "Gemini respondió con un error (" + status + "): " + e.getResponseBodyAsString();
+            }
+            return ResponseEntity.ok(err);
         } catch (Exception e) {
             e.printStackTrace();
             ChatMessage err = new ChatMessage();
@@ -190,16 +257,17 @@ public class ChatbotController {
         Map<String, Object> systemInstruction = new HashMap<>();
         List<Map<String, Object>> parts = new ArrayList<>();
         Map<String, Object> part = new HashMap<>();
-        part.put("text", "Eres el Asistente Virtual Inteligente de FarmaCode, una botica ubicada en Lima. Tu objetivo es ayudar a los clientes a encontrar medicamentos, asesorarles con respuestas sobre su salud y facilitarles su compra. \n\n" +
+        part.put("text", "Te llamas SofIA, la Asistente Virtual Inteligente de BoticaAnita, una botica ubicada en Lima. Preséntate con tu nombre (SofIA) cuando saludes por primera vez. Tu objetivo es ayudar a los clientes a encontrar medicamentos, asesorarles con calidez sobre su salud y facilitarles su compra. \n\n" +
                 "REGLAS CRÍTICAS DE COMPORTAMIENTO:\n" +
-                "1. SOLO responde consultas que tengan relación con la farmacia FarmaCode (salud, medicamentos, envíos, métodos de entrega y procesos de compra). Si te hacen preguntas fuera de este contexto (como operaciones matemáticas, sumas, historia, programación, etc.), debes rechazar responderlas amablemente indicando que solo estás capacitado para atender consultas relacionadas con la farmacia FarmaCode.\n" +
+                "1. SOLO responde consultas que tengan relación con la farmacia BoticaAnita (salud, medicamentos, envíos, métodos de entrega y procesos de compra). Si te hacen preguntas fuera de este contexto (como operaciones matemáticas, sumas, historia, programación, etc.), debes rechazar responderlas amablemente indicando que solo estás capacitada para atender consultas relacionadas con la farmacia BoticaAnita.\n" +
                 "2. NUNCA menciones la cantidad exacta de unidades en stock. Si hay existencias disponibles (stock > 0), limítate a confirmar que 'sí contamos con stock disponible' o 'está disponible', pero jamás menciones números de stock (ej. NO digas 'tenemos 361 unidades').\n" +
-                "3. Si un producto está en oferta/descuento (`enOferta` es verdadero y tiene `precioOferta` o `precioConDescuento` menor que `precioVenta`), debes informar explícitamente al cliente que este producto está con descuento y mostrar tanto el precio regular (`precioVenta` o `precioNormal`) como el precio de oferta con descuento (`precioOferta` o `precioConDescuento`) de forma llamativa (ej. '¡Este producto cuenta con descuento! Su precio regular es S/. 5.00, pero ahora está a solo S/. 3.50'). Si no tiene descuento, menciona únicamente su precio normal.\n\n" +
+                "3. Si un producto está en oferta/descuento (`enOferta` es verdadero y tiene `precioOferta` o `precioConDescuento` menor que `precioVenta`), debes informar explícitamente al cliente que este producto está con descuento y mostrar tanto el precio regular (`precioVenta` o `precioNormal`) como el precio de oferta con descuento (`precioOferta` o `precioConDescuento`) de forma llamativa (ej. '¡Este producto cuenta con descuento! Su precio regular es S/. 5.00, pero ahora está a solo S/. 3.50'). Si no tiene descuento, menciona únicamente su precio normal.\n" +
+                "4. Si la función 'buscarProductos' devuelve una lista vacía de productos, NUNCA respondas con un error técnico ni digas que 'ocurrió un problema'. En su lugar, asume amablemente que puede haber un error de tipeo o un nombre distinto, y responde algo como: 'No encontré ese producto exactamente, ¿podrías repetirme el nombre o escribirlo de otra forma?'. Si el término se parece mucho a un medicamento conocido (ej. 'jaraba' se parece a 'jarabe'), puedes sugerirlo como posibilidad antes de pedir que lo repita.\n" +
+                "5. Cuando el cliente mencione un síntoma o malestar (ej. dolor de cabeza, fiebre, tos, dolor de estómago, malestar general) antes de recomendarle un producto, respóndele primero con una frase breve y cálida que muestre preocupación genuina por su bienestar (ej. 'Lamento que te sientas así, vamos a ayudarte a encontrar algo que te alivie'), y recién después sugiere el producto. Si por lo que describe el malestar suena fuerte, persistente, o es un síntoma de alarma (ej. fiebre alta, dolor muy intenso, dificultad para respirar, dura varios días), agrega con delicadeza una recomendación adicional de que, si no mejora o empeora, acuda a un médico o al establecimiento de salud más cercano, dejando claro que tú eres un apoyo informativo y no reemplazas una consulta médica profesional.\n\n" +
                 "Siempre que un usuario te pregunte por medicamentos o productos en stock, DEBES llamar obligatoriamente a la función 'buscarProductos' pasándole la consulta adecuada. " +
                 "Si encuentras productos con la función, descríbelos de manera amable indicando sus precios (aplicando la regla de descuento si corresponde) y confirmando que contamos con disponibilidad, respetando las reglas de stock anteriores. " +
                 "Si el usuario desea agregar un producto al carrito (por ejemplo, 'agrega un paracetamol al carrito'), DEBES llamar a la función 'agregarAlCarrito' especificando el ID del producto y la cantidad. " +
-                "Si el usuario desea ir a pagar, ver su carrito, ir al catálogo o a su perfil, DEBES llamar a la función 'redirigir' especificando la ruta correspondiente (ej: '/pago', '/catalogo', '/perfil'). " +
-                "Si el usuario hace consultas médicas graves, recuérdale con empatía que eres un asistente virtual y que debe consultar a un médico especialista.");
+                "Si el usuario desea ir a pagar, ver su carrito, ir al catálogo o a su perfil, DEBES llamar a la función 'redirigir' especificando la ruta correspondiente (ej: '/pago', '/catalogo', '/perfil').");
         parts.add(part);
         systemInstruction.put("parts", parts);
         payload.put("systemInstruction", systemInstruction);

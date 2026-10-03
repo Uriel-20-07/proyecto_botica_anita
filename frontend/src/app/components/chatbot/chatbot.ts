@@ -45,7 +45,7 @@ export class ChatbotComponent implements OnInit, OnDestroy {
       // Inicializar el chat con el mensaje de bienvenida
       this.messages.push({
         role: 'model',
-        content: '¡Hola! 👋 Bienvenido a FarmaCode. ¿En qué te puedo asesorar hoy? Puedo buscar medicamentos en el catálogo, agregar productos al carrito y guiarte por la página.'
+        content: '¡Hola! 👋 Soy SofIA, la asistente virtual de BoticaAnita. ¿En qué te puedo asesorar hoy? Puedo buscar medicamentos en el catálogo, agregar productos al carrito y guiarte por la página.'
       });
     }
   }
