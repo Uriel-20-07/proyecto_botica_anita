@@ -232,7 +232,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!
-    this.stripe = await loadStripe('pk_test_51Tiip2Lnmv4gKqcemmOezxhr7kH03Q8SYcwKjfOeM2PeH2HRd8xUqQQyAHrtCDGGFEPlummaXaoXkv6u0HuCEImF00JaBwW6Dd');
+    this.stripe = await loadStripe('pk_test_51UM4YM0qfL81bWnlpwCwq4l0PESEA0OOFACO2yenZG4wqabONiPvH9vB6nQIyObRU2TC9SXsGQ6r7KxiVjRWJ1G500nkwWyDRF');
   }
 
   ngAfterViewChecked() {
