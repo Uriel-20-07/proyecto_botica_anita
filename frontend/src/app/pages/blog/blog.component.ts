@@ -44,7 +44,7 @@ export class BlogComponent {
       date: 'ABRIL 2026',
       title: 'Rutina facial rápida para días ocupados',
       description: 'Tres pasos claros para limpiar, hidratar y proteger la piel sin perder tiempo por la mañana.',
-      image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80',
+      image: 'https://theglowfactor.com/cdn/shop/articles/Banner_Horizontal_Promocion_Black_Friday_Moderno_Rosa_3.jpg?v=1700766726',
       url: 'https://www.maquillalia.com/blog/skincare-express-la-mejor-rutina-en-pasos-para-mananas-con-prisa-b-247.html'
     },
     {
@@ -89,7 +89,7 @@ export class BlogComponent {
       date: 'ABRIL 2026',
       title: 'Piel sensible: errores comunes y cómo evitarlos',
       description: 'Desde el agua muy caliente hasta mezclar demasiados activos: pequeños cambios que hacen gran diferencia.',
-      image: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&q=80',
+      image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0nX3m2uWjzyHCRFb66Xcs5Xsp30xSIr2BQvq6h7IS&s',
       url: 'https://www.laroche-posay.es/article/causas-de-la-piel-sensible-factores-internos-y-externos'
     },
     {
@@ -98,7 +98,7 @@ export class BlogComponent {
       date: 'ABRIL 2026',
       title: 'Retinol: guía completa para principiantes',
       description: 'Frecuencia, concentración y cómo combinarlo sin provocar irritación ni pelarse en el intento.',
-      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&q=80',
+      image: 'https://cdn.shopify.com/s/files/1/0695/4608/2609/files/Blog_Covers_Horizontal_5.png?v=1767732911',
       url: 'https://www.skinceuticals.es/skin-c-mag/guia-cantidad-y-frecuencia-uso-retinol.html'
     },
     {
@@ -116,7 +116,7 @@ export class BlogComponent {
       date: 'MARZO 2026',
       title: 'Doble limpieza: ¿realmente la necesitas?',
       description: 'Cuándo vale la pena hacer dos pasos de limpieza y cuándo es suficiente con uno solo.',
-      image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&q=80',
+      image: 'https://www.lavanguardia.com/files/image_449_220/uploads/2019/02/19/5fa51c0835a20.jpeg',
       url: 'https://www.nivea.es/consejos/piel-bonita/doble-limpieza-facial'
     },
     {

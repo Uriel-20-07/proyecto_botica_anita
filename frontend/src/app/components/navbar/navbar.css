@@ -116,7 +116,7 @@
     text-decoration: none;
     flex-shrink: 0;
 
-    .logo-farma {
+    .logo-botica {
         font-size: 26px;
         font-weight: 800;
         color: #0b2350;
@@ -124,7 +124,7 @@
         line-height: 1;
     }
 
-    .logo-code {
+    .logo-anita {
         font-size: 26px;
         font-weight: 800;
         color: #ea580c;
@@ -479,8 +479,8 @@
     }
 
 
-    .logo-farma,
-    .logo-code {
+    .logo-botica,
+    .logo-anita {
         font-size: 20px;
     }
 
