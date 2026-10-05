@@ -24,9 +24,11 @@ import lombok.NoArgsConstructor;
  * específicos que se compraron se almacenan en DetallePedido.
  * 
  * Estados posibles:
+ * - "PENDIENTE": registrado pero no pagado/procesado.
  * - "PAGADO": pago procesado exitosamente.
- * - "COMPLETADO": pedido entregado (usado en datos históricos del seeder).
- * - (otros estados como "CANCELADO", "EN_CAMINO" podrían agregarse).
+ * - "EN_CAMINO": repartidor en ruta de entrega.
+ * - "COMPLETADO": pedido entregado.
+ * - "CANCELADO": pedido anulado.
  */
 @Entity
 @Table(name = "pedidos")
@@ -53,7 +55,7 @@ public class Pedido {
     /** Fecha y hora en que se realizó el pedido. */
     private LocalDateTime fecha;
 
-    /** Estado actual del pedido ("PAGADO", "COMPLETADO", etc.). */
+    /** Estado actual del pedido ("PENDIENTE", "PAGADO", "EN_CAMINO", "COMPLETADO", etc.). */
     private String estado;
 
     /**
@@ -81,4 +83,34 @@ public class Pedido {
     /** ID de la receta médica asociada (opcional, null si no requiere). */
     @Column(name = "id_receta", nullable = true)
     private Integer idReceta;
+
+    // ==========================================
+    // CAMPOS PARA SEGUIMIENTO Y GEOLOCALIZACIÓN
+    // ==========================================
+
+    /** Latitud de la dirección de entrega del cliente. */
+    @Column(name = "latitud_entrega", precision = 10, scale = 8)
+    private BigDecimal latitudEntrega;
+
+    /** Longitud de la dirección de entrega del cliente. */
+    @Column(name = "longitud_entrega", precision = 11, scale = 8)
+    private BigDecimal longitudEntrega;
+
+    /** ID del repartidor asignado al pedido. */
+    @Column(name = "repartidor_id")
+    private Integer repartidorId;
+
+    /** Latitud en tiempo real del repartidor. */
+    @Column(name = "latitud_repartidor", precision = 10, scale = 8)
+    private BigDecimal latitudRepartidor;
+
+    /** Longitud en tiempo real del repartidor. */
+    @Column(name = "longitud_repartidor", precision = 11, scale = 8)
+    private BigDecimal longitudRepartidor;
+
+    /** Última fecha y hora de actualización del GPS del repartidor. */
+    @Column(name = "ultima_actualizacion_ubicacion")
+    private LocalDateTime ultimaActualizacionUbicacion;
+
+    
 }

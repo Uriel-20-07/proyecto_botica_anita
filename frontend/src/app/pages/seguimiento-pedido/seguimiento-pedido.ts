@@ -2,11 +2,12 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { PedidoService } from '../../services/pedido.service';
+import { TrackingMapaComponent } from '../../components/tracking/tracking-mapa.component';
 
 @Component({
   selector: 'app-seguimiento-pedido',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TrackingMapaComponent],
   templateUrl: './seguimiento-pedido.html',
   styleUrls: ['./seguimiento-pedido.css']
 })

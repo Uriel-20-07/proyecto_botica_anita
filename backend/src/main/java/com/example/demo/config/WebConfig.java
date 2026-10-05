@@ -26,11 +26,12 @@ public class WebConfig implements WebMvcConfigurer {
      *
      * @param registry registro de mapeos CORS de Spring MVC.
      */
-    @Override
+  @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("http://localhost:4200", "http://localhost:62349", "http://localhost:*", "https://witty-bay-08b8c990f.7.azurestaticapps.net", "https://purple-field-0b677da0f.7.azurestaticapps.net")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                // 🟢 Usa allowedOriginPatterns en lugar de allowedOrigins cuando allowCredentials es true
+                .allowedOriginPatterns("http://localhost:4200", "http://localhost:*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
