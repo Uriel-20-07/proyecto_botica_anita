@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CatalogoService, ProductoApi, CategoriaApi } from '../../services/catalogo.service';
 import { CartService } from '../../services/cart.service';
+import { environment } from '../../../environments/environment';
 
 interface ProductoVista {
   id: number;
@@ -23,6 +24,8 @@ interface ProductoVista {
   styleUrls: ['../../pages/catalogo/catalogo.css', './product-carousel.css']
 })
 export class ProductCarouselComponent implements OnInit {
+  // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
+  readonly mostrarRecetas = environment.mostrarRecetas ?? false;
   productos: ProductoVista[] = [];
   categorias: CategoriaApi[] = [];
 

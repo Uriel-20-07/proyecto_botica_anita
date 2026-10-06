@@ -42,7 +42,7 @@
       <h1 class="product-name">{{ producto.nombre }}</h1>
 
       <!-- Requiere receta warning -->
-      <div *ngIf="producto.requiereReceta" style="margin: 10px 0 15px; display: inline-flex; align-items: center; gap: 8px; background-color: #f3e8ff; border: 1.5px dashed #8b5cf6; border-radius: 10px; padding: 10px 16px; color: #6d28d9; font-weight: 700; font-size: 0.85rem;">
+      <div *ngIf="mostrarRecetas && producto.requiereReceta" style="margin: 10px 0 15px; display: inline-flex; align-items: center; gap: 8px; background-color: #f3e8ff; border: 1.5px dashed #8b5cf6; border-radius: 10px; padding: 10px 16px; color: #6d28d9; font-weight: 700; font-size: 0.85rem;">
           🔑 Requiere receta médica obligatoria para la compra.
       </div>
 

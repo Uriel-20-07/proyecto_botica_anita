@@ -9,6 +9,7 @@ import { CartService } from '../../services/cart.service';
 import { PagoService } from '../../services/pago.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
+import { environment } from '../../../environments/environment';
 
 // Stripe Elements para el diseño profesional
 import { loadStripe, Stripe, StripeCardNumberElement, StripeCardExpiryElement, StripeCardCvcElement } from '@stripe/stripe-js';
@@ -27,6 +28,9 @@ const EMAILJS_PUBLIC_KEY  = 'HDwamrH2SgIFGUpNw';
 export class PagoComponent implements OnInit, AfterViewChecked {
 
   metodoSeleccionado: 'TARJETA' | 'YAPE' = 'TARJETA';
+
+  // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
+  readonly mostrarRecetas = environment.mostrarRecetas ?? false;
 
   // Variables Receta Checkout
   requiereReceta: boolean = false;
@@ -179,7 +183,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   };
 
   formPago: any = {
-    distrito: '',
+    distrito: 'Independencia',
     direccionDetalle: '',
     referencia: '',
     nombreTarjeta: '',
@@ -227,8 +231,8 @@ export class PagoComponent implements OnInit, AfterViewChecked {
       return;
     }
 
-    // Verificar si requiere receta
-    this.requiereReceta = this.productosCarrito.some(item => this.requiereRecetaMedica(item.producto.nombre));
+    // Verificar si requiere receta (solo si el flujo está visible)
+    this.requiereReceta = this.mostrarRecetas && this.productosCarrito.some(item => this.requiereRecetaMedica(item.producto.nombre));
 
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!

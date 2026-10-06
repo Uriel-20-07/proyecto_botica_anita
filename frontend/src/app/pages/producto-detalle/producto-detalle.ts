@@ -6,6 +6,7 @@ import { CartService } from '../../services/cart.service';
 import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-producto-detalle',
@@ -18,6 +19,8 @@ export class ProductoDetalleComponent implements OnInit {
   producto: any = null;
   cargando = true;
   mensaje = '';
+  // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
+  readonly mostrarRecetas = environment.mostrarRecetas ?? false;
   cantidad = 1;
   descuentoInfo: any = null;
 
