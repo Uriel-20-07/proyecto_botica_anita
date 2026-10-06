@@ -108,6 +108,10 @@
                 <span class="status-badge" style="background-color: #fef3c7; color: #d97706; border: 1.5px solid #fde68a; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; text-transform: uppercase;">
                   En Espera
                 </span>
+              } @else if (pedido.estado === 'PENDIENTE_VERIFICACION') {
+                <span class="status-badge" style="background-color: #ccfbf1; color: #0f766e; border: 1.5px solid #99f6e4; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; text-transform: uppercase;">
+                  Verificando pago Plin
+                </span>
               } @else if (pedido.estado === 'RECHAZADO') {
                 <span class="status-badge" style="background-color: #fee2e2; color: #dc2626; border: 1.5px solid #fecaca; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; text-transform: uppercase;">
                   Rechazado

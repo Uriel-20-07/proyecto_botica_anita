@@ -220,6 +220,7 @@ public class AdminController {
             map.put("estado", pedido.getEstado());
             map.put("total", pedido.getTotal());
             map.put("metodoPago", pedido.getMetodoPago());
+            map.put("numeroOperacion", pedido.getNumeroOperacion() != null ? pedido.getNumeroOperacion() : "");
             map.put("direccionEnvio", pedido.getDireccionEnvio());
             map.put("distrito", pedido.getDistrito());
             map.put("usuario", Map.of(

@@ -15,6 +15,10 @@ public class PagoRequest {
     private String numeroCelular;
     private String tokenYape;
 
+    // --- CAMPO EXCLUSIVO PARA PLIN ---
+    // Número de operación que muestra la app del banco tras transferir por Plin
+    private String numeroOperacion;
+
     // --- CAMPOS EXCLUSIVOS PARA STRIPE ---
     // El monto debe ir en la unidad mínima (centavos). Ejemplo: 50.00 soles = 5000
     private Long monto; 

@@ -47,8 +47,16 @@ export class AuthService {
    */
   constructor(private http: HttpClient) {
     // Recuperar datos del localStorage al iniciar la aplicación
-    const token = localStorage.getItem('token');
-    const usuario = localStorage.getItem('usuario');
+    let token = localStorage.getItem('token');
+    let usuario = localStorage.getItem('usuario');
+
+    // Si el token guardado ya venció (el JWT dura 1 hora), no restaurar la sesión
+    if (token && this.tokenExpirado(token)) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      token = null;
+      usuario = null;
+    }
     
     if (token) {
       this.tokenSubject.next(token);      // Restaurar token
@@ -166,7 +174,26 @@ export class AuthService {
    * @returns el token JWT o null si no hay sesión activa.
    */
   getToken(): string | null {
-    return localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    // Token vencido: cerrar la sesión para no enviar credenciales que el backend rechazará (401)
+    if (token && this.tokenExpirado(token)) {
+      this.logout();
+      return null;
+    }
+    return token;
+  }
+
+  /**
+   * Indica si un JWT ya venció leyendo su claim "exp" (sin validar la firma;
+   * eso lo hace el backend). Si no se puede leer, se asume vigente.
+   */
+  private tokenExpirado(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+    } catch {
+      return false;
+    }
   }
 
   /**
