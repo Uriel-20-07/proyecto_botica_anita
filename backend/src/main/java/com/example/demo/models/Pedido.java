@@ -112,5 +112,7 @@ public class Pedido {
     @Column(name = "ultima_actualizacion_ubicacion")
     private LocalDateTime ultimaActualizacionUbicacion;
 
-    
+        /** Número de operación del pago por Plin (null para otros métodos). */
+    @Column(name = "numero_operacion", nullable = true, length = 20)
+    private String numeroOperacion;
 }

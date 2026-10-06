@@ -63,6 +63,11 @@ export class PagoService {
     return this.http.post(`${this.baseUrl}/procesar`, datosPago, { headers: this.getHeaders() });
   }
 
+  /** Obtiene el número y titular de la cuenta Plin de la botica. */
+  obtenerInfoPlin(): Observable<{ numero: string; titular: string }> {
+    return this.http.get<{ numero: string; titular: string }>(`${this.baseUrl}/plin-info`);
+  }
+
   /**
    * Valida un cupón de descuento en el backend.
    * 

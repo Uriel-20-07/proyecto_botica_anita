@@ -1,0 +1,9 @@
+diff a/backend/src/main/java/com/example/demo/controllers/PedidoController.java b/backend/src/main/java/com/example/demo/controllers/PedidoController.java	(rejected hunks)
+@@ -70,6 +70,7 @@ public class PedidoController {
+                 map.put("direccionEnvio", pedido.getDireccionEnvio());
+                 map.put("distrito", pedido.getDistrito());
+                 map.put("metodoPago", pedido.getMetodoPago());
++                map.put("numeroOperacion", pedido.getNumeroOperacion() != null ? pedido.getNumeroOperacion() : "");
+                 map.put("esUrgente", pedido.isEsUrgente());
+ 
+                 // Obtener detalles del pedido desde la BD de forma eficiente

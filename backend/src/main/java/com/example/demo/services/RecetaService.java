@@ -44,6 +44,10 @@ public class RecetaService {
         List<com.example.demo.models.Pedido> pedidos = pedidoRepository.findByIdReceta(id);
         for (com.example.demo.models.Pedido p : pedidos) {
             if (nuevoEstado == EstadoReceta.APROBADA) {
+                // Si el pago por Plin aún no fue verificado, la receta aprobada no confirma el pedido
+                if ("PENDIENTE_VERIFICACION".equals(p.getEstado())) {
+                    continue;
+                }
                 p.setEstado("CONFIRMADO");
             } else if (nuevoEstado == EstadoReceta.RECHAZADA) {
                 p.setEstado("RECHAZADO");

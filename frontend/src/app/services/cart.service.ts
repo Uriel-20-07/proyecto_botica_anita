@@ -110,7 +110,7 @@ export class CartService {
    *
    * @param producto datos del producto a agregar al carrito.
    */
-  add(producto: ProductoApi): void {
+  add(producto: ProductoApi, onSuccess?: () => void): void {
     // Verificar autenticación antes de operar
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login'); // Abrir modal de login
@@ -124,11 +124,29 @@ export class CartService {
           this.itemsSubject.next(carrito.detalles);
           this.saveItemsToStorage(carrito.detalles);
         }
+        onSuccess?.();
       },
-      error: (err) => {
-        console.error('Error al agregar producto al carrito:', err);
-      }
+      error: (err) => this.manejarErrorCarrito(err, 'agregar el producto al carrito')
     });
+  }
+
+  /**
+   * Maneja los errores del carrito de forma visible para el usuario.
+   * - 401/403: el token venció o es inválido (el JWT dura 1 hora) → se cierra la sesión
+   *   y se abre el login, en lugar de fallar en silencio.
+   * - Otros errores: se avisa que no se pudo completar la acción.
+   */
+  private manejarErrorCarrito(err: any, accion: string): void {
+    console.error(`Error al ${accion}:`, err);
+    if (err?.status === 401 || err?.status === 403) {
+      this.authService.logout();
+      this.authModalService.open('login');
+      alert('Tu sesión venció. Inicia sesión nuevamente para continuar.');
+    } else if (err?.status === 0) {
+      alert('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución (puerto 8080).');
+    } else {
+      alert(`No se pudo ${accion}. Intenta nuevamente.`);
+    }
   }
 
   /**
@@ -148,9 +166,7 @@ export class CartService {
           this.saveItemsToStorage(carrito.detalles);
         }
       },
-      error: (err) => {
-        console.error('Error al agregar producto al carrito:', err);
-      }
+      error: (err) => this.manejarErrorCarrito(err, 'agregar el producto al carrito')
     });
   }
 

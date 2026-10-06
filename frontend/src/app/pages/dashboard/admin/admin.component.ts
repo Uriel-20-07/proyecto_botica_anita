@@ -851,6 +851,30 @@ export class AdminDashboardComponent implements OnInit {
   closeVentaDetails(): void {
     this.selectedVenta = null;
   }
+
+  /** Plin: el personal verificó el pago en su banco → se confirma el pedido. */
+  confirmarPagoPlin(venta: any): void {
+    if (!confirm(`¿Confirmas que recibiste S/ ${Number(venta.total).toFixed(2)} por Plin (operación ${venta.numeroOperacion})?`)) return;
+    this.adminService.confirmarPagoPlin(venta.idPedido).subscribe({
+      next: () => {
+        this.closeVentaDetails();
+        this.cargarDatos();
+      },
+      error: (err: any) => alert(err.error?.error || 'No se pudo confirmar el pago.'),
+    });
+  }
+
+  /** Plin: no se encontró el pago → se rechaza el pedido y se repone el stock. */
+  rechazarPagoPlin(venta: any): void {
+    if (!confirm(`¿Rechazar el pedido #${venta.idPedido}? Se devolverá el stock reservado.`)) return;
+    this.adminService.rechazarPagoPlin(venta.idPedido).subscribe({
+      next: () => {
+        this.closeVentaDetails();
+        this.cargarDatos();
+      },
+      error: (err: any) => alert(err.error?.error || 'No se pudo rechazar el pago.'),
+    });
+  }
   hoverPoint(point: any): void {
     this.selectedPoint = point;
   }

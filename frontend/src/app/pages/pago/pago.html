@@ -6,11 +6,11 @@
         <path class="check-mark" fill="none" d="M14 27 l8 8 l16-16" />
       </svg>
     </div>
-    <h2 class="exito-titulo">¡Pago finalizado correctamente!</h2>
+    <h2 class="exito-titulo">{{ pagoPendienteVerificacion ? '¡Pedido registrado!' : '¡Pago finalizado correctamente!' }}</h2>
     <p class="exito-folio">Folio de compra: <strong>{{ folioGenerado }}</strong></p>
     <div class="exito-detalle">
       <div class="exito-fila">
-        <span>Total pagado</span>
+        <span>{{ pagoPendienteVerificacion ? 'Total a verificar' : 'Total pagado' }}</span>
         <span class="exito-valor">S/ {{ total | number:'1.2-2' }}</span>
       </div>
       <div class="exito-fila">
@@ -18,7 +18,8 @@
         <span class="exito-valor">{{ direccionFinal }}</span>
       </div>
     </div>
-    <p class="exito-sub">Te enviaremos la confirmación a tu correo. Redirigiendo al catálogo...</p>
+    <p class="exito-sub" *ngIf="!pagoPendienteVerificacion">Te enviaremos la confirmación a tu correo. Redirigiendo al catálogo...</p>
+    <p class="exito-sub" *ngIf="pagoPendienteVerificacion">Estamos verificando tu pago Plin. Te enviaremos la confirmación a tu correo apenas lo validemos. Redirigiendo a tus pedidos...</p>
     <div class="exito-barra-wrap">
       <div class="exito-barra"></div>
     </div>
@@ -193,6 +194,9 @@
           <button class="tab-btn" [class.active]="metodoSeleccionado === 'YAPE'" (click)="seleccionarMetodo('YAPE')">
             Yape
           </button>
+          <button class="tab-btn" [class.active]="metodoSeleccionado === 'PLIN'" (click)="seleccionarMetodo('PLIN')">
+            Plin
+          </button>
         </div>
 
         <div *ngIf="metodoSeleccionado === 'TARJETA'" class="form-dinamico anim-fade">
@@ -280,6 +284,40 @@
           </div>
         </div>
 
+        <div *ngIf="metodoSeleccionado === 'PLIN'" class="form-dinamico anim-fade plin-panel">
+          <div class="plin-header-info">
+            <div class="plin-badge-logo">Plin</div>
+            <p>Transfiere desde la app de tu banco (BBVA, Interbank, Scotiabank, BanBif…) y registra tu número de operación.</p>
+          </div>
+
+          <ol class="plin-pasos">
+            <li>Abre tu app bancaria y elige <strong>Plin</strong>.</li>
+            <li>Envía <strong>S/ {{ total | number:'1.2-2' }}</strong> al número indicado abajo.</li>
+            <li>Copia el <strong>número de operación</strong> y pégalo aquí.</li>
+          </ol>
+
+          <div class="plin-cuenta" *ngIf="plinInfo">
+            <div class="plin-cuenta-datos">
+              <span class="plin-label">Número Plin</span>
+              <strong class="plin-numero font-mono">{{ plinInfo.numero }}</strong>
+              <span class="plin-label">Titular</span>
+              <strong>{{ plinInfo.titular }}</strong>
+              <button type="button" class="btn-link" (click)="copiarNumeroPlin()">
+                {{ plinCopiado ? '✓ Copiado' : 'Copiar número' }}
+              </button>
+            </div>
+            <img *ngIf="plinQrDisponible" src="plin-qr.png" alt="QR Plin" class="plin-qr"
+              (error)="plinQrDisponible = false" />
+          </div>
+
+          <div class="form-group" style="margin-top: 20px;">
+            <label>Número de operación <span class="req">*</span></label>
+            <input type="text" inputmode="numeric" [(ngModel)]="formPago.numeroOperacion" maxlength="12"
+              placeholder="Ej: 123456789" class="form-input font-mono" />
+            <span class="field-hint">Tu pedido quedará "pendiente de verificación" hasta que confirmemos el pago en nuestra cuenta.</span>
+          </div>
+        </div>
+
         <div *ngIf="mensajeError" class="feedback-error">⚠ {{ mensajeError }}</div>
       </section>
     </main>
@@ -348,7 +386,7 @@
         </div>
         <button class="btn-pagar-checkout" (click)="ejecutarPago()" [disabled]="procesandoPago || (requiereReceta && !recetaSubidaExito)"
           [style.opacity]="procesandoPago || (requiereReceta && !recetaSubidaExito) ? '0.5' : '1'">
-          <span *ngIf="!procesandoPago">Procesar Pago Seguro</span>
+          <span *ngIf="!procesandoPago">{{ metodoSeleccionado === 'PLIN' ? 'Registrar pago Plin' : 'Procesar Pago Seguro' }}</span>
           <span *ngIf="procesandoPago">Procesando...</span>
         </button>
         <p class="legal-text">Transacción cifrada bajo estándar PCI-DSS.</p>

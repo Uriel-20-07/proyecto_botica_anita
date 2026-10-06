@@ -41,6 +41,12 @@ public class PagoService {
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
+    // Datos de la cuenta Plin de la botica (se configuran en application.properties / variables de entorno)
+    @Value("${plin.numero:}")
+    private String plinNumero;
+    @Value("${plin.titular:}")
+    private String plinTitular;
+
     @PostConstruct
     public void init() {
         Stripe.apiKey = stripeApiKey;
@@ -119,11 +125,29 @@ public class PagoService {
                 .build());
     }
 
+    /** Datos que el cliente necesita para pagar por Plin. */
+    public Map<String, String> obtenerInfoPlin() {
+        return Map.of("numero", plinNumero, "titular", plinTitular);
+    }
+
     @Transactional
     public void procesarTransaccion(Integer idUsuario, PagoRequest request) {
         Carrito carrito = carritoService.obtenerOCrearCarrito(idUsuario);
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
+
+        // --- Validación específica de Plin (antes de consumir cupones o stock) ---
+        boolean esPlin = "PLIN".equalsIgnoreCase(request.getMetodoPago());
+        String numeroOperacion = null;
+        if (esPlin) {
+            numeroOperacion = request.getNumeroOperacion() == null ? "" : request.getNumeroOperacion().trim();
+            if (!numeroOperacion.matches("\\d{6,12}")) {
+                throw new RuntimeException("Ingresa un número de operación válido (6 a 12 dígitos).");
+            }
+            if (pedidoRepository.existsByNumeroOperacion(numeroOperacion)) {
+                throw new RuntimeException("Este número de operación ya fue registrado en otro pedido.");
+            }
+        }
 
         double subtotal = 0.0;
         for (DetalleCarrito d : carrito.getDetalles()) {
@@ -159,7 +183,9 @@ public class PagoService {
         Pedido pedido = new Pedido();
         pedido.setUsuario(carrito.getUsuario());
         pedido.setFecha(LocalDateTime.now());
-        pedido.setEstado(requiereReceta ? "EN_ESPERA" : "PAGADO");
+        // Plin: el pago queda pendiente hasta que la botica verifique la operación en su banco
+        pedido.setEstado(esPlin ? "PENDIENTE_VERIFICACION" : (requiereReceta ? "EN_ESPERA" : "PAGADO"));
+        pedido.setNumeroOperacion(numeroOperacion);
         pedido.setTotal(totalFinal);
         pedido.setDireccionEnvio(request.getDireccionEnvio());
         pedido.setEsUrgente(request.isEsUrgente());
@@ -195,15 +221,78 @@ public class PagoService {
         long nroPedidoCliente = pedidoRepository.countByUsuario(usuario);
         String nroBoleta = String.format("%06d", nroPedidoCliente);
 
+        // En Plin el correo de confirmación se envía cuando se verifica el pago
+        if (!esPlin) {
+            enviarCorreoConfirmacion(usuario, pedido, detallesGuardados, request.getCodigoCupon(), nroBoleta);
+        }
+    }
+
+    private void enviarCorreoConfirmacion(User usuario, Pedido pedido, List<DetallePedido> detalles,
+            String codigoCupon, String nroBoleta) {
         CompletableFuture.runAsync(() -> {
             try {
                 emailService.sendOrderConfirmationEmail(usuario.getEmail(),
-                        usuario.getNombre() + " " + usuario.getApellido(), pedido, detallesGuardados,
-                        request.getCodigoCupon(), nroBoleta);
+                        usuario.getNombre() + " " + usuario.getApellido(), pedido, detalles,
+                        codigoCupon, nroBoleta);
             } catch (Exception e) {
                 System.out.println("Error en correo: " + e.getMessage());
             }
         });
+    }
+
+    // ─── PLIN: verificación manual por parte de la botica ────────────────────
+
+    private Pedido obtenerPedidoPlinPendiente(Integer idPedido) {
+        Pedido pedido = pedidoRepository.findById(idPedido)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado."));
+        if (!"PLIN".equalsIgnoreCase(pedido.getMetodoPago())
+                || !"PENDIENTE_VERIFICACION".equals(pedido.getEstado())) {
+            throw new RuntimeException("El pedido no está pendiente de verificación de Plin.");
+        }
+        return pedido;
+    }
+
+    /** La botica confirma que el dinero llegó a su cuenta Plin. */
+    @Transactional
+    public void confirmarPagoPlin(Integer idPedido) {
+        Pedido pedido = obtenerPedidoPlinPendiente(idPedido);
+        // Si el pedido lleva receta, sigue en espera hasta que se apruebe la receta
+        pedido.setEstado(pedido.getIdReceta() != null ? "EN_ESPERA" : "PAGADO");
+        pedidoRepository.save(pedido);
+
+        User usuario = pedido.getUsuario();
+        List<DetallePedido> detalles = detallePedidoRepository.findByPedido_IdPedido(idPedido);
+        String nroBoleta = String.format("%06d", pedidoRepository.countByUsuario(usuario));
+        enviarCorreoConfirmacion(usuario, pedido, detalles, null, nroBoleta);
+    }
+
+    /** La botica no encontró el pago: se rechaza el pedido y se devuelve el stock reservado. */
+    @Transactional
+    public void rechazarPagoPlin(Integer idPedido) {
+        Pedido pedido = obtenerPedidoPlinPendiente(idPedido);
+        for (DetallePedido det : detallePedidoRepository.findByPedido_IdPedido(idPedido)) {
+            restaurarStock(det.getProducto().getIdProducto(), det.getCantidad());
+        }
+        pedido.setEstado("RECHAZADO");
+        pedidoRepository.save(pedido);
+    }
+
+    /**
+     * Devuelve stock al rechazar un pedido. Con lotes, se repone en el lote que vence
+     * primero (el primero del que FEFO habría descontado); sin lotes, en el stock general.
+     */
+    private void restaurarStock(Integer idProducto, int cantidad) {
+        List<InventarioLote> lotes = loteRepository.findByProductoIdProductoOrderByFechaVencimientoAsc(idProducto);
+        if (lotes.isEmpty()) {
+            Producto producto = productoRepository.findById(idProducto)
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + idProducto));
+            producto.setStock((producto.getStock() != null ? producto.getStock() : 0) + cantidad);
+            productoRepository.save(producto);
+        } else {
+            InventarioLote lote = lotes.get(0);
+            lote.setCantidadActual(lote.getCantidadActual() + cantidad);
+            loteRepository.save(lote);
+        }
     }
 
     public Map<String, Object> validarCupon(Integer idUsuario, String codigo) {

@@ -12,4 +12,5 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
     List<Pedido> findAllByOrderByFechaDesc();
     long countByUsuario(User usuario);
     List<Pedido> findByIdReceta(Integer idReceta);
+    boolean existsByNumeroOperacion(String numeroOperacion);
 }
