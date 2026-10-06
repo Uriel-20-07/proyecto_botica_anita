@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface TrackingResponseDTO {
   idPedido: number;
@@ -20,7 +21,7 @@ export interface TrackingResponseDTO {
   providedIn: 'root'
 })
 export class TrackingService {
-  private apiUrl = 'http://localhost:8080/api/pedidos'; // Ajusta la URL de tu Spring Boot
+  private apiUrl = `${environment.apiUrl}/api/pedidos-tracking`;
 
   constructor(private http: HttpClient) {}
 
