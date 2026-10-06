@@ -3,14 +3,7 @@ import { TrackingService, TrackingResponseDTO } from '../../services/tracking.se
 import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import * as L from 'leaflet';
-
-// Tienda Botica Anita: esquina Las Violetas con Av. Los Jazmines, Independencia.
-const TIENDA_LAT = -12.0016;
-const TIENDA_LNG = -77.0501;
-// Velocidad promedio del motorizado para estimar la llegada (km/h).
-const VELOCIDAD_KMH = 25;
-// Cada tick de simulación avanza este tiempo de viaje (segundos).
-const TICK_SEG = 2;
+import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO } from '../../services/tracking-ruta.service';
 
 @Component({
   selector: 'app-tracking-mapa',
@@ -65,10 +58,12 @@ const TICK_SEG = 2;
 })
 export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() idPedido!: number;
+  @Input() fechaPedido?: string;
 
   pedido?: TrackingResponseDTO;
   progreso = 0;
   etaMin = 0;
+  tripMin = 0;
   mostrandoSimulacion = false;
   // La moto solo aparece cuando hay motorizado asignado/en camino.
   mostrarMoto = false;
@@ -87,7 +82,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   // Guardamos la suscripción RxJS para cancelarla al destruir el componente
   private pollingSub?: Subscription;
 
-  constructor(private trackingService: TrackingService) {}
+  constructor(private trackingService: TrackingService, private ruta: TrackingRutaService) {}
 
   ngOnInit(): void {
     this.iniciarPolling();
@@ -167,45 +162,11 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     return 0; // PAGADO, CONFIRMADO, EN_ESPERA: el motorizado sigue en tienda.
   }
 
-  /** Resuelve el destino: coords del pedido > geocodificación de la dirección > centro de Lima. */
+  /** Resuelve el destino con el servicio compartido y crea el mapa. */
   private async resolverDestinoYCrearMapa(): Promise<void> {
     if (!this.pedido || this.map) return;
-    let lat = Number(this.pedido.latitudEntrega) || 0;
-    let lng = Number(this.pedido.longitudEntrega) || 0;
-    if (!lat || !lng) {
-      const geo = await this.geocodificar(
-        `${this.pedido.direccionEnvio || ''}, ${this.pedido.distrito || ''}, Lima, Perú`);
-      if (geo) { lat = geo[0]; lng = geo[1]; }
-    }
-    if (!lat || !lng) { lat = -12.046374; lng = -77.042793; }
+    const [lat, lng] = await this.ruta.resolverDestino(this.pedido);
     this.initMap(lat, lng);
-  }
-
-  /** Convierte la dirección de entrega en coordenadas (Nominatim, gratis).
-   * Filtra por distrito y elige el tramo más cercano a la tienda. */
-  private async geocodificar(direccion: string): Promise<[number, number] | null> {
-    try {
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(direccion);
-      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (!r.ok) return null;
-      const arr = await r.json();
-      if (!Array.isArray(arr) || arr.length === 0) return null;
-      const dist = (this.pedido?.distrito || '').toLowerCase();
-      let cands = arr;
-      if (dist) {
-        const enDistrito = arr.filter((x: any) => String(x.display_name || '').toLowerCase().includes(dist));
-        if (enDistrito.length > 0) cands = enDistrito;
-      }
-      let mejor = cands[0];
-      let mejorD = Number.MAX_VALUE;
-      for (const c of cands) {
-        const d = this.distanciaM(TIENDA_LAT, TIENDA_LNG, Number(c.lat), Number(c.lon));
-        if (d < mejorD) { mejorD = d; mejor = c; }
-      }
-      return [Number(mejor.lat), Number(mejor.lon)];
-    } catch {
-      return null;
-    }
   }
 
   /** Dirección sin duplicar el distrito si ya viene incluido. */
@@ -261,8 +222,9 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Divide el tramo tienda -> entrega en pasos para animar el avance. */
   private prepararSimulacion(latDestino: number, lngDestino: number): void {
-    const distM = this.distanciaM(TIENDA_LAT, TIENDA_LNG, latDestino, lngDestino);
-    const pasos = Math.max(20, Math.round(distM / (VELOCIDAD_KMH * 1000 / 3600 * TICK_SEG)));
+    const distM = this.ruta.distanciaM(TIENDA_LAT, TIENDA_LNG, latDestino, lngDestino);
+    this.tripMin = this.ruta.tripMin(distM);
+    const pasos = Math.max(20, this.tripMin * 8);
     this.rutaSimulada = [];
     for (let i = 0; i <= pasos; i++) {
       const f = i / pasos;
@@ -275,18 +237,24 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     this.actualizarEta(distM);
   }
 
-  /** Avanza un paso de la simulación cada ciclo de polling, sin pasar el tope del estado. */
+  /** Avanza según el tiempo real desde el pedido: misma distancia y tiempos que el timeline. */
   private avanzarSimulacion(): void {
     if (!this.map || this.rutaSimulada.length === 0) return;
-    const topePaso = Math.floor((this.topePorEstado() / 100) * (this.rutaSimulada.length - 1));
-    if (this.pasoSim < topePaso) {
-      // Varios mini-pasos por ciclo para un movimiento fluido (~cada 2s).
-      this.pasoSim = Math.min(this.pasoSim + 4, topePaso);
+    const tope = this.topePorEstado();
+    const topePaso = Math.floor((tope / 100) * (this.rutaSimulada.length - 1));
+    let objetivo = topePaso;
+    if (this.fechaPedido && this.tripMin > 0) {
+      const elapsedMin = (Date.now() - new Date(this.fechaPedido).getTime()) / 60000;
+      const inicioViaje = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO;
+      const frac = Math.min(Math.max((elapsedMin - inicioViaje) / this.tripMin, 0), 1);
+      objetivo = Math.min(Math.floor(frac * (this.rutaSimulada.length - 1)), topePaso);
     }
+    // Nunca retrocede (evita saltos por redondeo entre polls).
+    this.pasoSim = Math.max(this.pasoSim, Math.min(objetivo, topePaso));
     const pos = this.rutaSimulada[this.pasoSim];
     this.pintarRepartidor(pos[0], pos[1]);
     this.progreso = Math.round((this.pasoSim / (this.rutaSimulada.length - 1)) * 100);
-    const restante = this.distanciaM(pos[0], pos[1],
+    const restante = this.ruta.distanciaM(pos[0], pos[1],
       this.rutaSimulada[this.rutaSimulada.length - 1][0],
       this.rutaSimulada[this.rutaSimulada.length - 1][1]);
     this.actualizarEta(restante);
@@ -346,15 +314,5 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private actualizarEta(distM: number): void {
     this.etaMin = Math.max(1, Math.round((distM / 1000 / VELOCIDAD_KMH) * 60));
-  }
-
-  /** Distancia en metros (Haversine). */
-  private distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const r = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-    return 2 * r * Math.asin(Math.sqrt(a));
   }
 }

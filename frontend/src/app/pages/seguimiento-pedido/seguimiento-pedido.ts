@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { PedidoService } from '../../services/pedido.service';
 import { TrackingMapaComponent } from '../../components/tracking/tracking-mapa.component';
+import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, MIN_ENTREGA_EXTRA } from '../../services/tracking-ruta.service';
 
 @Component({
   selector: 'app-seguimiento-pedido',
@@ -19,14 +20,18 @@ export class SeguimientoPedidoComponent implements OnInit {
 
   idPedidoRuta = 0;
 
-  estadoActual = signal(0);
-
-  pasos: any[] = [];
+  /** Minutos estimados de viaje tienda -> entrega (se calcula al cargar el pedido). */
+  tripMin = 20;
 
   constructor(
     private route: ActivatedRoute,
-    private pedidoService: PedidoService
+    private pedidoService: PedidoService,
+    private ruta: TrackingRutaService
   ) { }
+
+  estadoActual = signal(0);
+
+  pasos: any[] = [];
 
   ngOnInit(): void {
 
@@ -36,7 +41,7 @@ export class SeguimientoPedidoComponent implements OnInit {
     this.idPedidoRuta = idPedido;
 
     this.pedidoService.obtenerPedidos().subscribe({
-      next: pedidos => {
+      next: async pedidos => {
 
         const pedido = pedidos.find(
           (p: any) => p.idPedido === idPedido
@@ -57,6 +62,9 @@ export class SeguimientoPedidoComponent implements OnInit {
 
         this.numeroPedido.set(numeroVisible);
 
+        // Misma distancia que el mapa: se resuelve el destino y se calcula el viaje.
+        const [la, ln] = await this.ruta.resolverDestino(pedido);
+        this.tripMin = this.ruta.tripMin(this.ruta.distanciaM(TIENDA_LAT, TIENDA_LNG, la, ln));
         this.calcularEstado(pedido.fecha);
         this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
       }
@@ -152,27 +160,28 @@ export class SeguimientoPedidoComponent implements OnInit {
     const minutos = (ahora - inicio) / (1000 * 60);
 
     let paso: number;
+    // Tiempos por etapa + viaje según distancia (igual que el mapa).
+    const t0 = MIN_CONFIRMADO; // 1
+    const t1 = t0 + MIN_DESPACHO; // 6
+    const t2 = t1 + MIN_MOTORIZADO; // 11
+    const t3 = t2 + this.tripMin + MIN_ENTREGA_EXTRA;
     // Pedido confirmado
-    if (minutos < 1) {
+    if (minutos < t0) {
       paso = 0;
     }
-    // En despacho (1 hora)
-    else if (minutos < 60) {
+    // En despacho
+    else if (minutos < t1) {
       paso = 1;
     }
-    // Motorizado asignado (15 min)
-    else if (minutos < 75) {
+    // Motorizado asignado
+    else if (minutos < t2) {
       paso = 2;
     }
-    // En camino (1 hora)
-    else if (minutos < 135) {
+    // En camino (dura lo que el viaje)
+    else if (minutos < t3) {
       paso = 3;
     }
-    // Últimos 30 min antes de entrega
-    else if (minutos < 165) {
-      paso = 3;
-    }
-    // Entregado
+    // Entregado (1 min después de llegar)
     else {
       paso = 4;
     }

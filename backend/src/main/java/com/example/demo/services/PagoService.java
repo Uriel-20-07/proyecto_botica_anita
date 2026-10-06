@@ -183,8 +183,8 @@ public class PagoService {
         Pedido pedido = new Pedido();
         pedido.setUsuario(carrito.getUsuario());
         pedido.setFecha(LocalDateTime.now());
-        // Plin: el pago queda pendiente hasta que la botica verifique la operación en su banco
-        pedido.setEstado(esPlin ? "PENDIENTE_VERIFICACION" : (requiereReceta ? "EN_ESPERA" : "PAGADO"));
+        // Plin automático: sin verificación manual, marca PAGADO directo (igual que Yape)
+        pedido.setEstado(requiereReceta ? "EN_ESPERA" : "PAGADO");
         pedido.setNumeroOperacion(numeroOperacion);
         pedido.setTotal(totalFinal);
         pedido.setDireccionEnvio(request.getDireccionEnvio());
@@ -221,10 +221,8 @@ public class PagoService {
         long nroPedidoCliente = pedidoRepository.countByUsuario(usuario);
         String nroBoleta = String.format("%06d", nroPedidoCliente);
 
-        // En Plin el correo de confirmación se envía cuando se verifica el pago
-        if (!esPlin) {
-            enviarCorreoConfirmacion(usuario, pedido, detallesGuardados, request.getCodigoCupon(), nroBoleta);
-        }
+        // Correo de confirmación para todos los métodos (Plin ya no espera verificación)
+        enviarCorreoConfirmacion(usuario, pedido, detallesGuardados, request.getCodigoCupon(), nroBoleta);
     }
 
     private void enviarCorreoConfirmacion(User usuario, Pedido pedido, List<DetallePedido> detalles,
