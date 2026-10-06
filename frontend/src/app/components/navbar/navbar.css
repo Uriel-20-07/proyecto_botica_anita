@@ -332,6 +332,7 @@
 }
 
 .bn-link {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -346,10 +347,38 @@
         flex-shrink: 0;
         stroke: currentColor;
         opacity: 0.6;
+        transition: opacity 0.2s;
     }
 
     &:hover {
         color: #2b78e4;
+    }
+
+    /* Rayita indicadora, oculta por defecto. Posicionada en absoluto para no
+       afectar la altura ni la alineación vertical del resto de la barra. */
+    &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -13px;
+        height: 2px;
+        border-radius: 1px;
+        background: transparent;
+        transition: background 0.2s;
+    }
+}
+
+/* Página actual: texto en azul + rayita debajo, para saber en qué página estás */
+.bn-link.active {
+    color: #2b78e4;
+
+    svg {
+        opacity: 1;
+    }
+
+    &::after {
+        background: #2b78e4;
     }
 }
 

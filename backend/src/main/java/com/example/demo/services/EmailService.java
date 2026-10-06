@@ -1,13 +1,15 @@
 package com.example.demo.services;
 
-import com.example.demo.models.Pedido;
-import com.example.demo.models.DetallePedido;
 import java.math.BigDecimal;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import com.example.demo.models.DetallePedido;
+import com.example.demo.models.Pedido;
 
 /**
  * Servicio para el envío de correos electrónicos transaccionales.
@@ -45,9 +47,9 @@ public class EmailService {
     public void sendPasswordResetEmail(String destinatario, String token) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");  // Remitente de la plataforma
+            message.setFrom("noreply@boticaanita.com");  // Remitente de la plataforma
             message.setTo(destinatario);
-            message.setSubject("Código de Recuperación de Contraseña - MiFarmaCode");
+            message.setSubject("Código de Recuperación de Contraseña - BoticaAnita");
 
             String contenido = "Hola,\n\n" +
                     "Hemos recibido una solicitud para recuperar tu contraseña.\n\n" +
@@ -55,7 +57,7 @@ public class EmailService {
                     "Por favor, ingresa este código en la sección de recuperación de contraseña.\n" +
                     "Este código expirará en 1 hora.\n\n" +
                     "Si no solicitaste esta recuperación, por favor ignora este correo.\n\n" +
-                    "Saludos,\nEquipo MiFarmaCode";
+                    "Saludos,\nEquipo BoticaAnita";
 
             message.setText(contenido);
             mailSender.send(message);
@@ -78,15 +80,15 @@ public class EmailService {
     public void sendVerificationEmail(String destinatario, String verificationLink) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");
+            message.setFrom("noreply@boticaanita.com");
             message.setTo(destinatario);
-            message.setSubject("Verifica tu Correo - MiFarmaCode");
+            message.setSubject("Verifica tu Correo - BoticaAnita");
 
             String contenido = "Hola,\n\n" +
-                    "Gracias por registrarte en MiFarmaCode. " +
+                    "Gracias por registrarte en BoticaAnita. " +
                     "Haz clic en el siguiente enlace para verificar tu correo:\n\n" +
                     verificationLink + "\n\n" +
-                    "Saludos,\nEquipo MiFarmaCode";
+                    "Saludos,\nEquipo BoticaAnita";
 
             message.setText(contenido);
             mailSender.send(message);
@@ -107,15 +109,15 @@ public class EmailService {
     public void sendWelcomeEmail(String destinatario, String nombre) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");
+            message.setFrom("noreply@boticaanita.com");
             message.setTo(destinatario);
-            message.setSubject("Bienvenido a MiFarmaCode");
+            message.setSubject("Bienvenido a BoticaAnita");
 
             String contenido = "Hola " + nombre + ",\n\n" +
-                    "Te damos la bienvenida a MiFarmaCode. " +
+                    "Te damos la bienvenida a BoticaAnita. " +
                     "Tu cuenta ha sido creada exitosamente.\n\n" +
                     "Ahora puedes acceder a nuestras herramientas y servicios.\n\n" +
-                    "Saludos,\nEquipo MiFarmaCode";
+                    "Saludos,\nEquipo BoticaAnita";
 
             message.setText(contenido);
             mailSender.send(message);
@@ -137,12 +139,12 @@ public class EmailService {
     public void sendWelcomeCouponEmail(String destinatario, String nombre, String codigoCupon) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");
+            message.setFrom("noreply@boticaanita.com");
             message.setTo(destinatario);
-            message.setSubject("¡Bienvenido a MiFarmaCode! Tu cupón de 30% ya está listo");
+            message.setSubject("¡Bienvenido a BoticaAnita! Tu cupón de 30% ya está listo");
 
             String contenido = "Hola " + nombre + ",\n\n" +
-                    "Gracias por unirte a MiFarmaCode. Como bienvenida, te hemos creado un cupón exclusivo con 30% de descuento para tu primera compra.\n\n"
+                    "Gracias por unirte a BoticaAnita. Como bienvenida, te hemos creado un cupón exclusivo con 30% de descuento para tu primera compra.\n\n"
                     +
                     "Tu código es: " + codigoCupon + "\n" +
                     "Es válido por 30 días y solo puede usarse una vez.\n\n" +
@@ -151,7 +153,7 @@ public class EmailService {
                     "2. Ingresa el código al finalizar la compra.\n" +
                     "3. Disfruta del 30% de descuento.\n\n" +
                     "Si tienes dudas, responde a este correo.\n\n" +
-                    "Saludos,\nEquipo MiFarmaCode";
+                    "Saludos,\nEquipo BoticaAnita";
 
             message.setText(contenido);
             mailSender.send(message);
@@ -172,9 +174,9 @@ public class EmailService {
     public void sendOrderConfirmationEmail(String destinatario, String nombre, Pedido pedido, List<DetallePedido> detalles, String codigoCupon, String nroBoleta) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");
+            message.setFrom("noreply@boticaanita.com");
             message.setTo(destinatario);
-            message.setSubject("Confirmación de tu compra #" + nroBoleta + " - MiFarmaCode");
+            message.setSubject("Confirmación de tu compra #" + nroBoleta + " - BoticaAnita");
 
             StringBuilder contenido = new StringBuilder();
             contenido.append("Hola ").append(nombre).append(",\n\n")
@@ -227,8 +229,8 @@ public class EmailService {
                 contenido.append("Tu pedido ya está siendo preparado para su envío.\n\n");
             }
 
-            contenido.append("Si tienes alguna duda o consulta, puedes responder a este correo o escribir a soporte@mifarmacode.com.\n\n")
-                    .append("Saludos,\nEquipo MiFarmaCode");
+            contenido.append("Si tienes alguna duda o consulta, puedes responder a este correo o escribir a soporte@boticaanita.com.\n\n")
+                    .append("Saludos,\nEquipo BoticaAnita");
 
             message.setText(contenido.toString());
             mailSender.send(message);
@@ -249,9 +251,9 @@ public class EmailService {
     public void sendCampaignCouponEmail(String destinatario, String nombre, String codigoCupon, double descuento, String descripcion) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@mifarmacode.com");
+            message.setFrom("noreply@boticaanita.com");
             message.setTo(destinatario);
-            message.setSubject("¡Regalo especial para ti! Cupón de Descuento en MiFarmaCode");
+            message.setSubject("¡Regalo especial para ti! Cupón de Descuento en BoticaAnita");
 
             String contenido = "Hola " + nombre + ",\n\n" +
                     "Queremos premiar tu preferencia y por ello te obsequiamos un cupón de descuento exclusivo:\n\n" +
@@ -260,10 +262,10 @@ public class EmailService {
                     "Campaña: " + descripcion + "\n\n" +
                     "Este cupón es de un solo uso.\n\n" +
                     "¿Cómo aplicarlo?\n" +
-                    "1. Ingresa a la tienda de MiFarmaCode y agrega tus productos.\n" +
+                    "1. Ingresa a la tienda de BoticaAnita y agrega tus productos.\n" +
                     "2. En el checkout, introduce el código del cupón antes de proceder con el pago.\n" +
                     "3. ¡Listo! Se aplicará el descuento automáticamente.\n\n" +
-                    "Saludos cordiales,\nEquipo MiFarmaCode";
+                    "Saludos cordiales,\nEquipo BoticaAnita";
 
             message.setText(contenido);
             mailSender.send(message);
