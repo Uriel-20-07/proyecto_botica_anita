@@ -17,6 +17,8 @@ export class SeguimientoPedidoComponent implements OnInit {
 
   numeroPedido = signal('');
 
+  idPedidoRuta = 0;
+
   estadoActual = signal(0);
 
   pasos: any[] = [];
@@ -31,6 +33,7 @@ export class SeguimientoPedidoComponent implements OnInit {
     const idPedido = Number(
       this.route.snapshot.paramMap.get('id')
     );
+    this.idPedidoRuta = idPedido;
 
     this.pedidoService.obtenerPedidos().subscribe({
       next: pedidos => {
@@ -128,6 +131,15 @@ export class SeguimientoPedidoComponent implements OnInit {
     ];
   }
 
+  /** Tope de paso según el estado real: el timeline nunca corre más rápido que el pedido. */
+  private topeEstadoPedido(): number {
+    const est = (this.pedido()?.estado || '').toUpperCase();
+    if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 4;
+    if (est.includes('EN_CAMINO')) return 3;
+    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 1;
+    return 4;
+  }
+
   calcularEstado(fechaPedido: string): void {
     const ped = this.pedido();
     if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO')) {
@@ -139,30 +151,32 @@ export class SeguimientoPedidoComponent implements OnInit {
     const ahora = new Date().getTime();
     const minutos = (ahora - inicio) / (1000 * 60);
 
+    let paso: number;
     // Pedido confirmado
     if (minutos < 1) {
-      this.estadoActual.set(0);
+      paso = 0;
     }
     // En despacho (1 hora)
     else if (minutos < 60) {
-      this.estadoActual.set(1);
+      paso = 1;
     }
     // Motorizado asignado (15 min)
     else if (minutos < 75) {
-      this.estadoActual.set(2);
+      paso = 2;
     }
     // En camino (1 hora)
     else if (minutos < 135) {
-      this.estadoActual.set(3);
+      paso = 3;
     }
     // Últimos 30 min antes de entrega
     else if (minutos < 165) {
-      this.estadoActual.set(3);
+      paso = 3;
     }
     // Entregado
     else {
-      this.estadoActual.set(4);
+      paso = 4;
     }
+    this.estadoActual.set(Math.min(paso, this.topeEstadoPedido()));
   }
 
   estadoTexto(): string {

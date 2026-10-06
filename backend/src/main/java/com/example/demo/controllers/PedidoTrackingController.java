@@ -16,7 +16,7 @@ import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/pedidos-tracking")
-@CrossOrigin(origins = "*") // Ajusta las orígenes según la IP o dominio de tu cliente Angular
+@CrossOrigin(originPatterns = "http://localhost:*", allowCredentials = "true")
 public class PedidoTrackingController {
 
     private final PedidoRepository pedidoRepository;
@@ -35,6 +35,8 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
             Map<String, Object> response = new HashMap<>();
             response.put("idPedido", pedido.getIdPedido());
             response.put("estado", pedido.getEstado());
+            response.put("direccionEnvio", pedido.getDireccionEnvio());
+            response.put("distrito", pedido.getDistrito());
             response.put("latitudEntrega", pedido.getLatitudEntrega());
             response.put("longitudEntrega", pedido.getLongitudEntrega());
             response.put("latitudRepartidor", pedido.getLatitudRepartidor());
