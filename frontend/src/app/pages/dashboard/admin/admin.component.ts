@@ -5,6 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AdminService } from '../../../services/admin.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
 import { RecetasService, RecetaMedica } from '../../../services/recetas.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -16,6 +17,9 @@ import { RecetasService, RecetaMedica } from '../../../services/recetas.service'
 export class AdminDashboardComponent implements OnInit {
   activeTab: 'resumen' | 'ventas' | 'inventario' | 'reportes' | 'predicciones' | 'recetas' | 'cupones' = 'resumen';
   adminUser: any = null;
+
+  // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
+  readonly mostrarRecetas = environment.mostrarRecetas ?? false;
 
   // Variables Campaña de Cupones
   usuarios: any[] = [];

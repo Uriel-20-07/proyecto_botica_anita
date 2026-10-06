@@ -71,11 +71,8 @@
 
         <div class="form-row-doble">
           <div class="form-group">
-            <label>Distrito <span class="req">*</span></label>
-            <select [(ngModel)]="formPago.distrito" (change)="onDistritoChange()" class="form-input form-select">
-              <option value="" disabled>Selecciona tu distrito</option>
-              <option *ngFor="let d of distritosLima" [value]="d">{{ d }}</option>
-            </select>
+            <label>Distrito</label>
+            <input type="text" value="Independencia" class="form-input" readonly />
           </div>
           <div class="form-group">
             <label>Departamento</label>
