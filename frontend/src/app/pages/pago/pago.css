@@ -595,3 +595,21 @@
         font-size: 22px;
     }
 }
+
+/* ─── PLIN ─────────────────────────────────────────────────────────────── */
+.plin-header-info { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.plin-header-info p { margin: 0; font-size: 13px; color: #475569; line-height: 1.5; }
+.plin-badge-logo {
+  background: linear-gradient(135deg, #00d1c1, #0090ff);
+  color: #fff; font-weight: 800; font-size: 14px;
+  padding: 6px 14px; border-radius: 20px; letter-spacing: .5px;
+}
+.plin-pasos { margin: 0 0 16px; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.7; }
+.plin-cuenta {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 14px 16px;
+}
+.plin-cuenta-datos { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: #0f172a; }
+.plin-label { font-size: 11px; text-transform: uppercase; color: #64748b; margin-top: 6px; }
+.plin-numero { font-size: 20px; letter-spacing: 1px; }
+.plin-qr { width: 120px; height: 120px; object-fit: contain; border-radius: 8px; background: #fff; }

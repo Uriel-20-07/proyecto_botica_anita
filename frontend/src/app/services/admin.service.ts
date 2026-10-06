@@ -78,6 +78,16 @@ export class AdminService {
   }
 
 
+  /** Confirma que el pago Plin del pedido llegó a la cuenta de la botica. */
+  confirmarPagoPlin(idPedido: number): Observable<any> {
+    return this.http.patch(`${environment.apiUrl}/api/pago/plin/${idPedido}/confirmar`, {}, { headers: this.getHeaders() });
+  }
+
+  /** Rechaza el pago Plin del pedido (no se encontró la operación) y devuelve el stock. */
+  rechazarPagoPlin(idPedido: number): Observable<any> {
+    return this.http.patch(`${environment.apiUrl}/api/pago/plin/${idPedido}/rechazar`, {}, { headers: this.getHeaders() });
+  }
+
   getVentas(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/ventas`, { headers: this.getHeaders() });
   }

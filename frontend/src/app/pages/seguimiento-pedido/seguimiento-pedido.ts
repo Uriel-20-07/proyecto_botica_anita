@@ -97,12 +97,12 @@ export class SeguimientoPedidoComponent implements OnInit {
       : `Pedido entregado exitosamente. Listo para recoger en: ${direccionBodega}`;
 
     const ped = this.pedido();
-    const esEspera = ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO');
+    const esEspera = ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO' || ped.estado === 'PENDIENTE_VERIFICACION');
 
     this.pasos = [
       {
         titulo: esEspera ? 'Pedido en espera' : 'Pedido confirmado',
-        descripcion: esEspera ? 'Esperando validación de receta médica' : 'Pago recibido correctamente',
+        descripcion: ped?.estado === 'PENDIENTE_VERIFICACION' ? 'Verificando tu pago Plin' : (esEspera ? 'Esperando validación de receta médica' : 'Pago recibido correctamente'),
         fecha: inicio
       },
       {
@@ -130,7 +130,7 @@ export class SeguimientoPedidoComponent implements OnInit {
 
   calcularEstado(fechaPedido: string): void {
     const ped = this.pedido();
-    if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO')) {
+    if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO' || ped.estado === 'PENDIENTE_VERIFICACION')) {
       this.estadoActual.set(0);
       return;
     }
@@ -167,8 +167,8 @@ export class SeguimientoPedidoComponent implements OnInit {
 
   estadoTexto(): string {
     const ped = this.pedido();
-    if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO')) {
-      return 'esperando a que el pedido se confirme';
+    if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO' || ped.estado === 'PENDIENTE_VERIFICACION')) {
+      return ped.estado === 'PENDIENTE_VERIFICACION' ? 'verificando tu pago Plin' : 'esperando a que el pedido se confirme';
     }
 
     switch (this.estadoActual()) {

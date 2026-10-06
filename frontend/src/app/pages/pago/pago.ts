@@ -27,7 +27,7 @@ const EMAILJS_PUBLIC_KEY  = 'HDwamrH2SgIFGUpNw';
 })
 export class PagoComponent implements OnInit, AfterViewChecked {
 
-  metodoSeleccionado: 'TARJETA' | 'YAPE' = 'TARJETA';
+  metodoSeleccionado: 'TARJETA' | 'YAPE' | 'PLIN' = 'TARJETA';
 
   // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
@@ -66,6 +66,12 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   pagoExitoso: boolean = false;
   folioGenerado: string = '';
   direccionFinal: string = '';
+
+  // --- PLIN ---
+  plinInfo: { numero: string; titular: string } | null = null;
+  plinQrDisponible: boolean = true;
+  plinCopiado: boolean = false;
+  pagoPendienteVerificacion: boolean = false;
 
   yapePaso: 1 | 2 = 1;
   codigoYapeGenerado: string = '';
@@ -190,6 +196,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     numeroCelular: '',
     correoYape: '',
     tokenYape: '',
+    numeroOperacion: '',
     puntoSeleccionado: '',
     esUrgente: false
   };
@@ -284,11 +291,18 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  seleccionarMetodo(metodo: 'TARJETA' | 'YAPE') {
+  seleccionarMetodo(metodo: 'TARJETA' | 'YAPE' | 'PLIN') {
     this.metodoSeleccionado = metodo;
     this.mensajeError = '';
     this.mensajeExito = '';
     this.yapePaso = 1;
+
+    if (metodo === 'PLIN' && !this.plinInfo) {
+      this.pagoService.obtenerInfoPlin().subscribe({
+        next: (info) => (this.plinInfo = info),
+        error: () => (this.mensajeError = 'No se pudo cargar los datos de Plin. Intenta nuevamente.')
+      });
+    }
     
     // Desmontar los 3 elementos si se cambia a Yape
     if (metodo !== 'TARJETA') {
@@ -297,6 +311,14 @@ export class PagoComponent implements OnInit, AfterViewChecked {
         if (this.cardExpiryElement) { this.cardExpiryElement.destroy(); this.cardExpiryElement = null; }
         if (this.cardCvcElement) { this.cardCvcElement.destroy(); this.cardCvcElement = null; }
     }
+  }
+
+  copiarNumeroPlin() {
+    if (!this.plinInfo?.numero) return;
+    navigator.clipboard?.writeText(this.plinInfo.numero).then(() => {
+      this.plinCopiado = true;
+      setTimeout(() => (this.plinCopiado = false), 2000);
+    });
   }
 
   onDistritoChange() {
@@ -484,6 +506,16 @@ export class PagoComponent implements OnInit, AfterViewChecked {
             this.procesandoPago = false;
         }
 
+    } else if (this.metodoSeleccionado === 'PLIN') {
+        // El cliente ya transfirió desde su app; registramos el número de operación
+        // y la botica lo verifica antes de confirmar el pedido.
+        const operacion = (this.formPago.numeroOperacion || '').trim();
+        if (!/^\d{6,12}$/.test(operacion)) {
+            this.mensajeError = 'Ingresa el número de operación de tu transferencia Plin (6 a 12 dígitos).';
+            return;
+        }
+        this.procesandoPago = true;
+        this.finalizarPedidoEnBackend();
     } else {
         // Lógica de Yape intacta
         if (this.yapePaso === 1) { this.mensajeError = 'Verifica tu código Yape.'; return; }
@@ -503,18 +535,22 @@ export class PagoComponent implements OnInit, AfterViewChecked {
             direccionEnvio: `${this.formPago.direccionDetalle}, ${this.formPago.distrito}`,
             distrito: this.formPago.distrito,
             esUrgente: this.formPago.esUrgente,
-            idReceta: this.recetaSubidaId
+            idReceta: this.recetaSubidaId,
+            numeroOperacion: this.metodoSeleccionado === 'PLIN' ? this.formPago.numeroOperacion.trim() : null
         };
 
       this.pagoService.procesarPago(datosPago).subscribe({
           next: () => {
               this.folioGenerado = `FC-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
               this.direccionFinal = `${this.formPago.direccionDetalle}, ${this.formPago.distrito}, Lima`;
+              this.pagoPendienteVerificacion = this.metodoSeleccionado === 'PLIN';
               this.pagoExitoso = true;
               this.procesandoPago = false;
 
               this.cartService.clear();
-              setTimeout(() => { this.router.navigate(['/catalogo']); }, 4000);
+              // Con Plin llevamos al cliente a sus pedidos para que vea el estado de la verificación
+              const destino = this.pagoPendienteVerificacion ? '/pedidos' : '/catalogo';
+              setTimeout(() => { this.router.navigate([destino]); }, 4000);
           },
           error: (err) => {
               this.mensajeError = err.error?.error || 'Error al crear el pedido final.';

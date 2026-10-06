@@ -328,14 +328,15 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       descuentoPorcentaje: producto.descuentoInfo ? producto.descuentoInfo.percentage : 0
     };
 
-    this.cartService.add(productoApi);
-    this.mensaje = `${producto.nombre} agregado al carrito.`;
+    this.cartService.add(productoApi, () => {
+      this.mensaje = `${producto.nombre} agregado al carrito.`;
 
-    window.setTimeout(() => {
-      if (this.mensaje.includes(producto.nombre)) {
-        this.mensaje = '';
-      }
-    }, 2500);
+      window.setTimeout(() => {
+        if (this.mensaje.includes(producto.nombre)) {
+          this.mensaje = '';
+        }
+      }, 2500);
+    });
   }
 
   trackByProductoId(_: number, producto: ProductoVista): number {

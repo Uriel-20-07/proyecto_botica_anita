@@ -258,7 +258,10 @@
                 </td>
                 <td>{{ venta.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td class="bold-text">S/. {{ venta.total | number:'1.2-2' }}</td>
-                <td><span class="status-badge" [class.success-badge]="venta.estado === 'COMPLETADO'">{{ venta.estado
+                <td><span class="status-badge" [class.success-badge]="venta.estado === 'COMPLETADO'"
+                    [style.background]="venta.estado === 'PENDIENTE_VERIFICACION' ? '#fef3c7' : null"
+                    [style.color]="venta.estado === 'PENDIENTE_VERIFICACION' ? '#b45309' : null">{{
+                    venta.estado === 'PENDIENTE_VERIFICACION' ? 'PLIN POR VERIFICAR' : venta.estado
                     }}</span></td>
                 <td><button (click)="showVentaDetails(venta)" class="btn-action">Ver Detalle</button></td>
               </tr>
@@ -1413,10 +1416,18 @@
               style="display:inline-flex;align-items:center;gap:5px;background:#dbeafe;color:#1d4ed8;font-weight:700;font-size:12px;border-radius:20px;padding:3px 12px;margin-left:6px;">
               💳 Tarjeta
             </span>
-            <span *ngIf="selectedVenta.metodoPago !== 'YAPE' && selectedVenta.metodoPago !== 'TARJETA'"
+            <span *ngIf="selectedVenta.metodoPago === 'PLIN'"
+              style="display:inline-flex;align-items:center;gap:5px;background:#ccfbf1;color:#0f766e;font-weight:700;font-size:12px;border-radius:20px;padding:3px 12px;margin-left:6px;">
+              💠 Plin
+            </span>
+            <span *ngIf="selectedVenta.metodoPago !== 'YAPE' && selectedVenta.metodoPago !== 'TARJETA' && selectedVenta.metodoPago !== 'PLIN'"
               style="color:#94a3b8;font-size:13px;margin-left:6px;font-style:italic;">
               {{ selectedVenta.metodoPago || 'No registrado' }}
             </span>
+          </p>
+          <p *ngIf="selectedVenta.metodoPago === 'PLIN' && selectedVenta.numeroOperacion">
+            <strong>N.º de operación Plin:</strong>
+            <span style="font-family:monospace;font-weight:700;">{{ selectedVenta.numeroOperacion }}</span>
           </p>
           <p *ngIf="selectedVenta.distrito">
             <strong>Distrito:</strong> {{ selectedVenta.distrito }}
@@ -1454,6 +1465,12 @@
         </div>
       </div>
       <div class="modal-footer">
+        <ng-container *ngIf="selectedVenta.estado === 'PENDIENTE_VERIFICACION'">
+          <button (click)="rechazarPagoPlin(selectedVenta)" class="btn-primary-modal"
+            style="background:#dc2626;margin-right:8px;">No recibí el pago</button>
+          <button (click)="confirmarPagoPlin(selectedVenta)" class="btn-primary-modal"
+            style="background:#0f766e;margin-right:8px;">Confirmar pago Plin</button>
+        </ng-container>
         <button (click)="closeVentaDetails()" class="btn-primary-modal">Cerrar</button>
       </div>
     </div>
