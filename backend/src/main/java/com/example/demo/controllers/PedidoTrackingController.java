@@ -1,22 +1,29 @@
 package com.example.demo.controllers;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.demo.dto.TrackingResponseDTO;
 import com.example.demo.dto.UbicacionDTO;
 import com.example.demo.models.Pedido;
 import com.example.demo.repositories.PedidoRepository;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.HashMap;
-
 @RestController
 @RequestMapping("/api/pedidos-tracking")
-@CrossOrigin(originPatterns = "http://localhost:*", allowCredentials = "true")
+// CORS: gobernado por la configuración global en SecurityConfig (incluye
+// localhost y el dominio de producción). No se restringe aquí para evitar
+// que este controlador quede bloqueado en producción.
 public class PedidoTrackingController {
 
     private final PedidoRepository pedidoRepository;

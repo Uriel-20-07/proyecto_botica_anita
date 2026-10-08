@@ -15,11 +15,11 @@ for (const file of cssFiles) {
   css = css.replace(/background-color:\s*#0f111a;/g, 'background-color: #f4f6f8;');
   css = css.replace(/color:\s*#f7fafc;/g, 'color: #1e293b;');
 
-  // 2. Sidebar (FarmaCode Dark Blue)
+  // 2. Sidebar (BoticaAnita Dark Blue)
   css = css.replace(/background-color:\s*#161925;/g, 'background-color: #111d2e;');
   css = css.replace(/border-right:\s*1px solid rgba\(255, 255, 255, 0\.05\);/g, 'border-right: 1px solid rgba(255, 255, 255, 0.1);');
   
-  // 3. Brand/Primary Gradients (Cyan -> FarmaCode Orange)
+  // 3. Brand/Primary Gradients (Cyan -> BoticaAnita Orange)
   css = css.replace(/linear-gradient\(135deg,\s*#00f2fe 0%,\s*#4facfe 100%\)/g, 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)');
   css = css.replace(/rgba\(79, 172, 254,\s*0\.3\)/g, 'rgba(234, 88, 12, 0.3)');
   css = css.replace(/#00f2fe/g, '#ea580c');

@@ -157,7 +157,7 @@ export class PedidosComponent implements OnInit {
       format: 'a4'
     });
 
-    const user = this.authService.getCurrentUser() || { nombre: 'Cliente', apellido: 'FarmaCode', email: '' };
+    const user = this.authService.getCurrentUser() || { nombre: 'Cliente', apellido: 'BoticaAnita', email: '' };
 
     // --- Definición de colores corporativos ---
     const colorHeaderBg = [15, 23, 42]; // Azul marino oscuro / casi negro #0f172a
@@ -173,20 +173,20 @@ export class PedidosComponent implements OnInit {
     doc.setFillColor(colorHeaderBg[0], colorHeaderBg[1], colorHeaderBg[2]);
     doc.rect(0, 0, 210, 32, 'F');
 
-    // Logo FarmaCode: "Farma" en blanco, "Code" en naranja
+    // Logo BoticaAnita: "Botica" en blanco, "Anita" en naranja
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
-    doc.text('Farma', 15, 17);
-    const farmaWidth = doc.getTextWidth('Farma');
+    doc.text('Botica', 15, 17);
+    const boticaWidth = doc.getTextWidth('Botica');
     doc.setTextColor(colorOrange[0], colorOrange[1], colorOrange[2]);
-    doc.text('Code', 15 + farmaWidth + 1.2, 17);
+    doc.text('Anita', 15 + boticaWidth + 1.2, 17);
     
     // Subtexto de cabecera
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(203, 213, 225); // Slate claro
-    doc.text('Expertos en salud digital | 0800-000-000 | www.farmacode.pe', 15, 24);
+    doc.text('Expertos en salud digital | 0800-000-000 | www.boticaanita.pe', 15, 24);
 
     // Boleta de Venta (Lado derecho)
     doc.setFont('Helvetica', 'bold');
@@ -370,11 +370,11 @@ export class PedidosComponent implements OnInit {
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(203, 213, 225); // Slate claro
-    doc.text('Gracias por su compra en FarmaCode. Este documento es su comprobante de pago.', 105, pageHeight - 10, { align: 'center' });
-    doc.text('www.farmacode.pe | atencion@farmacode.pe | Lima, Peru', 105, pageHeight - 5, { align: 'center' });
+    doc.text('Gracias por su compra en BoticaAnita. Este documento es su comprobante de pago.', 105, pageHeight - 10, { align: 'center' });
+    doc.text('www.boticaanita.pe | atencion@boticaanita.pe | Lima, Peru', 105, pageHeight - 5, { align: 'center' });
 
     // Descargar el archivo PDF en el navegador
-    doc.save(`FarmaCode_Boleta_Pedido_${nroBoleta}.pdf`);
+    doc.save(`BoticaAnita_Boleta_Pedido_${nroBoleta}.pdf`);
   }
 
   /**

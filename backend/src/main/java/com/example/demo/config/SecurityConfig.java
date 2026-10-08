@@ -1,5 +1,8 @@
 package com.example.demo.config;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -9,8 +12,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -28,12 +29,29 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // Orígenes adicionales permitidos en producción (dominio de Azure Static Web Apps,
+    // y un dominio propio si lo configuras más adelante). Se puede sobreescribir con la
+    // variable de entorno CORS_ALLOWED_ORIGINS (orígenes separados por coma), sin tocar código.
+    @Value("${CORS_ALLOWED_ORIGINS:https://purple-field-0b677da0f.azurestaticapps.net}")
+    private String corsAllowedOriginsProd;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
+
+        List<String> origenesPermitidos = new java.util.ArrayList<>(List.of(
+                "http://localhost:4200",
+                "http://localhost:*"
+        ));
+        for (String origen : corsAllowedOriginsProd.split(",")) {
+            String limpio = origen.trim();
+            if (!limpio.isEmpty()) {
+                origenesPermitidos.add(limpio);
+            }
+        }
+
         // 🟢 USA setAllowedOriginPatterns en lugar de setAllowedOrigins con "*"
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:4200", "http://localhost:*"));
+        configuration.setAllowedOriginPatterns(origenesPermitidos);
         
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

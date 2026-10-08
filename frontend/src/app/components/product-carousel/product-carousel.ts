@@ -144,7 +144,7 @@ export class ProductCarouselComponent implements OnInit {
     return {
       id: producto.idProducto,
       nombre: producto.nombre,
-      descripcion: producto.descripcion ?? 'Producto del catálogo FarmaCode',
+      descripcion: producto.descripcion ?? 'Producto del catálogo BoticaAnita',
       precio,
       precioOriginal,
       descuentoPct,

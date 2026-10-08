@@ -1,16 +1,22 @@
 package com.example.demo.controllers;
 
+import java.security.Principal;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.demo.dto.PagoRequest;
 import com.example.demo.models.User;
-import com.example.demo.repositories.AdministradorRepository;
 import com.example.demo.services.AuthService;
 import com.example.demo.services.PagoService;
 import com.stripe.model.PaymentIntent;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.security.Principal;
-import java.util.Map;
 
 /**
  * Controlador REST para el procesamiento de pagos.
@@ -23,7 +29,6 @@ public class PagoController {
 
     @Autowired private PagoService pagoService;
     @Autowired private AuthService authService;
-    @Autowired private AdministradorRepository administradorRepository;
 
     /**
      * NUEVO ENDPOINT PARA STRIPE:
@@ -64,45 +69,6 @@ public class PagoController {
     @GetMapping("/plin-info")
     public ResponseEntity<?> plinInfo() {
         return ResponseEntity.ok(pagoService.obtenerInfoPlin());
-    }
-
-    /**
-     * Personal de la botica: confirma que el pago por Plin llegó a la cuenta.
-     */
-    @PatchMapping("/plin/{idPedido}/confirmar")
-    public ResponseEntity<?> confirmarPlin(@PathVariable Integer idPedido, Principal principal) {
-        ResponseEntity<?> denegado = validarPersonal(principal);
-        if (denegado != null) return denegado;
-        try {
-            pagoService.confirmarPagoPlin(idPedido);
-            return ResponseEntity.ok(Map.of("message", "Pago Plin confirmado"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Personal de la botica: rechaza el pago por Plin (no se encontró la operación).
-     */
-    @PatchMapping("/plin/{idPedido}/rechazar")
-    public ResponseEntity<?> rechazarPlin(@PathVariable Integer idPedido, Principal principal) {
-        ResponseEntity<?> denegado = validarPersonal(principal);
-        if (denegado != null) return denegado;
-        try {
-            pagoService.rechazarPagoPlin(idPedido);
-            return ResponseEntity.ok(Map.of("message", "Pago Plin rechazado"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /** Devuelve una respuesta 401/403 si quien llama no es personal (admin/vendedor); null si es válido. */
-    private ResponseEntity<?> validarPersonal(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("error", "Usuario no autenticado"));
-        if (administradorRepository.findByCorreoCorp(principal.getName()).isEmpty()) {
-            return ResponseEntity.status(403).body(Map.of("error", "Acceso restringido al personal de la botica"));
-        }
-        return null;
     }
 
     /**

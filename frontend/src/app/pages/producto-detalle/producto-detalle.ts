@@ -98,7 +98,7 @@ export class ProductoDetalleComponent implements OnInit {
           this.producto = {
             id: found.idProducto,
             nombre: found.nombre,
-            descripcion: found.descripcion ?? 'Producto de la farmacia FarmaCode',
+            descripcion: found.descripcion ?? 'Producto de la farmacia BoticaAnita',
             precioVenta: found.precioVenta,
             precioConDescuento: found.precioConDescuento != null ? Number(found.precioConDescuento) : Number(found.precioVenta),
             categoriaNombre: catNombre,

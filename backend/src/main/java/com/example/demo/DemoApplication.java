@@ -14,7 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *                        - @ComponentScan: escanea el paquete actual y sus
  *                        sub-paquetes en busca de componentes.
  * 
- *                        Esta es la aplicación backend del proyecto MiFarmaCode
+ *                        Esta es la aplicación backend del proyecto BoticaAnita
  *                        (farmacia en línea).
  */
 @SpringBootApplication

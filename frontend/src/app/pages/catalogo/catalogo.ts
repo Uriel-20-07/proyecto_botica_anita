@@ -356,7 +356,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     return {
       id: producto.idProducto,
       nombre: producto.nombre,
-      descripcion: producto.descripcion ?? 'Producto del catálogo FarmaCode',
+      descripcion: producto.descripcion ?? 'Producto del catálogo BoticaAnita',
       precio: producto.precioConDescuento != null ? Number(producto.precioConDescuento) : Number(producto.precioVenta),
       precioOriginal: Number(producto.precioVenta),
       categoriaNombre,
@@ -379,7 +379,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     return {
       id: hit.idProducto,
       nombre: hit.nombre,
-      descripcion: hit.descripcion ?? 'Producto del catálogo FarmaCode',
+      descripcion: hit.descripcion ?? 'Producto del catálogo BoticaAnita',
       precio: hit.precioConDescuento != null ? Number(hit.precioConDescuento) : Number(hit.precioVenta),
       precioOriginal: Number(hit.precioVenta),
       categoriaNombre: hit.categoriaNombre ?? 'General',

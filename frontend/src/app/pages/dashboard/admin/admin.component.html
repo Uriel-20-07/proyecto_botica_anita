@@ -1,7 +1,7 @@
 <div class="dashboard-container">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span>FarmaCode Admin</span>
+      <span>BoticaAnita Admin</span>
     </div>
     <nav class="sidebar-nav">
       <button [class.active]="activeTab === 'resumen'" (click)="setTab('resumen')" class="nav-item">
@@ -258,10 +258,8 @@
                 </td>
                 <td>{{ venta.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td class="bold-text">S/. {{ venta.total | number:'1.2-2' }}</td>
-                <td><span class="status-badge" [class.success-badge]="venta.estado === 'COMPLETADO'"
-                    [style.background]="venta.estado === 'PENDIENTE_VERIFICACION' ? '#fef3c7' : null"
-                    [style.color]="venta.estado === 'PENDIENTE_VERIFICACION' ? '#b45309' : null">{{
-                    venta.estado === 'PENDIENTE_VERIFICACION' ? 'PLIN POR VERIFICAR' : venta.estado
+                <td><span class="status-badge" [class.success-badge]="venta.estado === 'COMPLETADO'">{{
+                    venta.estado
                     }}</span></td>
                 <td><button (click)="showVentaDetails(venta)" class="btn-action">Ver Detalle</button></td>
               </tr>
@@ -655,7 +653,7 @@
             style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
               <h2 style="margin:0;">Top 5 Clientes</h2>
-              <span class="card-subtitle">Clientes con mayor gasto histórico acumulado en FarmaCode</span>
+              <span class="card-subtitle">Clientes con mayor gasto histórico acumulado en BoticaAnita</span>
             </div>
             <button (click)="descargarReporteClientes()" class="btn-action"
               style="display:flex;align-items:center;gap:8px;">
@@ -1465,12 +1463,6 @@
         </div>
       </div>
       <div class="modal-footer">
-        <ng-container *ngIf="selectedVenta.estado === 'PENDIENTE_VERIFICACION'">
-          <button (click)="rechazarPagoPlin(selectedVenta)" class="btn-primary-modal"
-            style="background:#dc2626;margin-right:8px;">No recibí el pago</button>
-          <button (click)="confirmarPagoPlin(selectedVenta)" class="btn-primary-modal"
-            style="background:#0f766e;margin-right:8px;">Confirmar pago Plin</button>
-        </ng-container>
         <button (click)="closeVentaDetails()" class="btn-primary-modal">Cerrar</button>
       </div>
     </div>

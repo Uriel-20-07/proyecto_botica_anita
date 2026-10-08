@@ -775,7 +775,7 @@ export class AdminDashboardComponent implements OnInit {
           productoAsociado: paracetamol,
           coincidencias: 18,
           probabilidad: 88,
-          sugerenciaPromo: 'Pack "FarmaCode": 15% de descuento al llevar Paracetamol junto con Ibuprofeno.'
+          sugerenciaPromo: 'Pack "BoticaAnita": 15% de descuento al llevar Paracetamol junto con Ibuprofeno.'
         });
       }
       const defaultProdA = this.productos[0];
@@ -852,29 +852,6 @@ export class AdminDashboardComponent implements OnInit {
     this.selectedVenta = null;
   }
 
-  /** Plin: el personal verificó el pago en su banco → se confirma el pedido. */
-  confirmarPagoPlin(venta: any): void {
-    if (!confirm(`¿Confirmas que recibiste S/ ${Number(venta.total).toFixed(2)} por Plin (operación ${venta.numeroOperacion})?`)) return;
-    this.adminService.confirmarPagoPlin(venta.idPedido).subscribe({
-      next: () => {
-        this.closeVentaDetails();
-        this.cargarDatos();
-      },
-      error: (err: any) => alert(err.error?.error || 'No se pudo confirmar el pago.'),
-    });
-  }
-
-  /** Plin: no se encontró el pago → se rechaza el pedido y se repone el stock. */
-  rechazarPagoPlin(venta: any): void {
-    if (!confirm(`¿Rechazar el pedido #${venta.idPedido}? Se devolverá el stock reservado.`)) return;
-    this.adminService.rechazarPagoPlin(venta.idPedido).subscribe({
-      next: () => {
-        this.closeVentaDetails();
-        this.cargarDatos();
-      },
-      error: (err: any) => alert(err.error?.error || 'No se pudo rechazar el pago.'),
-    });
-  }
   hoverPoint(point: any): void {
     this.selectedPoint = point;
   }
@@ -965,7 +942,7 @@ export class AdminDashboardComponent implements OnInit {
 
   /**
    * Shell HTML para los 4 reportes administrativos.
-   * Paleta FarmaCode: #1a1c28 oscuro + #ea580c naranja + cajas gris claro.
+   * Paleta BoticaAnita: #1a1c28 oscuro + #ea580c naranja + cajas gris claro.
    */
   private _pdfShell(tipoDoc: string, numeroDoc: string, operador: string, fecha: string, contenido: string): string {
     return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -1017,8 +994,8 @@ export class AdminDashboardComponent implements OnInit {
 </head><body>
   <div class="pdf-header">
     <div>
-      <div class="brand-name">Farma<span>Code</span></div>
-      <div class="brand-tagline">Expertos en salud digital | 0800-000-000 | www.farmacode.pe</div>
+      <div class="brand-name">Botica<span>Anita</span></div>
+      <div class="brand-tagline">Expertos en salud digital | 0800-000-000 | www.boticaanita.pe</div>
     </div>
     <div>
       <div class="doc-type-label">${tipoDoc}</div>
@@ -1041,7 +1018,7 @@ export class AdminDashboardComponent implements OnInit {
     ${contenido}
   </div>
   <div class="pdf-footer">
-    FarmaCode &ndash; Sistema de Gestión Farmacéutica &nbsp;|&nbsp; Documento interno confidencial &nbsp;|&nbsp; No válido como comprobante fiscal
+    BoticaAnita &ndash; Sistema de Gestión Farmacéutica &nbsp;|&nbsp; Documento interno confidencial &nbsp;|&nbsp; No válido como comprobante fiscal
   </div>
 </body></html>`;
   }
@@ -1089,7 +1066,7 @@ export class AdminDashboardComponent implements OnInit {
         <span class="total-label">Total Acumulado (12 meses):</span>
         <span class="total-value">${fmt(totalGeneral)}</span>
       </div>`;
-    this._imprimirPDF('REPORTE_VENTAS_FARMACODE',
+    this._imprimirPDF('REPORTE_VENTAS_BOTICAANITA',
       this._pdfShell('Reporte de Ventas por Período', 'R-VEN-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
@@ -1139,7 +1116,7 @@ export class AdminDashboardComponent implements OnInit {
       <div class="highlight-note">Período analizado: <strong>${label}</strong> &mdash; Basado en unidades vendidas registradas en el sistema.</div>
       ${tablaContenido}`;
 
-    this._imprimirPDF('TOP_PRODUCTOS_FARMACODE',
+    this._imprimirPDF('TOP_PRODUCTOS_BOTICAANITA',
       this._pdfShell('Top 10 Productos Más Vendidos', 'R-PROD-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
@@ -1186,7 +1163,7 @@ export class AdminDashboardComponent implements OnInit {
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>` : sinLotes}`;
-    this._imprimirPDF('LOTES_VENCER_FARMACODE',
+    this._imprimirPDF('LOTES_VENCER_BOTICAANITA',
       this._pdfShell('Lotes Próximos a Vencer', 'R-INV-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
@@ -1223,7 +1200,7 @@ export class AdminDashboardComponent implements OnInit {
         <span class="total-label">Gasto combinado Top 5 clientes:</span>
         <span class="total-value">S/ ${totalGlobal.toFixed(2)}</span>
       </div>`;
-    this._imprimirPDF('CLIENTES_TOP_FARMACODE',
+    this._imprimirPDF('CLIENTES_TOP_BOTICAANITA',
       this._pdfShell('Top 5 Clientes por Gasto Total', 'R-CLI-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
@@ -1283,7 +1260,7 @@ export class AdminDashboardComponent implements OnInit {
 
     // Definir el nombre exacto con el que se guardará el archivo PDF
     const nombreArchivoPDF =
-      tipo === 'semana' ? 'REPORTE_SEMANAL_FARMACODE' : 'REPORTE_MENSUAL_FARMACODE';
+      tipo === 'semana' ? 'REPORTE_SEMANAL_BOTICAANITA' : 'REPORTE_MENSUAL_BOTICAANITA';
 
     // Cambiar temporalmente el título del documento principal (Chrome usa esto para nombrar el archivo descargado)
     document.title = nombreArchivoPDF;
@@ -1364,8 +1341,8 @@ export class AdminDashboardComponent implements OnInit {
           <div class="page-container">
             <div style="background:#1a1c28;margin:-20mm -20mm 25px;padding:22px 20mm 18px;display:flex;justify-content:space-between;align-items:flex-start;">
               <div>
-                <div class="logo-brand">Farma<span>Code</span></div>
-                <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Expertos en salud digital | 0800-000-000 | www.farmacode.pe</div>
+                <div class="logo-brand">Botica<span>Anita</span></div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Expertos en salud digital | 0800-000-000 | www.boticaanita.pe</div>
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:1.5px;">${tituloReporte}</div>
@@ -1389,7 +1366,7 @@ export class AdminDashboardComponent implements OnInit {
               <tbody>${filasHtml}</tbody>
             </table>
             <div class="footer-pdf">
-              FarmaCode - Sistema de Inteligencia de Negocios y Predicción de Demanda.<br>Documento interno estrictamente confidencial.
+              BoticaAnita - Sistema de Inteligencia de Negocios y Predicción de Demanda.<br>Documento interno estrictamente confidencial.
             </div>
           </div>
         </body>

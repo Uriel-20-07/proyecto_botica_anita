@@ -141,7 +141,7 @@ export class FavoritosComponent implements OnInit {
     return {
       id: producto.idProducto,
       nombre: producto.nombre,
-      descripcion: producto.descripcion ?? 'Producto del catálogo FarmaCode',
+      descripcion: producto.descripcion ?? 'Producto del catálogo BoticaAnita',
       precio: producto.precioConDescuento != null ? Number(producto.precioConDescuento) : Number(producto.precioVenta),
       precioOriginal: Number(producto.precioVenta),
       categoriaNombre,
