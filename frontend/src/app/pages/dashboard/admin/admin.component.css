@@ -846,3 +846,48 @@
     opacity: 1;
   }
 }
+/* Inventario por categorías */
+.table-actions {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.categoria-select {
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #1e293b;
+  font-size: 14px;
+  font-family: inherit;
+  min-width: 220px;
+  cursor: pointer;
+}
+
+.categoria-select:focus {
+  outline: none;
+  border-color: #ea580c;
+}
+
+.dashboard-table tr.categoria-row td,
+.dashboard-table tr.categoria-row:hover td {
+  background: #fff7ed;
+  border-top: 2px solid #fed7aa;
+  border-bottom: 1px solid #fed7aa;
+  padding: 12px 24px;
+}
+
+.categoria-titulo {
+  font-weight: 700;
+  font-size: 14px;
+  color: #c2410c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.categoria-count {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #9a3412;
+  font-weight: 500;
+}

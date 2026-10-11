@@ -145,10 +145,6 @@ export class AdminService {
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
   }
 
-  getTopProductosPorDistrito(distrito: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/reportes/top-productos-distrito?distrito=${encodeURIComponent(distrito)}`, { headers: this.getHeaders() });
-  }
-
   getUsuarios(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/usuarios`, { headers: this.getHeaders() });
   }
