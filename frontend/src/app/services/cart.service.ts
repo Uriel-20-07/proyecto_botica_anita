@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { ProductoApi } from './catalogo.service';
 import { AuthService } from './auth.service';
 import { AuthModalService } from './auth-modal.service';
@@ -151,23 +152,31 @@ export class CartService {
 
   /**
    * Agrega un producto al carrito especificando cantidad.
+   *
+   * A diferencia de add(), este método NO maneja el error internamente:
+   * devuelve el Observable para que el consumidor (el chatbot) decida
+   * cómo mostrarlo. En caso de no estar autenticado, abre el modal de
+   * login y devuelve un Observable que emite un error controlado.
+   *
+   * @param idProducto ID del producto a agregar.
+   * @param cantidad   número de unidades a agregar.
+   * @returns Observable con el carrito actualizado si la operación tiene éxito.
    */
-  addWithQty(idProducto: number, cantidad: number): void {
+  addWithQty(idProducto: number, cantidad: number): Observable<any> {
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login');
-      return;
+      return throwError(() => ({ status: 401, mensaje: 'Debes iniciar sesión para agregar productos al carrito.' }));
     }
 
     const url = `${this.apiUrl}/agregar?idProducto=${idProducto}&cantidad=${cantidad}`;
-    this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
-      next: (carrito) => {
+    return this.http.post<any>(url, {}, { headers: this.getHeaders() }).pipe(
+      tap((carrito) => {
         if (carrito && carrito.detalles) {
           this.itemsSubject.next(carrito.detalles);
           this.saveItemsToStorage(carrito.detalles);
         }
-      },
-      error: (err) => this.manejarErrorCarrito(err, 'agregar el producto al carrito')
-    });
+      })
+    );
   }
 
   /**
