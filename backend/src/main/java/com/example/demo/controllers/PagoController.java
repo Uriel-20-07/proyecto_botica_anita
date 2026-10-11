@@ -72,6 +72,14 @@ public class PagoController {
     }
 
     /**
+     * Datos de la cuenta SIP (antes Ágora) de la botica (número y titular) para mostrarlos en el checkout.
+     */
+    @GetMapping("/sip-info")
+    public ResponseEntity<?> sipInfo() {
+        return ResponseEntity.ok(pagoService.obtenerInfoSip());
+    }
+
+    /**
      * Endpoint para validar un cupón de descuento.
      */
     @GetMapping("/validar-cupon/{codigo}")

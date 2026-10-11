@@ -27,7 +27,7 @@ const EMAILJS_PUBLIC_KEY  = 'HDwamrH2SgIFGUpNw';
 })
 export class PagoComponent implements OnInit, AfterViewChecked {
 
-  metodoSeleccionado: 'TARJETA' | 'YAPE' | 'PLIN' = 'TARJETA';
+  metodoSeleccionado: 'TARJETA' | 'YAPE' | 'PLIN' | 'SIP' = 'TARJETA';
 
   // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
@@ -72,6 +72,11 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   plinQrDisponible: boolean = true;
   plinCopiado: boolean = false;
   pagoPendienteVerificacion: boolean = false;
+
+  // --- SIP (antes Ágora) ---
+  sipInfo: { numero: string; titular: string } | null = null;
+  sipQrDisponible: boolean = true;
+  sipCopiado: boolean = false;
 
   yapePaso: 1 | 2 = 1;
   codigoYapeGenerado: string = '';
@@ -291,11 +296,18 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  seleccionarMetodo(metodo: 'TARJETA' | 'YAPE' | 'PLIN') {
+  seleccionarMetodo(metodo: 'TARJETA' | 'YAPE' | 'PLIN' | 'SIP') {
     this.metodoSeleccionado = metodo;
     this.mensajeError = '';
     this.mensajeExito = '';
     this.yapePaso = 1;
+
+    if (metodo === 'SIP' && !this.sipInfo) {
+      this.pagoService.obtenerInfoSip().subscribe({
+        next: (info) => (this.sipInfo = info),
+        error: () => (this.mensajeError = 'No se pudo cargar los datos de SIP. Intenta nuevamente.')
+      });
+    }
 
     if (metodo === 'PLIN' && !this.plinInfo) {
       this.pagoService.obtenerInfoPlin().subscribe({
@@ -311,6 +323,14 @@ export class PagoComponent implements OnInit, AfterViewChecked {
         if (this.cardExpiryElement) { this.cardExpiryElement.destroy(); this.cardExpiryElement = null; }
         if (this.cardCvcElement) { this.cardCvcElement.destroy(); this.cardCvcElement = null; }
     }
+  }
+
+  copiarNumeroSip() {
+    if (!this.sipInfo?.numero) return;
+    navigator.clipboard?.writeText(this.sipInfo.numero).then(() => {
+      this.sipCopiado = true;
+      setTimeout(() => (this.sipCopiado = false), 2000);
+    });
   }
 
   copiarNumeroPlin() {
@@ -506,6 +526,15 @@ export class PagoComponent implements OnInit, AfterViewChecked {
             this.procesandoPago = false;
         }
 
+    } else if (this.metodoSeleccionado === 'SIP') {
+        // El cliente ya transfirió desde su app; registramos el número de operación junto al pedido.
+        const operacion = (this.formPago.numeroOperacion || '').trim();
+        if (!/^\d{6,12}$/.test(operacion)) {
+            this.mensajeError = 'Ingresa el número de operación de tu transferencia SIP (6 a 12 dígitos).';
+            return;
+        }
+        this.procesandoPago = true;
+        this.finalizarPedidoEnBackend();
     } else if (this.metodoSeleccionado === 'PLIN') {
         // El cliente ya transfirió desde su app; registramos el número de operación
         // y la botica lo verifica antes de confirmar el pedido.
@@ -536,7 +565,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
             distrito: this.formPago.distrito,
             esUrgente: this.formPago.esUrgente,
             idReceta: this.recetaSubidaId,
-            numeroOperacion: this.metodoSeleccionado === 'PLIN' ? this.formPago.numeroOperacion.trim() : null
+            numeroOperacion: (this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP') ? this.formPago.numeroOperacion.trim() : null
         };
 
       this.pagoService.procesarPago(datosPago).subscribe({
