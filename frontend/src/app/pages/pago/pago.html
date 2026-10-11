@@ -197,6 +197,9 @@
           <button class="tab-btn" [class.active]="metodoSeleccionado === 'PLIN'" (click)="seleccionarMetodo('PLIN')">
             Plin
           </button>
+          <button class="tab-btn" [class.active]="metodoSeleccionado === 'SIP'" (click)="seleccionarMetodo('SIP')">
+            SIP
+          </button>
         </div>
 
         <div *ngIf="metodoSeleccionado === 'TARJETA'" class="form-dinamico anim-fade">
@@ -318,6 +321,40 @@
           </div>
         </div>
 
+        <div *ngIf="metodoSeleccionado === 'SIP'" class="form-dinamico anim-fade plin-panel">
+          <div class="plin-header-info">
+            <div class="plin-badge-logo sip-badge-logo">SIP</div>
+            <p>SIP (antes Ágora): transfiere desde tu app y registra tu número de operación.</p>
+          </div>
+
+          <ol class="plin-pasos">
+            <li>Abre tu app y elige <strong>SIP</strong> (antes Ágora).</li>
+            <li>Envía <strong>S/ {{ total | number:'1.2-2' }}</strong> al número indicado abajo.</li>
+            <li>Copia el <strong>número de operación</strong> y pégalo aquí.</li>
+          </ol>
+
+          <div class="plin-cuenta sip-cuenta" *ngIf="sipInfo">
+            <div class="plin-cuenta-datos">
+              <span class="plin-label">Número SIP</span>
+              <strong class="plin-numero font-mono">{{ sipInfo.numero }}</strong>
+              <span class="plin-label">Titular</span>
+              <strong>{{ sipInfo.titular }}</strong>
+              <button type="button" class="btn-link" (click)="copiarNumeroSip()">
+                {{ sipCopiado ? '✓ Copiado' : 'Copiar número' }}
+              </button>
+            </div>
+            <img *ngIf="sipQrDisponible" src="sip-qr.png" alt="QR SIP" class="plin-qr"
+              (error)="sipQrDisponible = false" />
+          </div>
+
+          <div class="form-group" style="margin-top: 20px;">
+            <label>Número de operación <span class="req">*</span></label>
+            <input type="text" inputmode="numeric" [(ngModel)]="formPago.numeroOperacion" maxlength="12"
+              placeholder="Ej: 123456789" class="form-input font-mono" />
+            <span class="field-hint">Guardaremos este número de operación junto con tu pedido.</span>
+          </div>
+        </div>
+
         <div *ngIf="mensajeError" class="feedback-error">⚠ {{ mensajeError }}</div>
       </section>
     </main>
@@ -386,7 +423,7 @@
         </div>
         <button class="btn-pagar-checkout" (click)="ejecutarPago()" [disabled]="procesandoPago || (requiereReceta && !recetaSubidaExito)"
           [style.opacity]="procesandoPago || (requiereReceta && !recetaSubidaExito) ? '0.5' : '1'">
-          <span *ngIf="!procesandoPago">{{ metodoSeleccionado === 'PLIN' ? 'Registrar pago Plin' : 'Procesar Pago Seguro' }}</span>
+          <span *ngIf="!procesandoPago">{{ metodoSeleccionado === 'PLIN' ? 'Registrar pago Plin' : (metodoSeleccionado === 'SIP' ? 'Registrar pago SIP' : 'Procesar Pago Seguro') }}</span>
           <span *ngIf="procesandoPago">Procesando...</span>
         </button>
         <p class="legal-text">Transacción cifrada bajo estándar PCI-DSS.</p>

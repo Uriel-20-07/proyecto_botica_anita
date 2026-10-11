@@ -613,3 +613,7 @@
 .plin-label { font-size: 11px; text-transform: uppercase; color: #64748b; margin-top: 6px; }
 .plin-numero { font-size: 20px; letter-spacing: 1px; }
 .plin-qr { width: 120px; height: 120px; object-fit: contain; border-radius: 8px; background: #fff; }
+
+/* ─── SIP (antes Ágora) ────────────────────────────────────────────────── */
+.sip-badge-logo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+.sip-cuenta { background: #f5f3ff; border-color: #ddd6fe; }
