@@ -12,6 +12,12 @@ interface ChatMessage {
   role: 'user' | 'model';
   content: string;
   functionCall?: any;
+  /**
+   * Presente solo en mensajes del modelo que ofrecen una confirmación
+   * con una cantidad alternativa (Cuando el backend rechaza por límite
+   * o stock pero sugiere un máximo). Contiene la cantidad a confirmar.
+   */
+  confirmacion?: { idProducto: number; cantidad: number };
 }
 
 @Component({
@@ -96,12 +102,7 @@ export class ChatbotComponent implements OnInit, OnDestroy {
             if (name === 'agregarAlCarrito') {
               const idProducto = args.idProducto;
               const cantidad = args.cantidad || 1;
-              this.cartService.addWithQty(idProducto, cantidad);
-
-              this.messages.push({
-                role: 'model',
-                content: '¡Listo! He agregado el producto al carrito de compras.'
-              });
+              this.ejecutarAgregarAlCarrito(idProducto, cantidad);
             } else if (name === 'redirigir') {
               const ruta = args.ruta;
               this.router.navigate([ruta]);
@@ -136,6 +137,69 @@ export class ChatbotComponent implements OnInit, OnDestroy {
         this.scrollToBottom();
       }
     });
+  }
+
+  /**
+   * Ejecuta la agregación al carrito y reacciona al resultado real del backend.
+   *
+   * Ya NO se confirma a ciegas: se espera la respuesta. Si el backend acepta,
+   * se informa el éxito. Si rechaza (HTTP 400 con { error, maxAdicional }),
+   * se muestra el motivo y, cuando maxAdicional > 0, se ofrecen botones para
+   * agregar exactamente esa cantidad alternativa.
+   */
+  private ejecutarAgregarAlCarrito(idProducto: number, cantidad: number): void {
+    this.cartService.addWithQty(idProducto, cantidad).subscribe({
+      next: () => {
+        this.messages.push({
+          role: 'model',
+          content: '¡Listo! He agregado el producto al carrito de compras.'
+        });
+        this.scrollToBottom();
+      },
+      error: (err) => {
+        // El backend responde 400 con { error, maxAdicional } para rechazos de negocio.
+        const cuerpo = err?.error;
+        const mensaje: string = cuerpo?.error || 'No se pudo agregar el producto al carrito.';
+        const maxAdicional: number = cuerpo?.maxAdicional ?? 0;
+
+        if (maxAdicional > 0) {
+          this.messages.push({
+            role: 'model',
+            content: mensaje + ' ¿Deseas agregar ' + maxAdicional + ' unidad(es)?',
+            confirmacion: { idProducto, cantidad: maxAdicional }
+          });
+        } else {
+          this.messages.push({ role: 'model', content: mensaje });
+        }
+        this.scrollToBottom();
+      }
+    });
+  }
+
+  /**
+   * Confirma y agrega la cantidad alternativa ofrecida por SofIA
+   * (la que calculó el backend como máxima permitida).
+   */
+  confirmarCantidad(msg: ChatMessage): void {
+    if (!msg.confirmacion) return;
+    const { idProducto, cantidad } = msg.confirmacion;
+
+    // Registrar la decisión del usuario y quitar los botones del mensaje.
+    this.messages.push({ role: 'user', content: 'Sí, agregar ' + cantidad + ' unidad(es).' });
+    msg.confirmacion = undefined;
+
+    this.ejecutarAgregarAlCarrito(idProducto, cantidad);
+  }
+
+  /**
+   * Cancela la confirmación ofrecida: no se agrega nada al carrito.
+   */
+  cancelarConfirmacion(msg: ChatMessage): void {
+    if (!msg.confirmacion) return;
+    msg.confirmacion = undefined;
+    this.messages.push({ role: 'user', content: 'No, gracias.' });
+    this.messages.push({ role: 'model', content: 'Entendido, no agregué el producto al carrito.' });
+    this.scrollToBottom();
   }
 
   private formatContent(text: string): string {

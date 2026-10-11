@@ -1,5 +1,6 @@
 package com.example.demo.services;
 
+import com.example.demo.exceptions.CarritoException;
 import com.example.demo.models.Carrito;
 import com.example.demo.models.DetalleCarrito;
 import com.example.demo.models.Producto;
@@ -59,7 +60,8 @@ public class CarritoService {
     public Carrito obtenerOCrearCarrito(Integer idUsuario) {
         return carritoRepository.findByUsuario_Id(idUsuario).orElseGet(() -> {
             // Si el usuario no tiene carrito, crear uno vacío
-            User usuario = userRepository.findById(idUsuario).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            User usuario = userRepository.findById(idUsuario)
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             Carrito nuevoCarrito = new Carrito();
             nuevoCarrito.setUsuario(usuario);
             nuevoCarrito.setDetalles(new ArrayList<>());
@@ -83,17 +85,56 @@ public class CarritoService {
     @Transactional
     public Carrito agregarProductoAlCarrito(Integer idUsuario, Integer idProducto, Integer cantidad) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
-        Producto producto = productoRepository.findById(idProducto).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        Producto producto = productoRepository.findById(idProducto)
+                .orElseThrow(() -> new CarritoException("Producto no encontrado.", 0));
 
-        // Buscar si el producto ya está en el carrito
+        // Stock disponible (protegido contra valores null en BD).
+        int stockDisponible = (producto.getStock() != null) ? producto.getStock() : 0;
+
+        // 1) La cantidad debe ser un número entero POSITIVO (ni 0, ni negativa, ni null).
+        if (cantidad == null || cantidad <= 0) {
+            throw new CarritoException("La cantidad debe ser un número entero mayor a cero.", 0);
+        }
+
+        // 2) Buscar si el producto ya está en el carrito (para validar el acumulado).
         Optional<DetalleCarrito> detalleExistente = carrito.getDetalles().stream()
                 .filter(d -> d.getProducto().getIdProducto().equals(idProducto))
                 .findFirst();
+        int cantidadActual = (detalleExistente.isPresent() && detalleExistente.get().getCantidad() != null)
+                ? detalleExistente.get().getCantidad()
+                : 0;
+
+        // 3) Cantidad máxima adicional permitida según la regla de negocio:
+        //    min(límite de 10 por producto, stock disponible) considerando lo ya en el carrito.
+        int limitePorProducto = 10 - cantidadActual;
+        int limitePorStock = stockDisponible - cantidadActual;
+        int maxAdicional = Math.max(0, Math.min(limitePorProducto, limitePorStock));
+
+        // Si no se puede agregar ninguna unidad más, informar por qué (límite o stock).
+        if (maxAdicional <= 0) {
+            if (limitePorProducto <= 0) {
+                throw new CarritoException(
+                        "Ya tienes el máximo permitido de 10 unidades de este producto en el carrito.", 0);
+            }
+            throw new CarritoException("Este producto no tiene stock disponible para agregar más unidades.", 0);
+        }
+
+        // Si se pidió más de lo permitido, rechazar informando cuánto SÍ se puede agregar.
+        if (cantidad > maxAdicional) {
+            boolean topeEsElLimite = (limitePorProducto <= limitePorStock);
+            String motivo = topeEsElLimite
+                    ? "el límite es de 10 unidades por producto"
+                    : "solo hay " + stockDisponible + " unidad(es) disponibles en stock";
+            throw new CarritoException(
+                    "No se pueden agregar " + cantidad + " unidades porque " + motivo
+                            + ". Puedes agregar " + maxAdicional + " unidad(es) más como máximo.",
+                    maxAdicional);
+        }
 
         if (detalleExistente.isPresent()) {
-            // El producto ya existe: solo incrementar la cantidad
+            // El producto ya existe: se validó el acumulado, incrementar la cantidad.
             DetalleCarrito detalle = detalleExistente.get();
-            detalle.setCantidad(detalle.getCantidad() + cantidad);
+            detalle.setCantidad(cantidadActual + cantidad);
             detalleCarritoRepository.save(detalle);
         } else {
             // El producto es nuevo en el carrito: crear línea de detalle
@@ -160,15 +201,16 @@ public class CarritoService {
 
         if (detalleExistente.isPresent()) {
             DetalleCarrito detalle = detalleExistente.get();
-            carrito.getDetalles().remove(detalle);     // Quita de la lista en memoria
-            detalleCarritoRepository.delete(detalle);  // Elimina de la base de datos
+            carrito.getDetalles().remove(detalle); // Quita de la lista en memoria
+            detalleCarritoRepository.delete(detalle); // Elimina de la base de datos
         }
 
         return carritoRepository.save(carrito);
     }
 
     /**
-     * Vacía completamente el carrito del usuario (elimina todas las líneas de detalle).
+     * Vacía completamente el carrito del usuario (elimina todas las líneas de
+     * detalle).
      * Se usa después de completar un pago exitoso.
      *
      * @param idUsuario ID del usuario dueño del carrito.
@@ -178,7 +220,7 @@ public class CarritoService {
     public Carrito vaciarCarrito(Integer idUsuario) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
         detalleCarritoRepository.deleteAll(carrito.getDetalles()); // Elimina todas las líneas de la BD
-        carrito.getDetalles().clear();                              // Limpia la lista en memoria
+        carrito.getDetalles().clear(); // Limpia la lista en memoria
         return carritoRepository.save(carrito);
     }
 }
