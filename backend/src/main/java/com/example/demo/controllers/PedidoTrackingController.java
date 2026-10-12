@@ -1,8 +1,16 @@
 package com.example.demo.controllers;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -27,14 +35,17 @@ import com.example.demo.repositories.PedidoRepository;
 public class PedidoTrackingController {
 
     private final PedidoRepository pedidoRepository;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 
     public PedidoTrackingController(PedidoRepository pedidoRepository) {
         this.pedidoRepository = pedidoRepository;
     }
 
-    // Tienda Botica Anita: esquina Las Violetas con Av. Los Jazmines 408, Independencia.
-    private static final double TIENDA_LAT = -12.0016;
-    private static final double TIENDA_LNG = -77.0501;
+    // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado).
+    private static final double TIENDA_LAT = -12.00142;
+    private static final double TIENDA_LNG = -77.04722;
     // Minutos fijos por etapa antes del viaje (igual que el frontend).
     private static final long MIN_PREVIOS = 1 + 5 + 5;
 
@@ -73,6 +84,8 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
             return;
         }
         long minutos = java.time.Duration.between(pedido.getFecha(), LocalDateTime.now()).toMinutes();
+        // Una sola vez: geocodifica la dirección y la guarda para que frontend y backend usen el mismo punto.
+        resolverYGuardarCoordenadas(pedido);
         double tripMin = 5.0;
         if (pedido.getLatitudEntrega() != null && pedido.getLongitudEntrega() != null) {
             double distM = distanciaM(TIENDA_LAT, TIENDA_LNG,
@@ -93,9 +106,60 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
         }
     }
 
+    /**
+     * Geocodifica la dirección una sola vez (Nominatim, gratis) y la guarda en el pedido.
+     * Filtra por distrito y elige el tramo más cercano a la tienda.
+     */
+    private void resolverYGuardarCoordenadas(Pedido pedido) {
+        if (pedido.getLatitudEntrega() != null && pedido.getLongitudEntrega() != null) {
+            return;
+        }
+        try {
+            String q = (pedido.getDireccionEnvio() != null ? pedido.getDireccionEnvio() : "") + ", "
+                    + (pedido.getDistrito() != null ? pedido.getDistrito() : "") + ", Lima, Perú";
+            String url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&q="
+                    + URLEncoder.encode(q, StandardCharsets.UTF_8);
+            HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "BoticaAnita-tracking/1.0")
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() != 200) return;
+            List<Map<String, Object>> arr = objectMapper.readValue(res.body(),
+                    new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {
+                    });
+            if (arr == null || arr.isEmpty()) return;
+            String dist = pedido.getDistrito() != null ? pedido.getDistrito().toLowerCase() : "";
+            List<Map<String, Object>> cands = arr;
+            if (!dist.isBlank()) {
+                List<Map<String, Object>> enDistrito = arr.stream()
+                        .filter(x -> String.valueOf(x.getOrDefault("display_name", "")).toLowerCase().contains(dist))
+                        .toList();
+                if (!enDistrito.isEmpty()) cands = enDistrito;
+            }
+            Map<String, Object> mejor = cands.get(0);
+            double mejorD = Double.MAX_VALUE;
+            for (Map<String, Object> c : cands) {
+                double d = distanciaM(TIENDA_LAT, TIENDA_LNG,
+                        Double.parseDouble(String.valueOf(c.get("lat"))),
+                        Double.parseDouble(String.valueOf(c.get("lon"))));
+                if (d < mejorD) {
+                    mejorD = d;
+                    mejor = c;
+                }
+            }
+            pedido.setLatitudEntrega(new BigDecimal(String.valueOf(mejor.get("lat"))));
+            pedido.setLongitudEntrega(new BigDecimal(String.valueOf(mejor.get("lon"))));
+            pedidoRepository.save(pedido);
+        } catch (Exception e) {
+            // Sin coordenadas se usa el viaje por defecto; no se bloquea el tracking.
+        }
+    }
+
     /** Distancia en metros (Haversine). */
-    private double distanciaM(double lat1, double lng1, double lat2, double lng2) {
-        double r = 6371000;
+    private double distanciaM(double lat1, double lng1, double lat2, double lng2) {        double r = 6371000;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)

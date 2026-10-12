@@ -1,6 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
+import { interval, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PedidoService } from '../../services/pedido.service';
 import { TrackingMapaComponent } from '../../components/tracking/tracking-mapa.component';
 import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, MIN_ENTREGA_EXTRA } from '../../services/tracking-ruta.service';
@@ -12,7 +14,9 @@ import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, MIN_CONFIRMADO, MIN_DESPAC
   templateUrl: './seguimiento-pedido.html',
   styleUrls: ['./seguimiento-pedido.css']
 })
-export class SeguimientoPedidoComponent implements OnInit {
+export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
+
+  private destroy$ = new Subject<void>();
 
   pedido = signal<any>(null);
 
@@ -40,6 +44,20 @@ export class SeguimientoPedidoComponent implements OnInit {
     );
     this.idPedidoRuta = idPedido;
 
+    this.cargarPedido();
+
+    // Refrescar el estado cada 15s para que el timeline no quede con datos viejos.
+    interval(15000).pipe(takeUntil(this.destroy$)).subscribe(() => this.refrescarEstado());
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private cargarPedido(): void {
+    const idPedido = this.idPedidoRuta;
+
     this.pedidoService.obtenerPedidos().subscribe({
       next: async pedidos => {
 
@@ -62,11 +80,25 @@ export class SeguimientoPedidoComponent implements OnInit {
 
         this.numeroPedido.set(numeroVisible);
 
-        // Misma distancia que el mapa: se resuelve el destino y se calcula el viaje.
+        // Misma ruta y tiempo que el mapa: se resuelve el destino una sola vez (con caché).
         const [la, ln] = await this.ruta.resolverDestino(pedido);
-        this.tripMin = this.ruta.tripMin(this.ruta.distanciaM(TIENDA_LAT, TIENDA_LNG, la, ln));
+        const r = await this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, la, ln);
+        this.tripMin = r.tripMin;
         this.calcularEstado(pedido.fecha);
         this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
+      }
+    });
+  }
+
+  /** Relee el pedido para actualizar el timeline sin recalcular la ruta. */
+  private refrescarEstado(): void {
+    const idPedido = this.idPedidoRuta;
+    this.pedidoService.obtenerPedidos().subscribe({
+      next: pedidos => {
+        const pedido = pedidos.find((p: any) => p.idPedido === idPedido);
+        if (!pedido) return;
+        this.pedido.set(pedido);
+        this.calcularEstado(pedido.fecha);
       }
     });
   }
@@ -139,12 +171,17 @@ export class SeguimientoPedidoComponent implements OnInit {
     ];
   }
 
+  /** El mapa se oculta cuando el pedido ya se entregó/completó. */
+  mapaVisible(): boolean {
+    const est = (this.pedido()?.estado || '').toUpperCase();
+    return !(est.includes('COMPLETAD') || est.includes('ENTREGAD'));
+  }
   /** Tope de paso según el estado real: el timeline nunca corre más rápido que el pedido. */
   private topeEstadoPedido(): number {
     const est = (this.pedido()?.estado || '').toUpperCase();
     if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 4;
     if (est.includes('EN_CAMINO')) return 3;
-    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 1;
+    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 2;
     return 4;
   }
 

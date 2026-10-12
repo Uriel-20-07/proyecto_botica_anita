@@ -3,7 +3,7 @@ import { TrackingService, TrackingResponseDTO } from '../../services/tracking.se
 import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import * as L from 'leaflet';
-import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO } from '../../services/tracking-ruta.service';
+import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, RutaInfo } from '../../services/tracking-ruta.service';
 
 @Component({
   selector: 'app-tracking-mapa',
@@ -135,6 +135,9 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
             this.avanzarSimulacion();
           }
 
+          // La línea de ruta solo se muestra cuando sale el motorizado.
+          this.sincronizarRuta();
+
           // Pedido entregado, completado, rechazado o cancelado: ya no hay nada que seguir.
           const est = (data.estado || '').toUpperCase();
           if ((est.includes('ENTREGAD') || est.includes('COMPLETAD') || est.includes('CANCELAD') || est.includes('RECHAZAD')) && this.pollingSub) {
@@ -147,6 +150,17 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
           console.error('Error al obtener la ubicación del pedido:', err);
         }
       });
+  }
+
+  /** Muestra la ruta solo cuando el motorizado ya salió. */
+  private sincronizarRuta(): void {
+    if (!this.map || !this.lineaRuta) return;
+    const visible = this.map.hasLayer(this.lineaRuta);
+    if (this.mostrarMoto && !visible) {
+      this.lineaRuta.addTo(this.map);
+    } else if (!this.mostrarMoto && visible) {
+      this.map.removeLayer(this.lineaRuta);
+    }
   }
 
   private tieneCoordsReales(): boolean {
@@ -166,7 +180,8 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   private async resolverDestinoYCrearMapa(): Promise<void> {
     if (!this.pedido || this.map) return;
     const [lat, lng] = await this.ruta.resolverDestino(this.pedido);
-    this.initMap(lat, lng);
+    const r = await this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, lat, lng);
+    this.initMap(lat, lng, r);
   }
 
   /** Dirección sin duplicar el distrito si ya viene incluido. */
@@ -177,7 +192,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     return `${d} (${dist})`;
   }
 
-  private initMap(latDestino: number, lngDestino: number): void {
+  private initMap(latDestino: number, lngDestino: number, r: RutaInfo): void {
     if (!this.pedido) return;
 
     // 1. Instanciar el mapa con vista de toda la ruta tienda -> entrega.
@@ -210,31 +225,25 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
       .addTo(this.map)
       .bindPopup(`<b>Punto de Entrega</b><br>${this.pedido.direccionEnvio || ''}`);
 
-    // 5. Línea de ruta completa tienda -> entrega.
-    this.lineaRuta = L.polyline([[TIENDA_LAT, TIENDA_LNG], [latDestino, lngDestino]], {
+    // 5. Línea de ruta por calles tienda -> entrega (OSRM; recta si falló).
+    // Se muestra solo cuando sale el motorizado.
+    this.lineaRuta = L.polyline(r.coords, {
       color: '#94a3b8', weight: 4, dashArray: '8 8'
-    }).addTo(this.map);
+    });
 
     // 6. Preparar la simulación y crear el marcador del repartidor.
-    this.prepararSimulacion(latDestino, lngDestino);
+    this.prepararSimulacion(r);
     this.actualizarPosicionRepartidor();
   }
 
-  /** Divide el tramo tienda -> entrega en pasos para animar el avance. */
-  private prepararSimulacion(latDestino: number, lngDestino: number): void {
-    const distM = this.ruta.distanciaM(TIENDA_LAT, TIENDA_LNG, latDestino, lngDestino);
-    this.tripMin = this.ruta.tripMin(distM);
-    const pasos = Math.max(20, this.tripMin * 8);
-    this.rutaSimulada = [];
-    for (let i = 0; i <= pasos; i++) {
-      const f = i / pasos;
-      this.rutaSimulada.push([
-        TIENDA_LAT + (latDestino - TIENDA_LAT) * f,
-        TIENDA_LNG + (lngDestino - TIENDA_LNG) * f
-      ]);
-    }
+  /** La animación recorre los puntos reales de la ruta. */
+  private prepararSimulacion(r: RutaInfo): void {
+    this.rutaSimulada = r.coords.length > 1 ? r.coords : [r.coords[0], r.coords[0]];
+    this.tripMin = r.tripMin;
     this.pasoSim = 0;
-    this.actualizarEta(distM);
+    const last = this.rutaSimulada[this.rutaSimulada.length - 1];
+    this.actualizarEta(this.ruta.distanciaM(
+      this.rutaSimulada[0][0], this.rutaSimulada[0][1], last[0], last[1]));
   }
 
   /** Avanza según el tiempo real desde el pedido: misma distancia y tiempos que el timeline. */

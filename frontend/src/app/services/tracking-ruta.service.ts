@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 
-// Tienda Botica Anita: esquina Las Violetas con Av. Los Jazmines, Independencia.
-export const TIENDA_LAT = -12.0016;
-export const TIENDA_LNG = -77.0501;
+// Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado).
+export const TIENDA_LAT = -12.00142;
+export const TIENDA_LNG = -77.04722;
 // Velocidad promedio del motorizado (km/h) para estimar tiempos.
 export const VELOCIDAD_KMH = 25;
 // Minutos por etapa antes del viaje.
@@ -12,10 +12,18 @@ export const MIN_MOTORIZADO = 5;
 // Minutos extra tras llegar para marcar entregado.
 export const MIN_ENTREGA_EXTRA = 1;
 
+export interface RutaInfo {
+  coords: Array<[number, number]>;
+  tripMin: number;
+  porCalles: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class TrackingRutaService {
+
+  private cache = new Map<string, RutaInfo>();
 
   /** Distancia en metros (Haversine). */
   distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -30,6 +38,39 @@ export class TrackingRutaService {
   /** Minutos estimados de viaje tienda -> destino. */
   tripMin(distM: number): number {
     return Math.max(1, Math.round((distM / 1000 / VELOCIDAD_KMH) * 60));
+  }
+
+  /** Ruta tienda -> destino por calles (OSRM, gratis). Con caché y respaldo en línea recta. */
+  async obtenerRuta(lat1: number, lng1: number, lat2: number, lng2: number): Promise<RutaInfo> {
+    const key = [lat1, lng1, lat2, lng2].map(n => n.toFixed(4)).join(',');
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`;
+      const r = await fetch(url);
+      const j = await r.json();
+      const route = j?.routes?.[0];
+      const pts = route?.geometry?.coordinates;
+      if (Array.isArray(pts) && pts.length > 1 && route.duration > 0) {
+        const info: RutaInfo = {
+          coords: pts.map((c: [number, number]) => [c[1], c[0]] as [number, number]),
+          tripMin: Math.max(1, Math.round(route.duration / 60)),
+          porCalles: true
+        };
+        this.cache.set(key, info);
+        return info;
+      }
+    } catch {
+      // cae al respaldo
+    }
+    const distM = this.distanciaM(lat1, lng1, lat2, lng2);
+    const info: RutaInfo = {
+      coords: [[lat1, lng1], [lat2, lng2]],
+      tripMin: this.tripMin(distM),
+      porCalles: false
+    };
+    this.cache.set(key, info);
+    return info;
   }
 
   /** Destino: coords del pedido > geocodificación > centro de Lima. */
