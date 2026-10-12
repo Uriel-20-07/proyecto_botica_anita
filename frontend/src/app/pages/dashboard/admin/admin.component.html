@@ -1418,13 +1418,21 @@
               style="display:inline-flex;align-items:center;gap:5px;background:#ccfbf1;color:#0f766e;font-weight:700;font-size:12px;border-radius:20px;padding:3px 12px;margin-left:6px;">
               💠 Plin
             </span>
-            <span *ngIf="selectedVenta.metodoPago !== 'YAPE' && selectedVenta.metodoPago !== 'TARJETA' && selectedVenta.metodoPago !== 'PLIN'"
+            <span *ngIf="selectedVenta.metodoPago === 'SIP'"
+              style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;color:#6d28d9;font-weight:700;font-size:12px;border-radius:20px;padding:3px 12px;margin-left:6px;">
+              🟣 SIP
+            </span>
+            <span *ngIf="selectedVenta.metodoPago !== 'YAPE' && selectedVenta.metodoPago !== 'TARJETA' && selectedVenta.metodoPago !== 'PLIN' && selectedVenta.metodoPago !== 'SIP'"
               style="color:#94a3b8;font-size:13px;margin-left:6px;font-style:italic;">
               {{ selectedVenta.metodoPago || 'No registrado' }}
             </span>
           </p>
           <p *ngIf="selectedVenta.metodoPago === 'PLIN' && selectedVenta.numeroOperacion">
             <strong>N.º de operación Plin:</strong>
+            <span style="font-family:monospace;font-weight:700;">{{ selectedVenta.numeroOperacion }}</span>
+          </p>
+          <p *ngIf="selectedVenta.metodoPago === 'SIP' && selectedVenta.numeroOperacion">
+            <strong>N.º de operación SIP:</strong>
             <span style="font-family:monospace;font-weight:700;">{{ selectedVenta.numeroOperacion }}</span>
           </p>
           <p *ngIf="selectedVenta.distrito">

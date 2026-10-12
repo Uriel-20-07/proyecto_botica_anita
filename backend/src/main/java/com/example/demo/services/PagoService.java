@@ -47,6 +47,12 @@ public class PagoService {
     @Value("${plin.titular:}")
     private String plinTitular;
 
+    // Datos de la cuenta SIP (antes Ágora) de la botica
+    @Value("${sip.numero:}")
+    private String sipNumero;
+    @Value("${sip.titular:}")
+    private String sipTitular;
+
     // Debe reflejar el mismo valor que 'mostrarRecetas' en environment.ts del frontend.
     // Si el flujo de recetas está oculto en la UI, el backend NO debe exigir receta,
     // o el pedido queda atascado en EN_ESPERA sin forma de resolverse.
@@ -136,16 +142,22 @@ public class PagoService {
         return Map.of("numero", plinNumero, "titular", plinTitular);
     }
 
+    /** Datos que el cliente necesita para pagar por SIP (antes Ágora). */
+    public Map<String, String> obtenerInfoSip() {
+        return Map.of("numero", sipNumero, "titular", sipTitular);
+    }
+
     @Transactional
     public void procesarTransaccion(Integer idUsuario, PagoRequest request) {
         Carrito carrito = carritoService.obtenerOCrearCarrito(idUsuario);
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
 
-        // --- Validación específica de Plin (antes de consumir cupones o stock) ---
-        boolean esPlin = "PLIN".equalsIgnoreCase(request.getMetodoPago());
+        // --- Validación de pagos por transferencia: Plin y SIP (antes de consumir cupones o stock) ---
+        boolean esTransferencia = "PLIN".equalsIgnoreCase(request.getMetodoPago())
+                || "SIP".equalsIgnoreCase(request.getMetodoPago());
         String numeroOperacion = null;
-        if (esPlin) {
+        if (esTransferencia) {
             numeroOperacion = request.getNumeroOperacion() == null ? "" : request.getNumeroOperacion().trim();
             if (!numeroOperacion.matches("\\d{6,12}")) {
                 throw new RuntimeException("Ingresa un número de operación válido (6 a 12 dígitos).");

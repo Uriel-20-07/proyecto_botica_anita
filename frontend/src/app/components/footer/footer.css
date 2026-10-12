@@ -205,6 +205,17 @@
         }
     }
 
+    &.sip {
+        background: #7c3aed;
+
+        span {
+            color: #fff;
+            font-weight: 900;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+    }
+
     &.diners {
         background: #1a1a1a;
 

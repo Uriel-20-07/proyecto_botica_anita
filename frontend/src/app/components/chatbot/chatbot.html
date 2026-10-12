@@ -32,6 +32,22 @@
       </div>
       <div class="chatbot-message-bubble">
         <p class="chatbot-message-text" [innerHTML]="msg.content"></p>
+
+        <!-- Acciones de confirmación (cantidad alternativa ofrecida por el backend) -->
+        <div class="chatbot-confirm-actions" *ngIf="msg.confirmacion">
+          <button
+            type="button"
+            class="chatbot-confirm-btn chatbot-confirm-yes"
+            (click)="confirmarCantidad(msg)">
+            Sí, agregar {{ msg.confirmacion.cantidad }}
+          </button>
+          <button
+            type="button"
+            class="chatbot-confirm-btn chatbot-confirm-no"
+            (click)="cancelarConfirmacion(msg)">
+            No, gracias
+          </button>
+        </div>
       </div>
     </div>
 
