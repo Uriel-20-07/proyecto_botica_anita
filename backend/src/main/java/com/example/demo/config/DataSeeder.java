@@ -247,7 +247,7 @@ public class DataSeeder implements CommandLineRunner {
         pedido.setFecha(fecha);
         pedido.setEstado("COMPLETADO");
         pedido.setTotal(total);
-        pedido.setDireccionEnvio("Tienda Jerusalén - Av. Larco 880, Miraflores");
+        pedido.setDireccionEnvio("Botica Anita - Av. Los Jazmines 408, Independencia");
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
 
         // Iterar los pares (Producto, Integer) de forma alternada (índice par = producto, impar = cantidad)

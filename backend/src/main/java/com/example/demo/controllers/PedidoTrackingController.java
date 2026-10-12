@@ -32,13 +32,21 @@ public class PedidoTrackingController {
         this.pedidoRepository = pedidoRepository;
     }
 
+    // Tienda Botica Anita: esquina Las Violetas con Av. Los Jazmines 408, Independencia.
+    private static final double TIENDA_LAT = -12.0016;
+    private static final double TIENDA_LNG = -77.0501;
+    // Minutos fijos por etapa antes del viaje (igual que el frontend).
+    private static final long MIN_PREVIOS = 1 + 5 + 5;
+
     /**
      * Consultar el estado y ubicación del pedido en tiempo real para el cliente.
+     * Avanza el estado solo con el paso del tiempo (1+5+5 min + viaje + 1).
      */
     @GetMapping("/{id}/tracking")
 public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
     return pedidoRepository.findById(id)
         .<ResponseEntity<?>>map(pedido -> {
+            avanzarEstadoPorTiempo(pedido);
             Map<String, Object> response = new HashMap<>();
             response.put("idPedido", pedido.getIdPedido());
             response.put("estado", pedido.getEstado());
@@ -52,6 +60,49 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
         })
         .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
 }
+
+    /**
+     * Avanza PAGADO/CONFIRMADO -> EN_CAMINO (11 min) -> COMPLETADO (11 + viaje + 1).
+     * El viaje se calcula a 25 km/h; sin coordenadas usa 5 min por defecto.
+     */
+    private void avanzarEstadoPorTiempo(Pedido pedido) {
+        if (pedido.getFecha() == null) return;
+        String estado = pedido.getEstado() != null ? pedido.getEstado().toUpperCase() : "";
+        if (estado.contains("COMPLETAD") || estado.contains("ENTREGAD")
+                || estado.contains("CANCELAD") || estado.contains("RECHAZAD")) {
+            return;
+        }
+        long minutos = java.time.Duration.between(pedido.getFecha(), LocalDateTime.now()).toMinutes();
+        double tripMin = 5.0;
+        if (pedido.getLatitudEntrega() != null && pedido.getLongitudEntrega() != null) {
+            double distM = distanciaM(TIENDA_LAT, TIENDA_LNG,
+                    pedido.getLatitudEntrega().doubleValue(), pedido.getLongitudEntrega().doubleValue());
+            tripMin = Math.max(1.0, (distM / 1000.0 / 25.0) * 60.0);
+        }
+        boolean cambio = false;
+        if ((estado.equals("PAGADO") || estado.equals("CONFIRMADO")) && minutos >= MIN_PREVIOS) {
+            pedido.setEstado("EN_CAMINO");
+            cambio = true;
+        }
+        if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado()) && minutos >= MIN_PREVIOS + tripMin + 1) {
+            pedido.setEstado("COMPLETADO");
+            cambio = true;
+        }
+        if (cambio) {
+            pedidoRepository.save(pedido);
+        }
+    }
+
+    /** Distancia en metros (Haversine). */
+    private double distanciaM(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * r * Math.asin(Math.sqrt(a));
+    }
 
     /**
      * Actualizar las coordenadas GPS del repartidor desde la App o Panel de Delivery.

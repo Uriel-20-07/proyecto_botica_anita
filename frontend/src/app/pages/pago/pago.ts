@@ -167,7 +167,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
       { nombre: 'Tienda La Pascana', direccion: 'Av. La Pascana 300', referencia: 'Frente al mercado' },
     ],
     'Independencia': [
-      { nombre: 'Bodega Independencia', direccion: 'Av. Los Jazmines 410', referencia: 'Cerca al colegio 3048 Santiago Antúnez de Mayolo' },
+      { nombre: 'Bodega Independencia', direccion: 'Av. Los Jazmines 408', referencia: 'Cerca al colegio 3048 Santiago Antúnez de Mayolo' },
       { nombre: 'Minimarket Payet', direccion: 'Av. Panamericana Norte 5100', referencia: 'Cerca al óvalo Payet' },
       { nombre: 'Tienda Tahuantinsuyo', direccion: 'Av. Tahuantinsuyo 2100', referencia: 'Frente al mercado' },
     ],

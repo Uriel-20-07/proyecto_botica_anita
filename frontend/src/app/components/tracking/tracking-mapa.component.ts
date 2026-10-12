@@ -197,7 +197,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
     this.markerTienda = L.marker([TIENDA_LAT, TIENDA_LNG], { icon: iconoTienda })
       .addTo(this.map)
-      .bindPopup('<b>Botica Anita</b><br>Esq. Las Violetas con Av. Los Jazmines, Independencia');
+      .bindPopup('<b>Botica Anita</b><br>Av. Los Jazmines 408, Independencia');
 
     // 4. Marcador del destino (Cliente).
     const iconoDestino = L.icon({
