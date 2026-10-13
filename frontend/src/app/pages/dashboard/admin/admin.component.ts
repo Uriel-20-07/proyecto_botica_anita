@@ -47,6 +47,7 @@ export class AdminDashboardComponent implements OnInit {
 
   searchCliente = '';
   searchProducto = '';
+  categoriaFiltro: string = '';
 
   totalVentas = 0;
   ticketPromedio = 0;
@@ -93,18 +94,6 @@ export class AdminDashboardComponent implements OnInit {
   // Variables Reportes
   reporteData: any = null;
   cargandoReportes: boolean = false;
-
-  readonly distritosLima: string[] = [
-    'Miraflores', 'San Isidro', 'Santiago de Surco', 'La Molina',
-    'San Borja', 'Jesús María', 'Lince', 'Pueblo Libre',
-    'Magdalena del Mar', 'San Miguel', 'Barranco', 'Chorrillos',
-    'Surquillo', 'Los Olivos', 'San Martín de Porres', 'Comas',
-    'Independencia', 'San Juan de Lurigancho', 'Santa Anita', 'Ate',
-  ];
-
-  distritoSeleccionado: string = '';
-  topProductosDistrito: any[] = [];
-  cargandoDistrito: boolean = false;
 
   // Filtro calendario Top 10
   filtroMes: string = '';
@@ -331,14 +320,43 @@ export class AdminDashboardComponent implements OnInit {
     );
   }
 
+    getCategoriaNombre(p: any): string {
+      return p?.categoria?.nombre || 'Sin categoría';
+  }
+
+  get categorias(): string[] {
+    const set = new Set<string>();
+    this.productos.forEach((p) => set.add(this.getCategoriaNombre(p)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+  }
+
   get filteredProductos(): any[] {
-    if (!this.searchProducto) return this.productos;
-    const query = this.searchProducto.toLowerCase();
-    return this.productos.filter(
-      (p) =>
+    const query = this.searchProducto.trim().toLowerCase();
+    return this.productos.filter((p) => {
+      const coincideCategoria =
+        !this.categoriaFiltro || this.getCategoriaNombre(p) === this.categoriaFiltro;
+      const coincideTexto =
+        !query ||
         p.nombre.toLowerCase().includes(query) ||
-        (p.descripcion && p.descripcion.toLowerCase().includes(query)),
-    );
+        (p.descripcion && p.descripcion.toLowerCase().includes(query));
+      return coincideCategoria && coincideTexto;
+    });
+  }
+
+  get productosPorCategoria(): { categoria: string; productos: any[] }[] {
+    const grupos = new Map<string, any[]>();
+    this.filteredProductos.forEach((p) => {
+      const cat = this.getCategoriaNombre(p);
+      if (!grupos.has(cat)) grupos.set(cat, []);
+      grupos.get(cat)!.push(p);
+    });
+    return Array.from(grupos.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+      .map(([categoria, productos]) => ({ categoria, productos }));
+  }
+
+  trackByCategoria(_: number, grupo: { categoria: string }): string {
+    return grupo.categoria;
   }
 
   setTab(tab: 'resumen' | 'ventas' | 'inventario' | 'reportes' | 'predicciones' | 'recetas' | 'cupones'): void {
@@ -356,38 +374,19 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   cargarReportes(): void {
-    this.cargandoReportes = true;
-    this.adminService.getReportes().subscribe({
-      next: (data: any) => {
-        this.reporteData = data;
-        this.cargandoReportes = false;
-        // Si hay distritos y no se ha seleccionado ninguno, seleccionamos el primero por defecto
-        if (this.reporteData?.distritos?.length && !this.distritoSeleccionado) {
-          this.distritoSeleccionado = this.reporteData.distritos[0];
-        }
-        this.cargarTopPorDistrito();
-      },
-      error: (err: any) => {
-        console.error('Error al cargar reportes:', err);
-        this.cargandoReportes = false;
-      }
-    });
-  }
+  this.cargandoReportes = true;
+  this.adminService.getReportes().subscribe({
+    next: (data: any) => {
+      this.reporteData = data;
+      this.cargandoReportes = false;
+    },
+    error: (err: any) => {
+      console.error('Error al cargar reportes:', err);
+      this.cargandoReportes = false;
+    }
+  });
+}
 
-  cargarTopPorDistrito(): void {
-    if (!this.distritoSeleccionado) return;
-    this.cargandoDistrito = true;
-    this.adminService.getTopProductosPorDistrito(this.distritoSeleccionado).subscribe({
-      next: (data: any[]) => {
-        this.topProductosDistrito = data;
-        this.cargandoDistrito = false;
-      },
-      error: () => {
-        this.topProductosDistrito = [];
-        this.cargandoDistrito = false;
-      }
-    });
-  }
 
   // ── Filtro calendario Top 10 ─────────────────────────────────────────────
 
@@ -1167,11 +1166,11 @@ export class AdminDashboardComponent implements OnInit {
       this._pdfShell('Lotes Próximos a Vencer', 'R-INV-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
-  // ── PDF 4: Top 5 Clientes ─────────────────────────────────────────────────
+  // ── PDF 4: Top 10 Clientes ─────────────────────────────────────────────────
   descargarReporteClientes(): void {
     if (!this.reporteData) return;
     const fecha = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const clientes = this.reporteData.clientesTop || [];
+    const clientes = (this.reporteData.clientesTop || []).slice(0, 10);
     const medallas = ['🥇', '🥈', '🥉'];
     const totalGlobal = clientes.reduce((s: number, c: any) => s + Number(c.totalGastado || 0), 0);
     const filas = clientes.map((c: any, i: number) => `
@@ -1202,51 +1201,6 @@ export class AdminDashboardComponent implements OnInit {
       </div>`;
     this._imprimirPDF('CLIENTES_TOP_BOTICAANITA',
       this._pdfShell('Top 5 Clientes por Gasto Total', 'R-CLI-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
-  }
-
-  // ── PDF 5: Top Productos por Distrito ─────────────────────────────────────
-  descargarReporteDistrito(): void {
-    if (!this.topProductosDistrito) return;
-    const fecha = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const distrito = this.distritoSeleccionado || 'Todos los distritos';
-    const fmt = (v: any) => `S/ ${Number(v || 0).toFixed(2)}`;
-    const medals = ['🥇', '🥈', '🥉'];
-
-    const filas = this.topProductosDistrito.length === 0
-      ? `<tr><td colspan="4" style="text-align:center; padding:20px; color:#718096;">Este distrito aún no cuenta con una venta.</td></tr>`
-      : this.topProductosDistrito.map((item: any, i: number) => `
-          <tr>
-            <td class="td-center">${i < 3 ? medals[i] : i + 1}</td>
-            <td>${item.nombre}</td>
-            <td class="td-center">${item.cantidadVendida} u.</td>
-            <td class="td-right" style="color:#ea580c; font-weight:800;">${fmt(item.ingresoGenerado)}</td>
-          </tr>`).join('');
-
-    const totalUnidades = this.topProductosDistrito.reduce((s: number, i: any) => s + (i.cantidadVendida || 0), 0);
-    const totalIngresos = this.topProductosDistrito.reduce((s: number, i: any) => s + Number(i.ingresoGenerado || 0), 0);
-
-    const contenido = `
-      <div class="highlight-note">
-        Distrito filtrado: <strong>${distrito}</strong> &nbsp;|&nbsp; ${this.topProductosDistrito.length} producto(s) con ventas registradas
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th class="td-center" style="width:56px;">#</th>
-            <th>Producto</th>
-            <th class="td-center" style="width:100px;">Unidades</th>
-            <th class="td-right" style="width:130px;">Ingresos</th>
-          </tr>
-        </thead>
-        <tbody>${filas}</tbody>
-      </table>
-      <div class="total-box">
-        <span class="total-label">Total unidades vendidas: ${totalUnidades} u.</span>
-        <span class="total-value">${fmt(totalIngresos)}</span>
-      </div>`;
-
-    this._imprimirPDF(`TOP_PRODUCTOS_${distrito.replace(/\s+/g, '_').toUpperCase()}`,
-      this._pdfShell(`Top Productos — ${distrito}`, 'R-DIST-001', this.adminUser?.nombre || 'Administrador', fecha, contenido));
   }
 
 

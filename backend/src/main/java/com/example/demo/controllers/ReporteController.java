@@ -9,7 +9,6 @@ import com.example.demo.repositories.InventarioLoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -157,8 +156,8 @@ public class ReporteController {
         }
 
         List<Map<String, Object>> clientesTop = gastoCliente.entrySet().stream()
-                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
-                .limit(5)
+        .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+        .limit(10) 
                 .map(e -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("nombre", e.getKey());
@@ -197,20 +196,6 @@ public class ReporteController {
      *
      * Si no se pasa parámetro (o es vacío), devuelve datos de todos los distritos.
      */
-    @GetMapping("/por-distrito")
-    public ResponseEntity<?> topProductosPorDistrito(
-            @RequestParam(value = "distrito", required = false) String distrito) {
-
-        List<Pedido> pedidosFiltrados = pedidoRepository.findAll().stream()
-                .filter(p -> {
-                    if (distrito == null || distrito.isBlank()) return true;
-                    return distrito.equalsIgnoreCase(p.getDistrito());
-                })
-                .collect(Collectors.toList());
-
-        List<Map<String, Object>> top = calcularTopProductos(pedidosFiltrados);
-        return ResponseEntity.ok(top);
-    }
 
     private List<Map<String, Object>> calcularTopProductos(List<Pedido> pedidosFiltrados) {
         Set<Integer> pedidoIds = pedidosFiltrados.stream()
@@ -274,17 +259,6 @@ public class ReporteController {
                     .filter(p -> p.getFecha() != null && p.getFecha().isAfter(limite))
                     .collect(Collectors.toList());
         }
-
-        List<Map<String, Object>> top = calcularTopProductos(filtrados);
-        return ResponseEntity.ok(top);
-    }
-
-    @GetMapping("/top-productos-distrito")
-    public ResponseEntity<?> obtenerTopProductosPorDistrito(@RequestParam String distrito) {
-        List<Pedido> pedidos = pedidoRepository.findAll();
-        List<Pedido> filtrados = pedidos.stream()
-                .filter(p -> p.getDistrito() != null && p.getDistrito().equalsIgnoreCase(distrito))
-                .collect(Collectors.toList());
 
         List<Map<String, Object>> top = calcularTopProductos(filtrados);
         return ResponseEntity.ok(top);
