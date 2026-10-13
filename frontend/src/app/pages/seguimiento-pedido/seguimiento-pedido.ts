@@ -106,30 +106,47 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   generarFechasTimeline(fechaPedido: string, direccionBodega: string, esUrgente: boolean): void {
 
     const inicio = new Date(fechaPedido);
+    const at = (min: number): Date => {
+      const d = new Date(inicio);
+      d.setMinutes(d.getMinutes() + min);
+      return d;
+    };
 
-    // +1 hora
-    const despacho = new Date(inicio);
-    despacho.setMinutes(
-      despacho.getMinutes() + 60
-    );
+    const pedR = this.pedido();
+    const esperaR = pedR && (pedR.estado === 'EN_ESPERA' || pedR.estado === 'ESPERANDO' || pedR.estado === 'PENDIENTE_VERIFICACION');
 
-    // +15 min
-    const motorizado = new Date(despacho);
-    motorizado.setMinutes(
-      motorizado.getMinutes() + 15
-    );
+    // Flujo de recojo en tienda: sin motorizado ni viaje.
+    if (!esUrgente) {
+      this.pasos = [
+        {
+          titulo: esperaR ? 'Pedido en espera' : 'Pedido confirmado',
+          descripcion: pedR?.estado === 'PENDIENTE_VERIFICACION' ? 'Verificando tu pago Plin' : (esperaR ? 'Esperando validación de receta médica' : 'Pago recibido correctamente'),
+          fecha: inicio
+        },
+        {
+          titulo: 'En preparación',
+          descripcion: 'Preparando tus productos',
+          fecha: at(MIN_CONFIRMADO)
+        },
+        {
+          titulo: 'Listo para recojo',
+          descripcion: 'Recoge tu pedido en Botica Anita, Av. Los Jazmines 408, Independencia',
+          fecha: at(MIN_CONFIRMADO + MIN_DESPACHO)
+        },
+        {
+          titulo: 'Entregado',
+          descripcion: 'Pedido entregado. ¡Gracias por tu compra!',
+          fecha: at(MIN_CONFIRMADO + MIN_DESPACHO + 60)
+        }
+      ];
+      return;
+    }
 
-    // +1 hora
-    const camino = new Date(motorizado);
-    camino.setMinutes(
-      camino.getMinutes() + 60
-    );
-
-    // +30 min para entrega final
-    const entregado = new Date(camino);
-    entregado.setMinutes(
-      entregado.getMinutes() + 30
-    );
+    // Flujo delivery con tiempos por etapa + viaje según distancia.
+    const despacho = at(MIN_CONFIRMADO);
+    const motorizado = at(MIN_CONFIRMADO + MIN_DESPACHO);
+    const camino = at(MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO);
+    const entregado = at(MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO + this.tripMin + MIN_ENTREGA_EXTRA);
 
     const descCamino = esUrgente
       ? `Tu pedido está de camino a tu hogar: ${direccionBodega}`
@@ -171,18 +188,23 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     ];
   }
 
-  /** El mapa se oculta cuando el pedido ya se entregó/completó. */
+  /** El mapa solo existe para delivery y se oculta cuando ya se entregó/completó. */
   mapaVisible(): boolean {
-    const est = (this.pedido()?.estado || '').toUpperCase();
+    const ped = this.pedido();
+    if (ped?.esUrgente === false) return false;
+    const est = (ped?.estado || '').toUpperCase();
     return !(est.includes('COMPLETAD') || est.includes('ENTREGAD'));
   }
   /** Tope de paso según el estado real: el timeline nunca corre más rápido que el pedido. */
   private topeEstadoPedido(): number {
-    const est = (this.pedido()?.estado || '').toUpperCase();
-    if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 4;
+    const ped = this.pedido();
+    const urgente = ped?.esUrgente !== false;
+    const est = (ped?.estado || '').toUpperCase();
+    if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return urgente ? 4 : 3;
     if (est.includes('EN_CAMINO')) return 3;
-    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 2;
-    return 4;
+    if (est.includes('LISTO')) return 2;
+    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return urgente ? 2 : 1;
+    return urgente ? 4 : 3;
   }
 
   calcularEstado(fechaPedido: string): void {
@@ -198,8 +220,24 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
 
     let paso: number;
     // Tiempos por etapa + viaje según distancia (igual que el mapa).
+    // Recojo: 1 + 5 fijos, listo a los 6 y cierre a los 66.
+    const urgente = ped?.esUrgente !== false;
     const t0 = MIN_CONFIRMADO; // 1
     const t1 = t0 + MIN_DESPACHO; // 6
+    if (!urgente) {
+      const tRecojo = t1 + 60;
+      if (minutos < t0) {
+        paso = 0;
+      } else if (minutos < t1) {
+        paso = 1;
+      } else if (minutos < tRecojo) {
+        paso = 2;
+      } else {
+        paso = 3;
+      }
+      this.estadoActual.set(Math.min(paso, this.topeEstadoPedido()));
+      return;
+    }
     const t2 = t1 + MIN_MOTORIZADO; // 11
     const t3 = t2 + this.tripMin + MIN_ENTREGA_EXTRA;
     // Pedido confirmado

@@ -54,7 +54,7 @@
               (change)="onTipoEnvioChange()" style="accent-color: #1a2e4a;" />
             <div style="display: flex; flex-direction: column;">
               <span style="font-weight: 700; font-size: 0.9rem; color: #1a2e4a;">Recojo en Tienda</span>
-              <span style="font-size: 0.75rem; color: #64748b;">S/ 5.00 o Gratis (> S/ 50.00)</span>
+              <span style="font-size: 0.75rem; color: #64748b;">Gratis</span>
             </div>
           </label>
           <label
@@ -83,14 +83,8 @@
 
         <div *ngIf="!formPago.esUrgente">
           <div class="form-group" *ngIf="formPago.distrito">
-            <label>Establecimiento de Recojo (Tienda / Bodega) <span class="req">*</span></label>
-            <select [(ngModel)]="formPago.puntoSeleccionado" (change)="onPuntoRecojoChange()"
-              class="form-input form-select">
-              <option value="" disabled selected>Selecciona una tienda o bodega de recojo</option>
-              <option *ngFor="let punto of puntosRecojoPorDistrito[formPago.distrito]" [value]="punto.nombre">
-                {{ punto.nombre }} ({{ punto.direccion }})
-              </option>
-            </select>
+            <label>Establecimiento de Recojo (Tienda / Bodega)</label>
+            <input type="text" value="Bodega Independencia (Av. Los Jazmines 408)" class="form-input" readonly />
           </div>
 
           <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">

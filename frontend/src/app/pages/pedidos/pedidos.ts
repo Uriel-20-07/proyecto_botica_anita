@@ -111,12 +111,11 @@ export class PedidosComponent implements OnInit {
   }
 
   /**
-   * Determina el costo de envío (S/ 5.00 si el subtotal <= S/ 50.00, gratis si > S/ 50.00).
+   * Costo de envío: recojo en tienda siempre gratis, urgente S/ 10.00.
    */
   calcularEnvio(pedido: any): number {
     if (pedido.esUrgente) return 10;
-    const subtotal = this.calcularSubtotal(pedido);
-    return subtotal > 50 ? 0 : 5;
+    return 0;
   }
 
   /**

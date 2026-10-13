@@ -173,8 +173,6 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     ],
     'Independencia': [
       { nombre: 'Bodega Independencia', direccion: 'Av. Los Jazmines 408', referencia: 'Cerca al colegio 3048 Santiago Antúnez de Mayolo' },
-      { nombre: 'Minimarket Payet', direccion: 'Av. Panamericana Norte 5100', referencia: 'Cerca al óvalo Payet' },
-      { nombre: 'Tienda Tahuantinsuyo', direccion: 'Av. Tahuantinsuyo 2100', referencia: 'Frente al mercado' },
     ],
     'San Juan de Lurigancho': [
       { nombre: 'Bodega SJL', direccion: 'Av. Próceres 4800', referencia: 'Frente a la estación del tren' },
@@ -245,6 +243,10 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
     // Verificar si requiere receta (solo si el flujo está visible)
     this.requiereReceta = this.mostrarRecetas && this.productosCarrito.some(item => this.requiereRecetaMedica(item.producto.nombre));
+
+    // Punto de recojo por defecto: Botica Anita (único local)
+    this.formPago.puntoSeleccionado = 'Bodega Independencia';
+    this.onPuntoRecojoChange();
 
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!
@@ -450,7 +452,8 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     if (this.formPago.esUrgente) {
       this.costoEnvio = 10;
     } else {
-      this.costoEnvio = this.subtotal > 50 ? 0 : 5;
+      // Recojo en tienda siempre gratis
+      this.costoEnvio = 0;
     }
     const descuentoAutomatico = Math.max(0, this.subtotalOriginal - this.subtotal);
     this.descuentoTotal = descuentoAutomatico + this.descuento;

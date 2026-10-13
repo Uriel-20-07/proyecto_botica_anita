@@ -47,7 +47,10 @@ public class PedidoTrackingController {
     private static final double TIENDA_LAT = -12.00142;
     private static final double TIENDA_LNG = -77.04722;
     // Minutos fijos por etapa antes del viaje (igual que el frontend).
-    private static final long MIN_PREVIOS = 1 + 5 + 5;
+    private static final long MIN_CONFIRMADO = 1;
+    private static final long MIN_DESPACHO = 5;
+    private static final long MIN_MOTORIZADO = 5;
+    private static final long MIN_PREVIOS = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO;
 
     /**
      * Consultar el estado y ubicación del pedido en tiempo real para el cliente.
@@ -93,11 +96,23 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
             tripMin = Math.max(1.0, (distM / 1000.0 / 25.0) * 60.0);
         }
         boolean cambio = false;
-        if ((estado.equals("PAGADO") || estado.equals("CONFIRMADO")) && minutos >= MIN_PREVIOS) {
-            pedido.setEstado("EN_CAMINO");
-            cambio = true;
+        boolean urgente = pedido.isEsUrgente();
+        if (estado.equals("PAGADO") || estado.equals("CONFIRMADO")) {
+            if (urgente && minutos >= MIN_PREVIOS) {
+                pedido.setEstado("EN_CAMINO");
+                cambio = true;
+            } else if (!urgente && minutos >= MIN_CONFIRMADO + MIN_DESPACHO) {
+                // Recojo: a los 6 min queda listo para recoger en tienda.
+                pedido.setEstado("LISTO_RECOJO");
+                cambio = true;
+            }
         }
         if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado()) && minutos >= MIN_PREVIOS + tripMin + 1) {
+            pedido.setEstado("COMPLETADO");
+            cambio = true;
+        }
+        if ("LISTO_RECOJO".equalsIgnoreCase(pedido.getEstado()) && minutos >= MIN_PREVIOS + 60) {
+            // Recojo sin reclamo en 1 hora: se cierra solo.
             pedido.setEstado("COMPLETADO");
             cambio = true;
         }

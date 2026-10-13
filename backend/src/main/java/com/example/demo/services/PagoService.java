@@ -127,7 +127,7 @@ public class PagoService {
             }
         }
 
-        double costoEnvio = (subtotal > 50.0) ? 0.0 : 5.0;
+        double costoEnvio = request.isEsUrgente() ? 10.0 : 0.0;
         long amountInCents = Math.round((subtotal + costoEnvio) * 100);
         String moneda = (request.getMoneda() != null) ? request.getMoneda() : "pen";
 
@@ -186,7 +186,7 @@ public class PagoService {
             cuponRepository.save(cupon);
         }
 
-        double costoEnvio = request.isEsUrgente() ? 10.0 : ((subtotal > 50.0) ? 0.0 : 5.0);
+        double costoEnvio = request.isEsUrgente() ? 10.0 : 0.0;
         totalFinal = totalFinal.add(BigDecimal.valueOf(costoEnvio));
 
         boolean requiereReceta = false;
