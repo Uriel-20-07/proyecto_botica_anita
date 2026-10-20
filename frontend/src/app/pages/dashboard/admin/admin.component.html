@@ -533,7 +533,7 @@
           <!-- REPORTE 2 — Top 10 Productos con Calendario         -->
           <!-- ════════════════════════════════════════════════════ -->
           <div class="card">
-            <div class="card-header"
+              <div class="card-header"
               style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
               <div>
                 <h2 style="margin:0;">Top 10 Productos</h2>
@@ -1107,6 +1107,143 @@
         </div>
       </div>
     </div>
+
+    
+<!-- Panel lateral: una sola tabla de alertas -->
+<aside style="min-width:0;">
+  <div class="card" style="padding:18px;border-top:4px solid #ea580c;">
+
+    <div class="card-header" style="margin-bottom:14px;">
+      <div>
+        <h2 style="margin:0;font-size:16px;">
+          Alertas de inventario
+        </h2>
+        <span class="card-subtitle">
+          Productos con poco stock y lotes próximos a vencer
+        </span>
+      </div>
+
+      <span class="status-badge">
+        {{ bajoStockCount + (reporteData?.lotesProximosVencer?.length || 0) }}
+      </span>
+    </div>
+
+    <div style="width:100%;overflow-x:auto;">
+
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px;">
+
+        <thead>
+          <tr style="background:#f8fafc;text-align:left;">
+            <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
+              Tipo
+            </th>
+            <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
+              Producto
+            </th>
+            <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
+              Detalle
+            </th>
+            <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
+              Stock
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          <!-- Productos con poco stock -->
+          <ng-container *ngFor="let grupo of productosPorCategoria">
+            <ng-container *ngFor="let prod of grupo.productos">
+
+              <tr *ngIf="prod.stock < 60"
+                  style="border-bottom:1px solid #f1f5f9;">
+
+                <td style="padding:10px 8px;">
+                  <span style="color:#dc2626;background:#fee2e2;padding:4px 6px;border-radius:6px;font-weight:700;">
+                    Poco stock
+                  </span>
+                </td>
+
+                <td style="padding:10px 8px;font-weight:600;">
+                  {{ prod.nombre }}
+                </td>
+
+                <td style="padding:10px 8px;color:#64748b;">
+                  {{ grupo.categoria }}
+                </td>
+
+                <td style="padding:10px 8px;font-weight:800;color:#dc2626;">
+                  {{ prod.stock }} u.
+                </td>
+
+              </tr>
+
+            </ng-container>
+          </ng-container>
+
+          <!-- Lotes próximos a vencer: en la misma tabla -->
+          <tr *ngFor="let lote of reporteData?.lotesProximosVencer"
+              style="border-bottom:1px solid #f1f5f9;">
+
+            <td style="padding:10px 8px;">
+              <span style="color:#b45309;background:#fef3c7;padding:4px 6px;border-radius:6px;font-weight:700;">
+                Por vencer
+              </span>
+            </td>
+
+            <td style="padding:10px 8px;font-weight:600;">
+              {{ lote.producto }}
+            </td>
+
+            <td style="padding:10px 8px;">
+              <div style="color:#64748b;">
+                Lote {{ lote.codigoLote }}
+              </div>
+
+              <div [style.color]="lote.diasRestantes <= 30 ? '#dc2626' : '#b45309'"
+                   style="font-weight:700;margin-top:4px;">
+                {{ lote.diasRestantes }} días restantes
+              </div>
+            </td>
+
+            <td style="padding:10px 8px;font-weight:800;color:#b45309;">
+              {{ lote.stock }} u.
+            </td>
+
+          </tr>
+
+          <!-- Mensaje cuando no hay alertas -->
+          <tr *ngIf="bajoStockCount === 0 && !reporteData?.lotesProximosVencer?.length">
+            <td colspan="4"
+                style="padding:24px 10px;text-align:center;color:#16a34a;">
+              ✓ No hay productos con poco stock ni lotes próximos a vencer.
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+
+      <button (click)="setTab('inventario')"
+              class="btn-action"
+              style="background:#fff1f2;color:#dc2626;border:1px solid #fecaca;">
+        Revisar inventario →
+      </button>
+
+      <button (click)="setTab('reportes')"
+              class="btn-action"
+              style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
+        Ver reportes →
+      </button>
+
+    </div>
+
+  </div>
+</aside>
+
 
     <div *ngIf="activeTab === 'cupones'" class="tab-pane animated-fade">
       <div *ngIf="mensajeExito"
