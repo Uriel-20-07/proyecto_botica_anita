@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, Input, ElementRef, ViewChild } from '@angular/core';
 import { TrackingService, TrackingResponseDTO } from '../../services/tracking.service';
 import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -30,7 +30,7 @@ import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRM
         </div>
       }
 
-      <div id="map" style="height: 450px; width: 100%; border-radius: 8px; margin-top: 15px;"></div>
+      <div #mapContainer style="height: 450px; width: 100%; border-radius: 8px; margin-top: 15px;"></div>
 
       <div class="leyenda">
         <span><img src="icons/farmacia-icon.png" alt="tienda" /> Tienda</span>
@@ -59,6 +59,10 @@ import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRM
 export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() idPedido!: number;
   @Input() fechaPedido?: string;
+
+  // Contenedor del mapa: se usa ViewChild en vez de un id global para evitar
+  // el error "Map container is already initialized" de Leaflet.
+  @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
 
   pedido?: TrackingResponseDTO;
   progreso = 0;
@@ -179,9 +183,13 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Resuelve el destino con el servicio compartido y crea el mapa. */
   private async resolverDestinoYCrearMapa(): Promise<void> {
     if (!this.pedido || this.map) return;
-    const [lat, lng] = await this.ruta.resolverDestino(this.pedido);
-    const r = await this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, lat, lng);
-    this.initMap(lat, lng, r);
+    try {
+      const [lat, lng] = await this.ruta.resolverDestino(this.pedido);
+      const r = await this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, lat, lng);
+      this.initMap(lat, lng, r);
+    } catch (e) {
+      console.error('No se pudo crear el mapa del seguimiento:', e);
+    }
   }
 
   /** Dirección sin duplicar el distrito si ya viene incluido. */
@@ -195,9 +203,16 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   private initMap(latDestino: number, lngDestino: number, r: RutaInfo): void {
     if (!this.pedido) return;
 
-    // 1. Instanciar el mapa con vista de toda la ruta tienda -> entrega.
-    this.map = L.map('map');
+    // 1. Instanciar el mapa sobre el contenedor real (ViewChild) con vista de toda la ruta.
+    const el = this.mapContainer?.nativeElement;
+    if (!el) {
+      console.error('El contenedor del mapa no está disponible.');
+      return;
+    }
+    this.map = L.map(el);
     this.map.fitBounds(L.latLngBounds([TIENDA_LAT, TIENDA_LNG], [latDestino, lngDestino]).pad(0.25));
+    // Asegura que el mapa pinte bien el primer frame (evita el cuadro gris).
+    setTimeout(() => this.map?.invalidateSize(), 100);
 
     // 2. Agregar la capa de mapa base de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
