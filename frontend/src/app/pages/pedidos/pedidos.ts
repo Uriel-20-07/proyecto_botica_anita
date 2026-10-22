@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, Input, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -22,9 +22,16 @@ import autoTable from 'jspdf-autotable';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './pedidos.html',
-  styleUrls: ['./pedidos.css']
+  styleUrls: ['./pedidos.css'],
+  host: { '[class.embebido]': 'embebido' }
 })
 export class PedidosComponent implements OnInit {
+  /**
+   * Cuando es true, el componente se muestra dentro de "Mi cuenta" (perfil):
+   * se oculta el encabezado de página (migas de pan y título) porque ya lo aporta el perfil.
+   */
+  @Input() embebido = false;
+
   /** Array con la lista de pedidos del usuario */
   pedidos = signal<any[]>([]);
   /** Bandera de carga de datos */

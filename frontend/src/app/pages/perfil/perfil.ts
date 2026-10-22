@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormsModule,
@@ -7,23 +7,26 @@ import {
   FormGroup,
   Validators
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { PedidosComponent } from '../pedidos/pedidos';
 
 @Component({
   selector: 'app-perfil',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, PedidosComponent],
   templateUrl: './perfil.html',
   styleUrls: ['./perfil.css']
 })
-export class PerfilComponent implements OnInit {
+export class PerfilComponent implements OnInit, OnDestroy {
 
   private apiUrl = `${environment.apiUrl}/api/auth`;
 
-  seccionActiva = signal<'info' | 'password'>('info');
+  seccionActiva = signal<'info' | 'password' | 'pedidos'>('info');
+  private querySub?: Subscription;
   mensajeExito = '';
   mensajeError = '';
   fotoPreview = '';
@@ -35,6 +38,7 @@ export class PerfilComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private fb: FormBuilder,
     private http: HttpClient
   ) {}
@@ -59,6 +63,18 @@ export class PerfilComponent implements OnInit {
       nueva:     ['', [Validators.required, Validators.minLength(6)]],
       confirmar: ['', Validators.required]
     }, { validators: this.passwordsIguales });
+
+    // Permite abrir una pestaña concreta, p. ej. /perfil?seccion=pedidos
+    this.querySub = this.route.queryParamMap.subscribe(params => {
+      const seccion = params.get('seccion');
+      if (seccion === 'info' || seccion === 'password' || seccion === 'pedidos') {
+        this.seccionActiva.set(seccion);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.querySub?.unsubscribe();
   }
 
   passwordsIguales(group: FormGroup) {
@@ -67,10 +83,12 @@ export class PerfilComponent implements OnInit {
     return nueva === confirmar ? null : { noCoinciden: true };
   }
 
-  cambiarSeccion(seccion: 'info' | 'password'): void {
+  cambiarSeccion(seccion: 'info' | 'password' | 'pedidos'): void {
     this.seccionActiva.set(seccion);
     this.mensajeExito = '';
     this.mensajeError = '';
+    // Refleja la pestaña en la URL (sin llenar el historial) para poder recargar o compartir el enlace
+    this.router.navigate([], { relativeTo: this.route, queryParams: { seccion }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   guardarInfo(): void {

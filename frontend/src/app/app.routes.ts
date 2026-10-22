@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { InicioComponent } from './pages/inicio';
 import { BlogComponent } from './pages/blog/blog.component';
 import { CatalogoComponent } from './pages/catalogo/catalogo';
@@ -10,7 +11,6 @@ import { PagoComponent } from './pages/pago/pago';
 import { AdminDashboardComponent } from './pages/dashboard/admin/admin.component';
 import { VendedorDashboardComponent } from './pages/dashboard/vendedor/vendedor.component';
 import { RecuperarContraseñaComponent } from './components/recuperar-contrasena/recuperar-contrasena.component';
-import { PedidosComponent } from './pages/pedidos/pedidos';
 import { ProductoDetalleComponent } from './pages/producto-detalle/producto-detalle';
 import { FavoritosComponent } from './pages/favoritos/favoritos';
 import { SeguimientoPedidoComponent } from './pages/seguimiento-pedido/seguimiento-pedido';
@@ -40,7 +40,7 @@ import { CargaRecetaComponent } from './pages/carga-receta/carga-receta.componen
  * - /login                → Redirige a inicio (login es modal).
  * - /registro             → Redirige a inicio (registro es modal).
  * - /favoritos            → Redirige a inicio (funcionalidad pendiente).
- * - /pedidos              → Redirige a inicio (funcionalidad pendiente).
+ * - /pedidos              → Redirige a /perfil?seccion=pedidos (Historial de pedidos dentro de Mi cuenta).
  * - **                    → Redirige a inicio (ruta no encontrada).
  */
 export const routes: Routes = [
@@ -78,7 +78,8 @@ export const routes: Routes = [
   { path: 'login', redirectTo: '', pathMatch: 'full' },     // Login es un modal, no página
   { path: 'registro', redirectTo: '', pathMatch: 'full' },  // Registro es un modal, no página
   { path: 'favoritos', component: FavoritosComponent },
-  { path: 'pedidos', component: PedidosComponent },
+  // El historial de pedidos ahora vive dentro de Mi cuenta (pestaña "Historial de pedidos")
+  { path: 'pedidos', pathMatch: 'full', redirectTo: () => inject(Router).createUrlTree(['/perfil'], { queryParams: { seccion: 'pedidos' } }) },
   { path: 'pedidos/pedido/:id/seguimiento', component: SeguimientoPedidoComponent},
 
   // Wildcard: cualquier ruta no definida → redirige a inicio

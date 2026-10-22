@@ -24,7 +24,7 @@
                 </div>
             </div>
             <div class="topbar-right">
-                <a routerLink="/pedidos" class="topbar-link">Mis pedidos</a>
+                <a routerLink="/perfil" [queryParams]="{ seccion: 'pedidos' }" class="topbar-link">Mis pedidos</a>
                 @if (currentUser$ | async; as usuario) {
                 <span class="topbar-sep"></span>
                 <span class="topbar-user">Hola, {{ usuario.nombre }}</span>

@@ -581,8 +581,13 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
               this.cartService.clear();
               // Con Plin llevamos al cliente a sus pedidos para que vea el estado de la verificación
-              const destino = this.pagoPendienteVerificacion ? '/pedidos' : '/catalogo';
-              setTimeout(() => { this.router.navigate([destino]); }, 4000);
+              setTimeout(() => {
+                if (this.pagoPendienteVerificacion) {
+                  this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });
+                } else {
+                  this.router.navigate(['/catalogo']);
+                }
+              }, 4000);
           },
           error: (err) => {
               this.mensajeError = err.error?.error || 'Error al crear el pedido final.';

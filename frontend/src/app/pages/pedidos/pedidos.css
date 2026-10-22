@@ -696,3 +696,19 @@
   color: #f97316;
   text-decoration: underline;
 }
+
+/* ==========================================================================
+   Modo embebido: el listado se muestra dentro de "Mi cuenta" (perfil),
+   así que se quita el marco de página (ancho máximo y relleno propios).
+   ========================================================================== */
+:host(.embebido) .pedidos-page-wrapper {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+:host(.embebido) .fc-container {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}

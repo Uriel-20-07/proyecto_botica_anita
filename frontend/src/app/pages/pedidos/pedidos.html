@@ -1,7 +1,8 @@
 <div class="pedidos-page-wrapper">
   <div class="fc-container">
 
-    <!-- Encabezado de la página -->
+    <!-- Encabezado de la página (se oculta cuando se muestra dentro de Mi cuenta) -->
+    @if (!embebido) {
     <header class="pedidos-header">
       <div class="header-breadcrumbs">
         <a routerLink="/" class="breadcrumb-link">Inicio</a>
@@ -12,6 +13,7 @@
       <p class="page-subtitle">Revisa el detalle de tus compras anteriores, el estado de envío y descarga tus
         comprobantes en PDF.</p>
     </header>
+    }
 
     <!-- Estado de Carga -->
     @if (cargando()) {
