@@ -1194,7 +1194,7 @@
 
     
 <!-- Panel lateral: una sola tabla de alertas -->
-<aside style="min-width:0;">
+<aside *ngIf="activeTab === 'inventario'" style="min-width:0;">
   <div class="card" style="padding:18px;border-top:4px solid #ea580c;">
 
     <div class="card-header" style="margin-bottom:14px;">
