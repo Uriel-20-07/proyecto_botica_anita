@@ -82,14 +82,18 @@ export class AuthService {
     password: string,
     nombre: string,
     apellido: string,
-    telefono: string
+    telefono: string,
+    tipoDocumento: string,
+    numeroDocumento: string
   ): Observable<any> {
     return this.http.post(`${this.apiUrl}/registro`, {
       email,
       password,
       nombre,
       apellido,
-      telefono
+      telefono,
+      tipoDocumento,
+      numeroDocumento
     });
   }
 

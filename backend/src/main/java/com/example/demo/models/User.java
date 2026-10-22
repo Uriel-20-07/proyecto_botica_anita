@@ -52,6 +52,14 @@ public class User {
     @Column(name = "telefono", nullable = true)
     private String telefono;
 
+    /** Tipo de documento: "DNI" o "CE" (carnet de extranjería). */
+    @Column(name = "tipo_documento", length = 3)
+    private String tipoDocumento;
+
+    /** Número de documento: 8 dígitos si es DNI, 9 si es CE. */
+    @Column(name = "numero_documento", length = 9, unique = true)
+    private String numeroDocumento;
+
     /** Indica si la cuenta está activa. Una cuenta inactiva no puede iniciar sesión. */
     @Column(nullable = false)
     private Boolean activo;

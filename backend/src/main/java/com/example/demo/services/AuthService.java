@@ -77,10 +77,13 @@ public class AuthService {
      * @param nombre   nombre del usuario.
      * @param apellido apellido del usuario.
      * @param telefono número de teléfono (opcional).
+     * @param tipoDocumento "DNI" (8 dígitos) o "CE" (9 dígitos).
+     * @param numeroDocumento número del documento, solo dígitos.
      * @return el usuario recién creado y persistido.
      * @throws RuntimeException si el email ya existe o la contraseña es muy corta.
      */
-    public User registrar(String email, String password, String nombre, String apellido, String telefono) {
+    public User registrar(String email, String password, String nombre, String apellido,
+                          String telefono, String tipoDocumento, String numeroDocumento) {
         // Verificar unicidad del email
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("El email ya está registrado");
@@ -91,6 +94,20 @@ public class AuthService {
             throw new RuntimeException("La contraseña debe tener al menos 6 caracteres");
         }
 
+        // Validar documento de identidad
+        if (tipoDocumento == null || (!tipoDocumento.equals("DNI") && !tipoDocumento.equals("CE"))) {
+            throw new RuntimeException("El tipo de documento debe ser DNI o CE");
+        }
+        String patron = tipoDocumento.equals("DNI") ? "\\d{8}" : "\\d{9}";
+        if (numeroDocumento == null || !numeroDocumento.matches(patron)) {
+            throw new RuntimeException(tipoDocumento.equals("DNI")
+                    ? "El DNI debe tener 8 dígitos numéricos"
+                    : "El carnet de extranjería debe tener 9 dígitos numéricos");
+        }
+        if (userRepository.existsByNumeroDocumento(numeroDocumento)) {
+            throw new RuntimeException("El documento ya está registrado");
+        }
+
         // Crear y configurar el nuevo usuario
         User usuario = new User();
         usuario.setEmail(email);
@@ -98,6 +115,8 @@ public class AuthService {
         usuario.setNombre(nombre);
         usuario.setApellido(apellido);
         usuario.setTelefono(telefono);
+        usuario.setTipoDocumento(tipoDocumento);
+        usuario.setNumeroDocumento(numeroDocumento);
         usuario.setActivo(true);
         usuario.setEmailVerificado(false); // El email no está verificado al registrarse
 

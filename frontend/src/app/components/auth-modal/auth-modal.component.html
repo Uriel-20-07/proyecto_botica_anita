@@ -90,6 +90,36 @@
             <input id="modal-email" type="email" class="form-control" formControlName="email" placeholder="tu@email.com" />
           </div>
 
+          <div class="form-row">
+            <div class="form-group">
+              <label for="modal-tipo-documento">Tipo de documento</label>
+              <select id="modal-tipo-documento" class="form-control" formControlName="tipoDocumento">
+                <option value="DNI">DNI</option>
+                <option value="CE">Carnet de extranjería</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-numero-documento">
+                {{ registroControls['tipoDocumento'].value === 'CE' ? 'N° de carnet de extranjería' : 'N° de DNI' }}
+              </label>
+              <input
+                id="modal-numero-documento"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                class="form-control"
+                formControlName="numeroDocumento"
+                [attr.maxlength]="maxLongitudDocumento"
+                [placeholder]="registroControls['tipoDocumento'].value === 'CE' ? '9 dígitos' : '8 dígitos'"
+                (input)="soloNumeros($event)"
+              />
+              @if (registroControls['numeroDocumento'].touched && registroControls['numeroDocumento'].errors) {
+                <small class="field-error">Ingresa {{ maxLongitudDocumento }} dígitos numéricos</small>
+              }
+            </div>
+          </div>
+
           <div class="form-group">
             <label for="modal-telefono">Teléfono (Opcional)</label>
             <input id="modal-telefono" type="tel" class="form-control" formControlName="telefono" placeholder="+51 999 999 999" />

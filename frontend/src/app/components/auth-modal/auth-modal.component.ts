@@ -49,6 +49,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       nombre: ['', [Validators.required]],
       apellido: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.pattern(emailPattern)]],
+      tipoDocumento: ['DNI', [Validators.required]],
+      numeroDocumento: ['', [Validators.required, Validators.pattern(/^\d{8}$/)]],
       telefono: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]]
@@ -60,6 +62,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.recoveryPasswordMatchValidator });
+
+    this.subscriptions.add(
+      this.registroForm.get('tipoDocumento')!.valueChanges.subscribe((tipo) => {
+        this.actualizarValidacionDocumento(tipo);
+      })
+    );
   }
 
   ngOnInit(): void {
@@ -71,7 +79,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           this.error = '';
           this.success = '';
           this.loginForm.reset();
-          this.registroForm.reset();
+          this.registroForm.reset({ tipoDocumento: 'DNI' });
           this.showLoginPassword = false;
           this.showRegisterPassword = false;
           this.showRegisterConfirmPassword = false;
@@ -103,6 +111,31 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   get recoveryControls() {
     return this.recoveryForm.controls;
+  }
+
+  get maxLongitudDocumento(): number {
+    return this.registroControls['tipoDocumento'].value === 'CE' ? 9 : 8;
+  }
+
+  /** Deja solo dígitos y corta al máximo permitido según el tipo de documento. */
+  soloNumeros(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const limpio = input.value.replace(/\D/g, '').slice(0, this.maxLongitudDocumento);
+    if (input.value !== limpio) {
+      input.value = limpio;
+    }
+    this.registroControls['numeroDocumento'].setValue(limpio);
+  }
+
+  private actualizarValidacionDocumento(tipo: string | null): void {
+    const largo = tipo === 'CE' ? 9 : 8;
+    const control = this.registroControls['numeroDocumento'];
+    control.setValidators([
+      Validators.required,
+      Validators.pattern(new RegExp(`^\\d{${largo}}$`))
+    ]);
+    control.setValue((control.value || '').slice(0, largo));
+    control.updateValueAndValidity();
   }
 
   passwordMatchValidator(group: FormGroup): { [key: string]: any } | null {
@@ -229,7 +262,9 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       this.registroControls['password'].value,
       this.registroControls['nombre'].value,
       this.registroControls['apellido'].value,
-      this.registroControls['telefono'].value
+      this.registroControls['telefono'].value,
+      this.registroControls['tipoDocumento'].value,
+      this.registroControls['numeroDocumento'].value
     ).subscribe({
       next: () => {
         this.success = 'Registro exitoso. Ya puedes iniciar sesión.';
