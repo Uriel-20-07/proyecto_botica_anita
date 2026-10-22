@@ -67,6 +67,8 @@ public class AuthController {
             String nombre = request.get("nombre");
             String apellido = request.get("apellido");
             String telefono = request.get("telefono");
+            String tipoDocumento = request.get("tipoDocumento");
+            String numeroDocumento = request.get("numeroDocumento");
 
             // Validaciones básicas de campos obligatorios
             if (email == null || email.isEmpty()) {
@@ -82,7 +84,7 @@ public class AuthController {
                         .body(Map.of("error", "El nombre es requerido"));
             }
 
-            User usuario = authService.registrar(email, password, nombre, apellido, telefono);
+            User usuario = authService.registrar(email, password, nombre, apellido, telefono, tipoDocumento, numeroDocumento);
 
             // Respuesta de éxito: no incluir la contraseña
             Map<String, Object> response = new HashMap<>();
