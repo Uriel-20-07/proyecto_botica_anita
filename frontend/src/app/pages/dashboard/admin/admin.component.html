@@ -465,8 +465,8 @@
             </div>
           </div>
         </div>
-<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-bottom:24px;align-items:start;">
-  
+
+<div class="reportes-vertical">
 
   <!-- Top 10 Clientes -->
   <div class="card" style="min-width:0;">
@@ -527,8 +527,9 @@
           </tr>
         </tbody>
       </table>
-    </div>
-  </div>      
+    </div>  
+  </div> 
+  <div class="card" style="min-width:0;">    
           <!-- ════════════════════════════════════════════════════ -->
           <!-- REPORTE 2 — Top 10 Productos con Calendario         -->
           <!-- ════════════════════════════════════════════════════ -->
@@ -552,7 +553,7 @@
                 PDF
               </button>
             </div>
-
+  </div>
             <!-- Controles de calendario -->
             <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
               <div style="display:flex;flex-direction:column;gap:4px;">
@@ -973,73 +974,156 @@
           </div>
         </div>
         <div class="card" style="grid-column: 1 / -1; margin-top: 10px; transition: transform 0.2s;"
-          onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-          <div class="card-header"
-            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <div>
-              <h2 style="margin:0;">5. Sugerencias de Descuentos (FEFO / Baja Rotación)</h2>
-              <span class="card-subtitle">Productos próximos a vencer o con baja rotación con descuentos recomendados</span>
+  onmouseover="this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.transform='translateY(0)'">
+
+  <div class="card-header"
+    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+      <h2 style="margin:0;">5. Sugerencias de Descuentos (FEFO / Baja Rotación)</h2>
+      <span class="card-subtitle">Productos próximos a vencer o con baja rotación con descuentos recomendados</span>
+    </div>
+
+    <span class="status-badge"
+      style="background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid #f97316; font-size:11px; padding: 4px 10px; font-weight: 700;">
+      {{ sugerenciasDescuento.length }} Alertas
+    </span>
+  </div>
+
+  <div class="empty-message"
+    *ngIf="!sugerenciasDescuento.length"
+    style="padding: 24px; text-align: center; color: #718096;">
+    ✓ No hay sugerencias de descuento para tus productos actualmente.
+  </div>
+
+  <div class="table-responsive" *ngIf="sugerenciasDescuento.length">
+
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th style="text-align:center;">Stock Actual</th>
+          <th style="text-align:center;">Ventas (30d)</th>
+          <th>Motivo / Diagnóstico</th>
+          <th style="text-align:center;">Descuento Sugerido</th>
+          <th style="text-align:center;">Precio Sugerido</th>
+          <th style="text-align:center;">Estado Oferta</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr
+          *ngFor="let item of sugerenciasDescuento | slice:0:(mostrarTodosDescuentos ? sugerenciasDescuento.length : 10)"
+          style="transition: background 0.2s;">
+
+          <!-- Producto -->
+          <td>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img
+                *ngIf="item.imgUrl"
+                [src]="item.imgUrl"
+                class="prod-thumbnail" />
+
+              <div class="prod-title-desc">
+                <span class="bold-text" style="font-size:14px;">
+                  {{ item.nombre }}
+                </span>
+                <span style="font-size:11px; color:#718096;">
+                  ID: #{{ item.idProducto }}
+                </span>
+              </div>
             </div>
-            <span class="status-badge" style="background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid #f97316; font-size:11px; padding: 4px 10px; font-weight: 700;">
-              {{ sugerenciasDescuento.length }} Alertas
+          </td>
+
+          <!-- Stock actual -->
+          <td style="text-align:center;" class="bold-text">
+            {{ item.stock }} u.
+          </td>
+
+          <!-- Ventas -->
+          <td style="text-align:center; color:#475569; font-weight:600;">
+            {{ item.ventas30d }} u.
+          </td>
+
+          <!-- Motivo -->
+          <td>
+            <span class="bold-text" style="color:#4b5563; font-size:12.5px;">
+              {{ item.motivo }}
             </span>
-          </div>
-          <div class="empty-message" *ngIf="!sugerenciasDescuento.length" style="padding: 24px; text-align: center; color: #718096;">
-            ✓ No hay sugerencias de descuento para tus productos actualmente.
-          </div>
-          <div class="table-responsive" *ngIf="sugerenciasDescuento.length">
-            <table class="dashboard-table">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th style="text-align:center;">Stock Actual</th>
-                  <th style="text-align:center;">Ventas (30d)</th>
-                  <th>Motivo / Diagnóstico</th>
-                  <th style="text-align:center;">Descuento Sugerido</th>
-                  <th style="text-align:center;">Precio Sugerido</th>
-                  <th style="text-align:center;">Estado Oferta</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of sugerenciasDescuento" style="transition: background 0.2s;">
-                  <td>
-                    <div style="display:flex; align-items:center; gap:12px;">
-                      <img *ngIf="item.imgUrl" [src]="item.imgUrl" class="prod-thumbnail" />
-                      <div class="prod-title-desc">
-                        <span class="bold-text" style="font-size:14px;">{{ item.nombre }}</span>
-                        <span style="font-size:11px; color:#718096;">ID: #{{ item.idProducto }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style="text-align:center;" class="bold-text">{{ item.stock }} u.</td>
-                  <td style="text-align:center; color:#475569; font-weight:600;">{{ item.ventas30d }} u.</td>
-                  <td>
-                    <span class="bold-text" style="color: #4b5563; font-size:12.5px;">{{ item.motivo }}</span>
-                  </td>
-                  <td style="text-align:center;">
-                    <span class="status-badge" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid #ef4444; font-size:11px; padding: 4px 10px; font-weight:700;">
-                      -{{ item.porcentajeSugerido }}%
-                    </span>
-                  </td>
-                  <td style="text-align:center;">
-                    <div style="display:flex; flex-direction:column; align-items:center;">
-                      <span style="font-size:13.5px; font-weight:700; color:#1e293b;">S/. {{ item.precioSugerido | number:'1.2-2' }}</span>
-                      <span style="font-size:11px; color:#94a3b8; text-decoration:line-through;">S/. {{ item.precioActual | number:'1.2-2' }}</span>
-                    </div>
-                  </td>
-                  <td style="text-align:center;">
-                    <div *ngIf="item.producto.enOferta" style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-                      <span style="background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; padding:2px 6px; border-radius:4px;">EN OFERTA</span>
-                      <span style="font-size:0.75rem; color:#64748b;">S/. {{ item.producto.precioOferta | number:'1.2-2' }}</span>
-                      <button (click)="quitarOferta(item.producto)" class="btn-action" style="font-size:0.65rem; padding:3px 8px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; cursor:pointer;">Quitar</button>
-                    </div>
-                    <button *ngIf="!item.producto.enOferta" (click)="openOfertaModal(item.producto, item.precioSugerido)" class="btn-action" style="font-size:0.75rem; padding:4px 10px; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; cursor:pointer;">
-                      Aplicar
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          </td>
+
+          <!-- Descuento sugerido -->
+          <td style="text-align:center;">
+            <span class="status-badge"
+              style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid #ef4444; font-size:11px; padding:4px 10px; font-weight:700;">
+              -{{ item.porcentajeSugerido }}%
+            </span>
+          </td>
+
+          <!-- Precio sugerido -->
+          <td style="text-align:center;">
+            <div style="display:flex; flex-direction:column; align-items:center;">
+              <span style="font-size:13.5px; font-weight:700; color:#1e293b;">
+                S/. {{ item.precioSugerido | number:'1.2-2' }}
+              </span>
+              <span style="font-size:11px; color:#94a3b8; text-decoration:line-through;">
+                S/. {{ item.precioActual | number:'1.2-2' }}
+              </span>
+            </div>
+          </td>
+
+          <!-- Estado de oferta -->
+          <td style="text-align:center;">
+            <div
+              *ngIf="item.producto.enOferta"
+              style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+
+              <span
+                style="background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; padding:2px 6px; border-radius:4px;">
+                EN OFERTA
+              </span>
+
+              <span style="font-size:0.75rem; color:#64748b;">
+                S/. {{ item.producto.precioOferta | number:'1.2-2' }}
+              </span>
+
+              <button
+                (click)="quitarOferta(item.producto)"
+                class="btn-action"
+                style="font-size:0.65rem; padding:3px 8px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; cursor:pointer;">
+                Quitar
+              </button>
+            </div>
+
+            <button
+              *ngIf="!item.producto.enOferta"
+              (click)="openOfertaModal(item.producto, item.precioSugerido)"
+              class="btn-action"
+              style="font-size:0.75rem; padding:4px 10px; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; cursor:pointer;">
+              Aplicar
+            </button>
+          </td>
+
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Botón para mostrar más o menos productos -->
+    <div
+      *ngIf="sugerenciasDescuento.length > 10"
+      style="display:flex; justify-content:center; margin-top:16px;">
+
+      <button
+        (click)="mostrarTodosDescuentos = !mostrarTodosDescuentos"
+        class="btn-action"
+        style="padding:8px 18px; background:#f8fafc; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-weight:600;">
+
+        {{ mostrarTodosDescuentos
+          ? 'Mostrar menos ▲'
+          : 'Ver todos los productos (' + sugerenciasDescuento.length + ') ▼' }}
+
+      </button>
+    </div>
           </div>
         </div>
       </div>

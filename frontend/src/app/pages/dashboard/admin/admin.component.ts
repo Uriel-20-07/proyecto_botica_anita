@@ -95,6 +95,8 @@ export class AdminDashboardComponent implements OnInit {
   reporteData: any = null;
   cargandoReportes: boolean = false;
 
+
+  mostrarTodosDescuentos: boolean = false;
   // Filtro calendario Top 10
   filtroMes: string = '';
   filtroDia: string = '';
