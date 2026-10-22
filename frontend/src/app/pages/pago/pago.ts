@@ -9,6 +9,7 @@ import { CartService } from '../../services/cart.service';
 import { PagoService } from '../../services/pago.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
+import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, RADIO_COBERTURA_KM } from '../../services/tracking-ruta.service';
 import { environment } from '../../../environments/environment';
 
 // Stripe Elements para el diseño profesional
@@ -217,7 +218,8 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     private readonly router: Router,
     private readonly pagoService: PagoService,
     private readonly authService: AuthService,
-    private readonly recetasService: RecetasService
+    private readonly recetasService: RecetasService,
+    private readonly rutaService: TrackingRutaService
   ) {}
 
   async ngOnInit() {
@@ -450,9 +452,9 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
   calcularTotales() {
     if (this.formPago.esUrgente) {
-      this.costoEnvio = 10;
+      this.costoEnvio = 5;
     } else {
-      // Recojo en tienda siempre gratis
+      // Recojo en tienda siempre gratis, delivery cobra S/ 5.00
       this.costoEnvio = 0;
     }
     const descuentoAutomatico = Math.max(0, this.subtotalOriginal - this.subtotal);
@@ -472,6 +474,20 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
     if (!this.formPago.distrito) { this.mensajeError = 'Selecciona el distrito.'; return; }
     if (!this.formPago.direccionDetalle.trim()) { this.mensajeError = 'Ingresa la dirección.'; return; }
+
+    // Validar cobertura de delivery (solo para entrega a domicilio, no recojo en tienda)
+    if (!this.formPago.esUrgente) {
+      const [lat, lng] = await this.rutaService.resolverDestino({
+        direccionEnvio: this.formPago.direccionDetalle,
+        distrito: this.formPago.distrito
+      });
+      const distM = this.rutaService.distanciaM(TIENDA_LAT, TIENDA_LNG, lat, lng);
+      const distKm = distM / 1000;
+      if (distKm > RADIO_COBERTURA_KM) {
+        this.mensajeError = `Tu dirección está a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
+        return;
+      }
+    }
 
     if (this.requiereReceta && !this.recetaSubidaExito) {
         this.mensajeError = 'Debes subir y vincular tu receta médica para continuar.';

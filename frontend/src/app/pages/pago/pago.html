@@ -65,7 +65,7 @@
               (change)="onTipoEnvioChange()" style="accent-color: #e85d04;" />
             <div style="display: flex; flex-direction: column;">
               <span style="font-weight: 700; font-size: 0.9rem; color: #e85d04;"> Envío Urgente</span>
-              <span style="font-size: 0.75rem; color: #64748b;">Entrega a domicilio (S/ 10.00)</span>
+              <span style="font-size: 0.75rem; color: #64748b;">Entrega a domicilio (S/ 5.00)</span>
             </div>
           </label>
         </div>
@@ -73,7 +73,9 @@
         <div class="form-row-doble">
           <div class="form-group">
             <label>Distrito</label>
-            <input type="text" value="Independencia" class="form-input" readonly />
+            <select [(ngModel)]="formPago.distrito" class="form-input">
+              <option *ngFor="let d of distritosLima" [value]="d">{{ d }}</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Departamento</label>

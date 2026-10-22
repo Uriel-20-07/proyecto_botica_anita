@@ -47,10 +47,10 @@ public class PedidoTrackingController {
     private static final double TIENDA_LAT = -12.00142;
     private static final double TIENDA_LNG = -77.04722;
     // Minutos fijos por etapa antes del viaje (igual que el frontend).
-    private static final long MIN_CONFIRMADO = 1;
-    private static final long MIN_DESPACHO = 5;
-    private static final long MIN_MOTORIZADO = 5;
-    private static final long MIN_PREVIOS = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO;
+    private static final long MIN_CONFIRMADO = 0;
+    private static final long MIN_DESPACHO = 1;
+    private static final long MIN_MOTORIZADO = 1;
+    private static final long MIN_PREVIOS = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO; // 2 min
 
     /**
      * Consultar el estado y ubicación del pedido en tiempo real para el cliente.
@@ -86,7 +86,7 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
                 || estado.contains("CANCELAD") || estado.contains("RECHAZAD")) {
             return;
         }
-        long minutos = java.time.Duration.between(pedido.getFecha(), LocalDateTime.now()).toMinutes();
+        long segundos = java.time.Duration.between(pedido.getFecha(), LocalDateTime.now()).getSeconds();
         // Una sola vez: geocodifica la dirección y la guarda para que frontend y backend usen el mismo punto.
         resolverYGuardarCoordenadas(pedido);
         double tripMin = 5.0;
@@ -95,19 +95,20 @@ public ResponseEntity<?> obtenerTracking(@PathVariable Integer id) {
                     pedido.getLatitudEntrega().doubleValue(), pedido.getLongitudEntrega().doubleValue());
             tripMin = Math.max(1.0, (distM / 1000.0 / 25.0) * 60.0);
         }
+        long tripMinSeg = Math.round(tripMin * 60.0);
         boolean cambio = false;
         boolean urgente = pedido.isEsUrgente();
-        if (estado.equals("PAGADO") || estado.equals("CONFIRMADO")) {
-            if (urgente && minutos >= MIN_PREVIOS) {
+        if ((estado.equals("PAGADO") || estado.equals("CONFIRMADO")) && segundos >= MIN_PREVIOS * 60) {
+            if (urgente) {
                 pedido.setEstado("EN_CAMINO");
                 cambio = true;
-            } else if (!urgente && minutos >= MIN_CONFIRMADO + MIN_DESPACHO) {
+            } else {
                 // Recojo: a los 6 min queda listo para recoger en tienda.
                 pedido.setEstado("LISTO_RECOJO");
                 cambio = true;
             }
         }
-        if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado()) && minutos >= MIN_PREVIOS + tripMin + 1) {
+        if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado()) && segundos >= MIN_PREVIOS * 60 + tripMinSeg + 10) {
             pedido.setEstado("COMPLETADO");
             cambio = true;
         }

@@ -1,16 +1,19 @@
 import { Injectable } from '@angular/core';
 
 // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado).
-export const TIENDA_LAT = -12.00142;
-export const TIENDA_LNG = -77.04722;
+export const TIENDA_LAT = -12.0024076;
+export const TIENDA_LNG = -77.0468770;
 // Velocidad promedio del motorizado (km/h) para estimar tiempos.
 export const VELOCIDAD_KMH = 25;
 // Minutos por etapa antes del viaje.
-export const MIN_CONFIRMADO = 1;
-export const MIN_DESPACHO = 5;
-export const MIN_MOTORIZADO = 5;
+export const MIN_CONFIRMADO = 0;
+export const MIN_DESPACHO = 1;
+export const MIN_MOTORIZADO = 1;
 // Minutos extra tras llegar para marcar entregado.
-export const MIN_ENTREGA_EXTRA = 1;
+export const MIN_ENTREGA_EXTRA = 1 / 60; // 10 segundos
+
+// Radio de cobertura de delivery en km (mismo que el backend).
+export const RADIO_COBERTURA_KM = 2.0;
 
 export interface RutaInfo {
   coords: Array<[number, number]>;
@@ -81,9 +84,12 @@ export class TrackingRutaService {
       const geo = await this.geocodificar(
         `${pedido?.direccionEnvio || ''}, ${pedido?.distrito || ''}, Lima, Perú`,
         pedido?.distrito || '');
-      if (geo) { lat = geo[0]; lng = geo[1]; }
+      if (!geo) {
+        throw new Error('No se pudo encontrar la dirección en el mapa. Verifica que esté escrita correctamente.');
+      }
+      lat = geo[0];
+      lng = geo[1];
     }
-    if (!lat || !lng) { lat = -12.046374; lng = -77.042793; }
     return [lat, lng];
   }
 
