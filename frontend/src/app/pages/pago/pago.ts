@@ -252,7 +252,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!
-    this.stripe = await loadStripe('pk_test_51UM4YM0qfL81bWnlpwCwq4l0PESEA0OOFACO2yenZG4wqabONiPvH9vB6nQIyObRU2TC9SXsGQ6r7KxiVjRWJ1G500nkwWyDRF');
+    this.stripe = await loadStripe('pk_test_51UTDWtB9zD3sDEYE12Dh7Jn4mBZeR21FNqbTTMeF7BYlMNLhYhrCdTMLkAVPtGbGW2hLatVxmrtrmFmLTtPVW7tN00bn92lKEK');
   }
 
   ngAfterViewChecked() {
