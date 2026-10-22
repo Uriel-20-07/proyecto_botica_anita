@@ -256,7 +256,7 @@
                     <span class="client-email">{{ venta.usuario.email }}</span>
                   </div>
                 </td>
-                <td>{{ venta.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ fechaVenta(venta) | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td class="bold-text">S/. {{ venta.total | number:'1.2-2' }}</td>
                 <td><span class="status-badge" [class.success-badge]="venta.estado === 'COMPLETADO'">{{
                     venta.estado
@@ -1513,7 +1513,7 @@
           <h3>Información del Cliente</h3>
           <p><strong>Nombre:</strong> {{ selectedVenta.usuario.nombre }} {{ selectedVenta.usuario.apellido }}</p>
           <p><strong>Email:</strong> {{ selectedVenta.usuario.email }}</p>
-          <p><strong>Fecha Compra:</strong> {{ selectedVenta.fecha | date:'dd MMMM yyyy, HH:mm' }}</p>
+          <p><strong>Fecha Compra:</strong> {{ fechaVenta(selectedVenta) | date:'dd MMMM yyyy, HH:mm' }}</p>
           <p>
             <strong>Método de Pago:</strong>
             <span *ngIf="selectedVenta.metodoPago === 'YAPE'"

@@ -4,6 +4,7 @@ import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import * as L from 'leaflet';
 import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, VELOCIDAD_KMH, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, RutaInfo } from '../../services/tracking-ruta.service';
+import { msDesdeFecha } from '../../services/fecha-util';
 
 @Component({
   selector: 'app-tracking-mapa',
@@ -78,6 +79,9 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   private markerRepartidor?: L.Marker;
   private lineaRuta?: L.Polyline;
   private lineaRecorrida?: L.Polyline;
+  /** Destino actual del mapa (puede actualizarse cuando llega la geocodificación). */
+  private destinoLat = 0;
+  private destinoLng = 0;
 
   // Simulación: puntos interpolados tienda -> entrega y posición actual.
   private rutaSimulada: Array<[number, number]> = [];
@@ -93,6 +97,10 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    // Si el polling ya trajo los datos, se crea el mapa ahora que el contenedor existe.
+    if (this.pedido && !this.map) {
+      this.resolverDestinoYCrearMapa();
+    }
     // Corregir posible renderizado gris de Leaflet ajustando el tamaño tras cargar la vista
     setTimeout(() => {
       if (this.map) {
@@ -127,6 +135,9 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
           // Si el mapa aún no ha sido dibujado, se resuelve el destino real y se inicializa.
           if (!this.map) {
             this.resolverDestinoYCrearMapa();
+          } else {
+            // Si el backend ya geo/localizó la dirección, se actualiza el destino.
+            this.actualizarDestinoSiCambio();
           }
 
           if (this.tieneCoordsReales()) {
@@ -192,6 +203,28 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Cuando el backend logra geocodificar la dirección, el destino del mapa
+   * se mueve a la posición real y se recalcula la ruta por calles.
+   */
+  private actualizarDestinoSiCambio(): void {
+    if (!this.map || !this.pedido) return;
+    const lat = Number(this.pedido.latitudEntrega) || 0;
+    const lng = Number(this.pedido.longitudEntrega) || 0;
+    if (!lat || !lng) return;
+    if (this.destinoLat === lat && this.destinoLng === lng) return;
+    this.destinoLat = lat;
+    this.destinoLng = lng;
+    this.markerCliente?.setLatLng([lat, lng]);
+    this.map.fitBounds(L.latLngBounds([TIENDA_LAT, TIENDA_LNG], [lat, lng]).pad(0.25));
+    this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, lat, lng).then(r => {
+      if (!this.map) return;
+      this.lineaRuta?.setLatLngs(r.coords);
+      this.prepararSimulacion(r);
+      this.actualizarPosicionRepartidor();
+    });
+  }
+
   /** Dirección sin duplicar el distrito si ya viene incluido. */
   direccionCompleta(): string {
     const d = this.pedido?.direccionEnvio || '';
@@ -210,6 +243,8 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
     this.map = L.map(el);
+    this.destinoLat = latDestino;
+    this.destinoLng = lngDestino;
     this.map.fitBounds(L.latLngBounds([TIENDA_LAT, TIENDA_LNG], [latDestino, lngDestino]).pad(0.25));
     // Asegura que el mapa pinte bien el primer frame (evita el cuadro gris).
     setTimeout(() => this.map?.invalidateSize(), 100);
@@ -268,7 +303,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     const topePaso = Math.floor((tope / 100) * (this.rutaSimulada.length - 1));
     let objetivo = topePaso;
     if (this.fechaPedido && this.tripMin > 0) {
-      const elapsedMin = (Date.now() - new Date(this.fechaPedido).getTime()) / 60000;
+      const elapsedMin = (Date.now() - msDesdeFecha(this.fechaPedido)) / 60000;
       const inicioViaje = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO;
       const frac = Math.min(Math.max((elapsedMin - inicioViaje) / this.tripMin, 0), 1);
       objetivo = Math.min(Math.floor(frac * (this.rutaSimulada.length - 1)), topePaso);

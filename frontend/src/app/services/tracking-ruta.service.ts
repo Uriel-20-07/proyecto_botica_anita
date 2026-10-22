@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 
 // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado).
-export const TIENDA_LAT = -12.0024076;
-export const TIENDA_LNG = -77.0468770;
+export const TIENDA_LAT = -12.001181821042714;
+export const TIENDA_LNG = -77.04736614959307;
 // Velocidad promedio del motorizado (km/h) para estimar tiempos.
 export const VELOCIDAD_KMH = 25;
 // Minutos por etapa antes del viaje.
@@ -76,30 +76,43 @@ export class TrackingRutaService {
     return info;
   }
 
-  /** Destino: coords del pedido > geocodificación > centro de Lima. */
+  /**
+   * Busca las coordenadas de una dirección (Nominatim).
+   * Devuelve null si no se pudo resolver, para que el llamador decida.
+   */
+  async buscarCoordenadas(direccion: string, distrito: string): Promise<[number, number] | null> {
+    // Se pasa la dirección tal cual: geocodificar() ya arma las consultas
+    // ("direccion, Lima, Perú" y, si no hay resultados, "direccion, distrito, ...").
+    return this.geocodificar(direccion || '', distrito || '');
+  }
+
+  /**
+   * Destino: coords del pedido > geocodificación > punto provisional (la tienda).
+   * Nunca lanza: si la geocodificación falla (Nominatim puede responder 429),
+   * el mapa se dibuja igual y luego se actualiza cuando lleguen las coords reales.
+   */
   async resolverDestino(pedido: any): Promise<[number, number]> {
     let lat = Number(pedido?.latitudEntrega) || 0;
     let lng = Number(pedido?.longitudEntrega) || 0;
-    if (!lat || !lng) {
-      const geo = await this.geocodificar(
-        `${pedido?.direccionEnvio || ''}, ${pedido?.distrito || ''}, Lima, Perú`,
-        pedido?.distrito || '');
-      if (!geo) {
-        throw new Error('No se pudo encontrar la dirección en el mapa. Verifica que esté escrita correctamente.');
-      }
-      lat = geo[0];
-      lng = geo[1];
+    if (lat && lng) {
+      return [lat, lng];
     }
-    return [lat, lng];
+    const geo = await this.buscarCoordenadas(pedido?.direccionEnvio || '', pedido?.distrito || '');
+    if (geo) {
+      return geo;
+    }
+    return [TIENDA_LAT, TIENDA_LNG];
   }
 
   /** Convierte una dirección en coordenadas (Nominatim, gratis). */
   private async geocodificar(direccion: string, distrito: string): Promise<[number, number] | null> {
     try {
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(direccion);
-      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (!r.ok) return null;
-      const arr = await r.json();
+      // Primero se busca la dirección sola: si se fuerza el distrito y no coinciden,
+      // Nominatim no devuelve nada y la validación de cobertura se quedaría sin hacer.
+      let arr: any[] = await this.buscarNominatim(`${direccion || ''}, Lima, Perú`);
+      if (!arr || arr.length === 0) {
+        arr = await this.buscarNominatim(`${direccion || ''}, ${distrito || ''}, Lima, Perú`);
+      }
       if (!Array.isArray(arr) || arr.length === 0) return null;
       const dist = (distrito || '').toLowerCase();
       let cands = arr;
@@ -117,5 +130,13 @@ export class TrackingRutaService {
     } catch {
       return null;
     }
+  }
+
+  /** Consulta cruda a Nominatim. */
+  private async buscarNominatim(consulta: string): Promise<any[]> {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(consulta);
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return [];
+    return await r.json();
   }
 }

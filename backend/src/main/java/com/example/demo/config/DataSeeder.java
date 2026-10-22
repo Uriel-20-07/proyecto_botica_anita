@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -128,7 +129,7 @@ public class DataSeeder implements CommandLineRunner {
             cliente.setActivo(true);
             cliente.setEmailVerificado(true);
             // Se crea con fecha de registro 15 días atrás para simular un usuario antiguo
-            cliente.setFechaRegistro(LocalDateTime.now().minusDays(15));
+            cliente.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC).minusDays(15));
             cliente = userRepository.save(cliente);
             System.out.println("DataSeeder: Cliente común creado con éxito.");
         } else {
@@ -210,7 +211,7 @@ public class DataSeeder implements CommandLineRunner {
 
         // 5. Crear pedidos históricos de prueba para el dashboard de ventas (últimos 7 días)
         if (pedidoRepository.count() == 0 && cliente != null && !productos.isEmpty()) {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
             // Cada llamada crea un pedido con los pares (producto, cantidad) indicados
             crearPedidoHistorico(cliente, now.minusDays(6), BigDecimal.valueOf(22.00), productos.get(0), 4);

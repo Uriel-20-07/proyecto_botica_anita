@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +54,15 @@ public class PagoService {
     @Value("${sip.titular:}")
     private String sipTitular;
 
+    // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado)
+    private static final double TIENDA_LAT = -12.001181821042714;
+    private static final double TIENDA_LNG = -77.04736614959307;
+    // Radio de cobertura de delivery en km
+    private static final double RADIO_COBERTURA_KM = 2.0;
+
+    @Autowired
+    private GeocodificacionService geocodificacionService;
+
     // Debe reflejar el mismo valor que 'mostrarRecetas' en environment.ts del frontend.
     // Si el flujo de recetas está oculto en la UI, el backend NO debe exigir receta,
     // o el pedido queda atascado en EN_ESPERA sin forma de resolverse.
@@ -62,6 +72,37 @@ public class PagoService {
     @PostConstruct
     public void init() {
         Stripe.apiKey = stripeApiKey;
+    }
+
+    /**
+     * Valida que la dirección de entrega esté dentro del radio de cobertura desde la tienda.
+     * Lanza RuntimeException si está fuera de cobertura.
+     */
+    private void validarCobertura(String direccion, String distrito) {
+        if (direccion == null || direccion.isBlank()) return;
+        geocodificacionService.esperarTurno();
+        double[] coords = geocodificacionService.buscar(direccion, distrito);
+        if (coords == null) {
+            // No se pudo ubicar la dirección (o Nominatim está saturado):
+            // no se bloquea el pago, el frontend ya avisa si no encuentra la dirección.
+            return;
+        }
+        double distM = distanciaM(TIENDA_LAT, TIENDA_LNG, coords[0], coords[1]);
+        double distKm = distM / 1000.0;
+        if (distKm > RADIO_COBERTURA_KM) {
+            throw new RuntimeException("Tu dirección está fuera del área de cobertura de delivery (máx. "
+                    + RADIO_COBERTURA_KM + " km desde la botica).");
+        }
+    }
+
+    private double distanciaM(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * r * Math.asin(Math.sqrt(a));
     }
 
     /**
@@ -113,6 +154,12 @@ public class PagoService {
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
 
+        // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
+        // El recojo en tienda es gratis y no tiene radio de entrega.
+        if (request.isEsUrgente()) {
+            validarCobertura(request.getDireccionEnvio(), request.getDistrito());
+        }
+
         double subtotal = 0.0;
         for (DetalleCarrito d : carrito.getDetalles()) {
             subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
@@ -127,7 +174,7 @@ public class PagoService {
             }
         }
 
-        double costoEnvio = request.isEsUrgente() ? 10.0 : 0.0;
+        double costoEnvio = request.isEsUrgente() ? 5.0 : 0.0;
         long amountInCents = Math.round((subtotal + costoEnvio) * 100);
         String moneda = (request.getMoneda() != null) ? request.getMoneda() : "pen";
 
@@ -152,6 +199,12 @@ public class PagoService {
         Carrito carrito = carritoService.obtenerOCrearCarrito(idUsuario);
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
+
+        // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
+        // El recojo en tienda es gratis y no tiene radio de entrega.
+        if (request.isEsUrgente()) {
+            validarCobertura(request.getDireccionEnvio(), request.getDistrito());
+        }
 
         // --- Validación de pagos por transferencia: Plin y SIP (antes de consumir cupones o stock) ---
         boolean esTransferencia = "PLIN".equalsIgnoreCase(request.getMetodoPago())
@@ -186,7 +239,7 @@ public class PagoService {
             cuponRepository.save(cupon);
         }
 
-        double costoEnvio = request.isEsUrgente() ? 10.0 : 0.0;
+        double costoEnvio = request.isEsUrgente() ? 5.0 : 0.0;
         totalFinal = totalFinal.add(BigDecimal.valueOf(costoEnvio));
 
         boolean requiereReceta = false;
@@ -202,7 +255,9 @@ public class PagoService {
 
         Pedido pedido = new Pedido();
         pedido.setUsuario(carrito.getUsuario());
-        pedido.setFecha(LocalDateTime.now());
+        // Se guarda en UTC: el servidor puede estar en otra zona horaria (Azure usa UTC)
+        // y el frontend siempre interpreta la fecha como UTC.
+        pedido.setFecha(LocalDateTime.now(ZoneOffset.UTC));
         // Plin automático: sin verificación manual, marca PAGADO directo (igual que Yape)
         pedido.setEstado(requiereReceta ? "EN_ESPERA" : "PAGADO");
         pedido.setNumeroOperacion(numeroOperacion);

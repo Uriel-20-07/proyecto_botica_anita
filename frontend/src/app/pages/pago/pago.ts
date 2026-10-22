@@ -475,17 +475,22 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     if (!this.formPago.distrito) { this.mensajeError = 'Selecciona el distrito.'; return; }
     if (!this.formPago.direccionDetalle.trim()) { this.mensajeError = 'Ingresa la dirección.'; return; }
 
-    // Validar cobertura de delivery (solo para entrega a domicilio, no recojo en tienda)
-    if (!this.formPago.esUrgente) {
-      const [lat, lng] = await this.rutaService.resolverDestino({
-        direccionEnvio: this.formPago.direccionDetalle,
-        distrito: this.formPago.distrito
-      });
-      const distM = this.rutaService.distanciaM(TIENDA_LAT, TIENDA_LNG, lat, lng);
-      const distKm = distM / 1000;
-      if (distKm > RADIO_COBERTURA_KM) {
-        this.mensajeError = `Tu dirección está a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
-        return;
+    // Validar cobertura de delivery (solo para envío a domicilio, no recojo en tienda)
+    if (this.formPago.esUrgente) {
+      const coords = await this.rutaService.buscarCoordenadas(
+        this.formPago.direccionDetalle,
+        this.formPago.distrito
+      );
+      // Si el navegador no logra ubicar la dirección (Nominatim saturado o sin
+      // internet), no se bloquea el pago: el backend valida la cobertura igual.
+      if (coords) {
+        const [lat, lng] = coords;
+        const distM = this.rutaService.distanciaM(TIENDA_LAT, TIENDA_LNG, lat, lng);
+        const distKm = distM / 1000;
+        if (distKm > RADIO_COBERTURA_KM) {
+          this.mensajeError = `Tu dirección está a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
+          return;
+        }
       }
     }
 

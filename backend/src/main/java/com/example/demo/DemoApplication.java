@@ -2,6 +2,7 @@ package com.example.demo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Clase principal de arranque de la aplicación Spring Boot.
@@ -18,6 +19,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *                        (farmacia en línea).
  */
 @SpringBootApplication
+@EnableScheduling
 public class DemoApplication {
 
 	/**

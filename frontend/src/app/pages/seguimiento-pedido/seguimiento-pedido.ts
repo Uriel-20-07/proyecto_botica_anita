@@ -4,8 +4,10 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { interval, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { PedidoService } from '../../services/pedido.service';
+import { TrackingService } from '../../services/tracking.service';
 import { TrackingMapaComponent } from '../../components/tracking/tracking-mapa.component';
 import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, MIN_ENTREGA_EXTRA } from '../../services/tracking-ruta.service';
+import { msDesdeFecha, fechaComoDate } from '../../services/fecha-util';
 
 @Component({
   selector: 'app-seguimiento-pedido',
@@ -30,6 +32,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private pedidoService: PedidoService,
+    private trackingService: TrackingService,
     private ruta: TrackingRutaService
   ) { }
 
@@ -93,19 +96,31 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   /** Relee el pedido para actualizar el timeline sin recalcular la ruta. */
   private refrescarEstado(): void {
     const idPedido = this.idPedidoRuta;
-    this.pedidoService.obtenerPedidos().subscribe({
-      next: pedidos => {
-        const pedido = pedidos.find((p: any) => p.idPedido === idPedido);
-        if (!pedido) return;
-        this.pedido.set(pedido);
-        this.calcularEstado(pedido.fecha);
+    // Se usa el endpoint de tracking porque es el que hace avanzar el estado
+    // en el backend (el de pedidos solo devuelve el estado guardado).
+    this.trackingService.getTrackingInfo(idPedido).subscribe({
+      next: (info) => {
+        if (!info) return;
+        this.pedido.update(p => ({ ...(p || {}), estado: info.estado, direccionEnvio: info.direccionEnvio || p?.direccionEnvio, distrito: info.distrito || p?.distrito }));
+        this.calcularEstado(info.fecha || this.pedido()?.fecha);
+      },
+      error: () => {
+        // Si falla el tracking, se reintenta con el listado de pedidos.
+        this.pedidoService.obtenerPedidos().subscribe({
+          next: pedidos => {
+            const pedido = pedidos.find((p: any) => p.idPedido === idPedido);
+            if (!pedido) return;
+            this.pedido.set(pedido);
+            this.calcularEstado(pedido.fecha);
+          }
+        });
       }
     });
   }
 
   generarFechasTimeline(fechaPedido: string, direccionBodega: string, esUrgente: boolean): void {
 
-    const inicio = new Date(fechaPedido);
+    const inicio = fechaComoDate(fechaPedido) ?? new Date();
     const at = (min: number): Date => {
       const d = new Date(inicio);
       d.setMinutes(d.getMinutes() + min);
@@ -188,6 +203,11 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     ];
   }
 
+  /** Fecha del pedido como Date (el backend la guarda en UTC). */
+  fechaPedido(): Date | null {
+    return fechaComoDate(this.pedido()?.fecha);
+  }
+
   /** El mapa solo existe para delivery y se oculta cuando ya se entregó/completó. */
   mapaVisible(): boolean {
     const ped = this.pedido();
@@ -214,8 +234,8 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const inicio = new Date(fechaPedido).getTime();
-    const ahora = new Date().getTime();
+    const inicio = msDesdeFecha(fechaPedido);
+    const ahora = Date.now();
     const minutos = (ahora - inicio) / (1000 * 60);
 
     let paso: number;

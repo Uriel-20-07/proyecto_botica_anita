@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 export interface TrackingResponseDTO {
   idPedido: number;
   estado: string;
+  fecha?: string;
   direccionEnvio: string;
   distrito: string;
   esUrgente: boolean;

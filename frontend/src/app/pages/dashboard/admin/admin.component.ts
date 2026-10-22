@@ -5,6 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AdminService } from '../../../services/admin.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
 import { RecetasService, RecetaMedica } from '../../../services/recetas.service';
+import { fechaComoDate } from '../../../services/fecha-util';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -484,8 +485,8 @@ export class AdminDashboardComponent implements OnInit {
     // 1. Ventas por Producto en 30 días
     const ventasPorProducto = new Map<number, number>();
     activeVentas.forEach(venta => {
-      const fechaVenta = new Date(venta.fecha);
-      if (fechaVenta >= hace30Dias) {
+      const fechaVenta = fechaComoDate(venta.fecha);
+      if (fechaVenta && fechaVenta >= hace30Dias) {
         venta.detalles?.forEach((det: any) => {
           const prodId = det.producto.idProducto;
           const cant = det.cantidad || 0;
@@ -1454,5 +1455,10 @@ export class AdminDashboardComponent implements OnInit {
         this.mostrarNotificacion('Error al lanzar la campaña de cupones');
       }
     });
+  }
+
+  /** Fecha de una venta como Date (el backend la guarda en UTC). */
+  fechaVenta(venta: any): Date | null {
+    return fechaComoDate(venta?.fecha);
   }
 }

@@ -68,7 +68,7 @@ public class Pedido {
     @Column(name = "direccion_envio", nullable = true)
     private String direccionEnvio;
 
-    /** Indica si el pedido es urgente (envío a domicilio por S/ 10). */
+    /** Indica si el pedido es urgente (envío a domicilio por S/ 5). */
     @Column(name = "es_urgente", nullable = false, columnDefinition = "boolean default false")
     private boolean esUrgente = false;
 

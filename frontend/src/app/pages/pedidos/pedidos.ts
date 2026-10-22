@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { PedidoService } from '../../services/pedido.service';
 import { AuthModalService } from '../../services/auth-modal.service';
+import { fechaComoDate } from '../../services/fecha-util';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -389,7 +390,8 @@ export class PedidosComponent implements OnInit {
   formatearFechaPDF(fechaStr: string): string {
     if (!fechaStr) return '';
     try {
-      const fecha = new Date(fechaStr);
+      const fecha = fechaComoDate(fechaStr);
+      if (!fecha) return fechaStr;
       const dia = fecha.getDate().toString().padStart(2, '0');
       const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
       const anio = fecha.getFullYear();
@@ -407,7 +409,8 @@ export class PedidosComponent implements OnInit {
   formatearFecha(fechaStr: string): string {
     if (!fechaStr) return '';
     try {
-      const fecha = new Date(fechaStr);
+      const fecha = fechaComoDate(fechaStr);
+      if (!fecha) return fechaStr;
       return fecha.toLocaleDateString('es-PE', {
         day: 'numeric',
         month: 'long',
