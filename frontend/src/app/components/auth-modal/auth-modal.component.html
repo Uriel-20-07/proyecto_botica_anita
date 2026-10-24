@@ -160,6 +160,21 @@
             }
           </div>
 
+          <div class="form-group terms-check">
+            <label class="terms-label" for="modal-acepta-terminos">
+              <input id="modal-acepta-terminos" type="checkbox" formControlName="aceptaTerminos" />
+              <span>
+                He leído y acepto los
+                <a href="/terminos-y-condiciones" target="_blank" rel="noopener">Términos y Condiciones</a>,
+                incluido que las recomendaciones de SofIA, el asistente virtual, son solo orientativas y su uso
+                queda bajo mi propia elección y riesgo.
+              </span>
+            </label>
+            @if (registroControls['aceptaTerminos'].touched && registroControls['aceptaTerminos'].errors) {
+              <small class="field-error">Debes aceptar los Términos y Condiciones para crear tu cuenta</small>
+            }
+          </div>
+
           <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
             @if (loading) {
               <span class="spinner-border spinner-border-sm mr-2"></span>

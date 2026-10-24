@@ -248,3 +248,30 @@
     flex-direction: column;
   }
 }
+
+
+/* Casilla de aceptación de Términos y Condiciones (registro) */
+.terms-check .terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 400;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #475569;
+  cursor: pointer;
+}
+
+.terms-check .terms-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.terms-check .terms-label a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+}

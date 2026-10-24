@@ -84,7 +84,8 @@ export class AuthService {
     apellido: string,
     telefono: string,
     tipoDocumento: string,
-    numeroDocumento: string
+    numeroDocumento: string,
+    aceptaTerminos: boolean
   ): Observable<any> {
     return this.http.post(`${this.apiUrl}/registro`, {
       email,
@@ -93,7 +94,9 @@ export class AuthService {
       apellido,
       telefono,
       tipoDocumento,
-      numeroDocumento
+      numeroDocumento,
+      // El endpoint recibe un Map<String, String>, por eso se envía como texto
+      aceptaTerminos: String(aceptaTerminos)
     });
   }
 

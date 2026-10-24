@@ -53,7 +53,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       numeroDocumento: ['', [Validators.required, Validators.pattern(/^\d{8}$/)]],
       telefono: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required]]
+      confirmPassword: ['', [Validators.required]],
+      aceptaTerminos: [false, [Validators.requiredTrue]]
     }, { validators: this.passwordMatchValidator });
 
     this.recoveryForm = this.formBuilder.group({
@@ -79,7 +80,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           this.error = '';
           this.success = '';
           this.loginForm.reset();
-          this.registroForm.reset({ tipoDocumento: 'DNI' });
+          this.registroForm.reset({ tipoDocumento: 'DNI', aceptaTerminos: false });
           this.showLoginPassword = false;
           this.showRegisterPassword = false;
           this.showRegisterConfirmPassword = false;
@@ -264,7 +265,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       this.registroControls['apellido'].value,
       this.registroControls['telefono'].value,
       this.registroControls['tipoDocumento'].value,
-      this.registroControls['numeroDocumento'].value
+      this.registroControls['numeroDocumento'].value,
+      this.registroControls['aceptaTerminos'].value === true
     ).subscribe({
       next: () => {
         this.success = 'Registro exitoso. Ya puedes iniciar sesión.';

@@ -53,7 +53,10 @@ public class AuthController {
      *   "password": "min6chars",
      *   "nombre": "Juan",
      *   "apellido": "Perez",
-     *   "telefono": "987654321"
+     *   "telefono": "987654321",
+     *   "tipoDocumento": "DNI",
+     *   "numeroDocumento": "12345678",
+     *   "aceptaTerminos": "true"
      * }
      *
      * @param request mapa con los datos del nuevo usuario.
@@ -69,6 +72,7 @@ public class AuthController {
             String telefono = request.get("telefono");
             String tipoDocumento = request.get("tipoDocumento");
             String numeroDocumento = request.get("numeroDocumento");
+            boolean aceptaTerminos = "true".equalsIgnoreCase(request.get("aceptaTerminos"));
 
             // Validaciones básicas de campos obligatorios
             if (email == null || email.isEmpty()) {
@@ -84,7 +88,7 @@ public class AuthController {
                         .body(Map.of("error", "El nombre es requerido"));
             }
 
-            User usuario = authService.registrar(email, password, nombre, apellido, telefono, tipoDocumento, numeroDocumento);
+            User usuario = authService.registrar(email, password, nombre, apellido, telefono, tipoDocumento, numeroDocumento, aceptaTerminos);
 
             // Respuesta de éxito: no incluir la contraseña
             Map<String, Object> response = new HashMap<>();

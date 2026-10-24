@@ -31,6 +31,10 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
+    /** Versión vigente de los Términos y Condiciones (debe coincidir con TerminosComponent en el frontend). */
+    public static final String VERSION_TERMINOS = "1.0";
+
+
     /** Repositorio de usuarios clientes. */
     @Autowired
     private UserRepository userRepository;
@@ -83,7 +87,13 @@ public class AuthService {
      * @throws RuntimeException si el email ya existe o la contraseña es muy corta.
      */
     public User registrar(String email, String password, String nombre, String apellido,
-                          String telefono, String tipoDocumento, String numeroDocumento) {
+                          String telefono, String tipoDocumento, String numeroDocumento,
+                          boolean aceptaTerminos) {
+        // Sin aceptar los Términos y Condiciones no se puede crear la cuenta
+        if (!aceptaTerminos) {
+            throw new RuntimeException("Debes aceptar los Términos y Condiciones para registrarte");
+        }
+
         // Verificar unicidad del email
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("El email ya está registrado");
@@ -117,6 +127,10 @@ public class AuthService {
         usuario.setTelefono(telefono);
         usuario.setTipoDocumento(tipoDocumento);
         usuario.setNumeroDocumento(numeroDocumento);
+        // Constancia de la aceptación de los Términos y Condiciones (fecha y versión)
+        usuario.setTerminosAceptados(true);
+        usuario.setFechaAceptacionTerminos(java.time.LocalDateTime.now());
+        usuario.setVersionTerminos(VERSION_TERMINOS);
         usuario.setActivo(true);
         usuario.setEmailVerificado(false); // El email no está verificado al registrarse
 

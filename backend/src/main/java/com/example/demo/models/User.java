@@ -60,6 +60,18 @@ public class User {
     @Column(name = "numero_documento", length = 9, unique = true)
     private String numeroDocumento;
 
+    /** Indica si el usuario aceptó los Términos y Condiciones al registrarse (nulo en cuentas anteriores). */
+    @Column(name = "terminos_aceptados")
+    private Boolean terminosAceptados;
+
+    /** Fecha y hora en que el usuario aceptó los Términos y Condiciones. */
+    @Column(name = "fecha_aceptacion_terminos")
+    private LocalDateTime fechaAceptacionTerminos;
+
+    /** Versión de los Términos y Condiciones que aceptó (ej. "1.0"). */
+    @Column(name = "version_terminos", length = 10)
+    private String versionTerminos;
+
     /** Indica si la cuenta está activa. Una cuenta inactiva no puede iniciar sesión. */
     @Column(nullable = false)
     private Boolean activo;

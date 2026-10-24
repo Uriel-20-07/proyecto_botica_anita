@@ -6,6 +6,7 @@ import { CatalogoComponent } from './pages/catalogo/catalogo';
 import { CarritoComponent } from './pages/carrito/carrito';
 import { MarcasComponent } from './pages/marcas/marcas';
 import { NosotrosComponent } from './pages/nosotros/nosotros';
+import { TerminosComponent } from './pages/terminos/terminos';
 import { PerfilComponent } from './pages/perfil/perfil';
 import { PagoComponent } from './pages/pago/pago';
 import { AdminDashboardComponent } from './pages/dashboard/admin/admin.component';
@@ -31,6 +32,7 @@ import { CargaRecetaComponent } from './pages/carga-receta/carga-receta.componen
  * - /ofertas              → Página de ofertas y promociones.
  * - /marcas               → Marcas disponibles en la farmacia.
  * - /nosotros             → Página institucional "Sobre nosotros".
+ * - /terminos-y-condiciones → Términos y Condiciones de uso (se aceptan al registrarse).
  * - /perfil               → Perfil del usuario autenticado.
  * - /blog                 → Blog de artículos de salud.
  * - /recuperar-contrasena → Formulario de recuperación de contraseña.
@@ -66,6 +68,7 @@ export const routes: Routes = [
   // Páginas informativas
   { path: 'marcas', component: MarcasComponent },
   { path: 'nosotros', component: NosotrosComponent },
+  { path: 'terminos-y-condiciones', component: TerminosComponent },
 
   // Perfil del usuario autenticado
   { path: 'perfil', component: PerfilComponent },

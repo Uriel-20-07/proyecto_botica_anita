@@ -1,0 +1,101 @@
+.terminos-page {
+  background: #f8fafc;
+  padding: 48px 16px 72px;
+  min-height: 60vh;
+}
+
+.terminos-card {
+  max-width: 860px;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 40px 44px;
+  color: #1e293b;
+  line-height: 1.65;
+  font-size: 0.97rem;
+}
+
+.terminos-header h1 {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.terminos-meta {
+  color: #64748b;
+  font-size: 0.88rem;
+  margin: 0 0 16px;
+}
+
+.terminos-intro {
+  margin: 0 0 8px;
+  color: #334155;
+}
+
+.terminos-card section {
+  margin-top: 28px;
+}
+
+.terminos-card h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 10px;
+}
+
+.terminos-card p {
+  margin: 0 0 10px;
+}
+
+.terminos-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.terminos-card li {
+  margin-bottom: 8px;
+}
+
+/* Cláusula del asistente virtual: se resalta para que no pase desapercibida */
+.aviso-destacado {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-left: 5px solid #ff6b00;
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.aviso-destacado h2 {
+  color: #9a3412;
+}
+
+.terminos-footer {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-volver-inicio {
+  display: inline-block;
+  background: #1a2b4a;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 11px 22px;
+  border-radius: 10px;
+}
+
+.btn-volver-inicio:hover {
+  background: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .terminos-card {
+    padding: 26px 20px;
+  }
+  .terminos-header h1 {
+    font-size: 1.5rem;
+  }
+}
