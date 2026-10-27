@@ -67,6 +67,20 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
+     * Indica si un email está libre para registrarse.
+     *
+     * Solo comprueba la disponibilidad del correo; no crea ni reserva nada.
+     * La unicidad definitiva se vuelve a validar en {@link #registrar(String, String, String, String, String, String, String, boolean)}
+     * y por la restricción unique de la base de datos.
+     *
+     * @param email correo electrónico a consultar.
+     * @return {@code true} si no existe ningún usuario con ese email.
+     */
+    public boolean emailDisponible(String email) {
+        return email != null && !email.isBlank() && !userRepository.existsByEmail(email.trim());
+    }
+
+    /**
      * Registra un nuevo usuario en el sistema.
      * 
      * Proceso:

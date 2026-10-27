@@ -26,6 +26,7 @@ import com.example.demo.services.AuthService;
  * 
  * Endpoints disponibles:
  * - POST /api/auth/registro              → Registro de nuevo usuario.
+ * - POST /api/auth/verificar-email       → Consultar si un email está disponible.
  * - POST /api/auth/login                 → Login y obtención de token JWT.
  * - POST /api/auth/solicitar-recuperacion → Solicitar recuperación por email.
  * - GET  /api/auth/validar-token/{token} → Validar token de recuperación.
@@ -106,6 +107,31 @@ public class AuthController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Consulta si un email está disponible para registrarse.
+     *
+     * Se usa en el primer paso del registro para avisar al usuario antes de
+     * que complete el resto de sus datos. No reserva el email: el registro
+     * definitivo vuelve a validar la unicidad.
+     *
+     * Body esperado (JSON): { "email": "usuario@email.com" }
+     *
+     * @param request mapa con el email a consultar.
+     * @return 200 con { "disponible": true|false }, o 400 si falta el email.
+     */
+    @PostMapping("/verificar-email")
+    public ResponseEntity<?> verificarEmail(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "El email es requerido"));
+        }
+
+        boolean disponible = authService.emailDisponible(email);
+        return ResponseEntity.ok(Map.of("disponible", disponible));
     }
 
     /**
