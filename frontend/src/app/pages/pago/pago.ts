@@ -416,6 +416,27 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     }
   }
 
+  private calcularSubtotalElegibleCupon(): number {
+  return this.productosCarrito.reduce((acumulado, item) => {
+    const producto = item.producto;
+
+    const precioVenta = Number(producto.precioVenta) || 0;
+
+    const precioFinal = producto.precioConDescuento != null
+      ? Number(producto.precioConDescuento)
+      : precioVenta;
+
+    // Si el precio final es menor, el producto ya tiene descuento.
+    const tieneDescuento = precioFinal < precioVenta;
+
+    if (tieneDescuento) {
+      return acumulado;
+    }
+
+    return acumulado + precioFinal * item.cantidad;
+  }, 0);
+  }
+
   aplicarCupon() {
     const cod = this.codigoCupon.trim().toUpperCase();
     if (!cod) {
@@ -431,7 +452,15 @@ export class PagoComponent implements OnInit, AfterViewChecked {
       next: (res) => {
         if (res.valido) {
           const valor = Number(res.valorDescuento) || 30;
-          this.descuento = this.subtotal * (valor / 100);
+          const subtotalElegible = this.calcularSubtotalElegibleCupon();
+
+if (subtotalElegible <= 0) {
+  this.mensajeError =
+    'El cupón solo se puede aplicar a productos sin descuento.';
+  return;
+}
+
+this.descuento = subtotalElegible * (valor / 100);
           this.cuponAplicado = true;
           this.codigoAplicado = cod;
           this.mensajeError = '';

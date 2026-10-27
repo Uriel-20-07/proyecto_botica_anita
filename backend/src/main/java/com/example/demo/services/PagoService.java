@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.RoundingMode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -165,14 +166,16 @@ public class PagoService {
             subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
         }
 
-        if (request.getCodigoCupon() != null && !request.getCodigoCupon().trim().isEmpty()) {
-            Cupon cupon = cuponRepository.findByCodigo(request.getCodigoCupon().trim().toUpperCase())
-                    .orElseThrow(() -> new RuntimeException("Cupón inválido."));
-            if (cupon.getActivo() && !cupon.getUsado() && cupon.getFechaExpiracion().isAfter(LocalDateTime.now())) {
-                double descuento = subtotal * (cupon.getValorDescuento().doubleValue() / 100.0);
-                subtotal -= descuento;
-            }
-        }
+        if (request.getCodigoCupon() != null
+        && !request.getCodigoCupon().trim().isEmpty()) {
+
+    Cupon cupon = obtenerCuponValido(
+            idUsuario, request.getCodigoCupon());
+
+    BigDecimal descuento = calcularDescuentoCupon(carrito, cupon);
+
+    subtotal -= descuento.doubleValue();
+}
 
         double costoEnvio = request.isEsUrgente() ? 5.0 : 0.0;
         long amountInCents = Math.round((subtotal + costoEnvio) * 100);
@@ -226,18 +229,20 @@ public class PagoService {
         }
         BigDecimal totalFinal = BigDecimal.valueOf(subtotal);
 
-        if (request.getCodigoCupon() != null && !request.getCodigoCupon().trim().isEmpty()) {
-            Cupon cupon = cuponRepository.findByCodigo(request.getCodigoCupon().trim().toUpperCase())
-                    .orElseThrow(() -> new RuntimeException("Cupón inválido."));
-            if (!cupon.getActivo() || cupon.getUsado() || cupon.getFechaExpiracion().isBefore(LocalDateTime.now())) {
-                throw new RuntimeException("Cupón expirado o usado.");
-            }
-            double descuento = subtotal * (cupon.getValorDescuento().doubleValue() / 100.0);
-            totalFinal = BigDecimal.valueOf(subtotal - descuento);
-            cupon.setUsado(true);
-            cupon.setFechaUso(LocalDateTime.now());
-            cuponRepository.save(cupon);
-        }
+        if (request.getCodigoCupon() != null
+        && !request.getCodigoCupon().trim().isEmpty()) {
+
+    Cupon cupon = obtenerCuponValido(
+            idUsuario, request.getCodigoCupon());
+
+    BigDecimal descuento = calcularDescuentoCupon(carrito, cupon);
+
+    totalFinal = totalFinal.subtract(descuento);
+
+    cupon.setUsado(true);
+    cupon.setFechaUso(LocalDateTime.now());
+    cuponRepository.save(cupon);
+}
 
         double costoEnvio = request.isEsUrgente() ? 5.0 : 0.0;
         totalFinal = totalFinal.add(BigDecimal.valueOf(costoEnvio));
@@ -312,7 +317,60 @@ public class PagoService {
             }
         });
     }
+private Cupon obtenerCuponValido(Integer idUsuario, String codigo) {
+    Cupon cupon = cuponRepository
+            .findByCodigo(codigo.trim().toUpperCase())
+            .orElseThrow(() -> new RuntimeException("Cupón inválido."));
 
+    if (cupon.getUsuario() == null
+            || !cupon.getUsuario().getId().equals(idUsuario)) {
+        throw new RuntimeException("Este cupón no pertenece a tu cuenta.");
+    }
+
+    if (!cupon.getActivo()
+            || cupon.getUsado()
+            || cupon.getFechaExpiracion() == null
+            || !cupon.getFechaExpiracion().isAfter(LocalDateTime.now())) {
+        throw new RuntimeException("Cupón expirado, inactivo o usado.");
+    }
+
+    return cupon;
+}
+
+private BigDecimal calcularDescuentoCupon(
+        Carrito carrito, Cupon cupon) {
+
+    BigDecimal subtotalElegible = BigDecimal.ZERO;
+
+    for (DetalleCarrito detalle : carrito.getDetalles()) {
+        Producto producto = detalle.getProducto();
+
+        BigDecimal precioVenta = producto.getPrecioVenta();
+        BigDecimal precioConDescuento = producto.getPrecioConDescuento();
+
+        boolean tieneDescuento = precioConDescuento != null
+                && precioConDescuento.compareTo(precioVenta) < 0;
+
+        // El cupón no se aplica a productos ya rebajados.
+        if (!tieneDescuento) {
+            BigDecimal precio = obtenerPrecioConDescuento(producto);
+
+            BigDecimal importe = precio.multiply(
+                    BigDecimal.valueOf(detalle.getCantidad()));
+
+            subtotalElegible = subtotalElegible.add(importe);
+        }
+    }
+
+    if (subtotalElegible.compareTo(BigDecimal.ZERO) <= 0) {
+        throw new RuntimeException(
+                "El cupón solo se puede aplicar a productos sin descuento.");
+    }
+
+    return subtotalElegible
+            .multiply(cupon.getValorDescuento())
+            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+}
     public Map<String, Object> validarCupon(Integer idUsuario, String codigo) {
         if (codigo == null || codigo.trim().isEmpty()) {
             throw new RuntimeException("Código de cupón vacío.");
