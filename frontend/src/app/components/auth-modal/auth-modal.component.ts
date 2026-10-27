@@ -18,9 +18,11 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   isOpen = false;
   mode: AuthModalMode = 'login';
   loginForm: FormGroup;
-  registroForm: FormGroup;
+  credencialesForm: FormGroup;
+  datosPersonalesForm: FormGroup;
   recoveryForm: FormGroup;
   loading = false;
+  verificandoEmail = false;
   error = '';
   success = '';
   showLoginPassword = false;
@@ -28,6 +30,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   showRegisterConfirmPassword = false;
   showRecoveryPassword = false;
   recoveryStep: 1 | 2 = 1;
+  registroStep: 1 | 2 = 1;
 
   private readonly subscriptions = new Subscription();
 
@@ -45,17 +48,20 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
 
-    this.registroForm = this.formBuilder.group({
+    this.credencialesForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.pattern(emailPattern)]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', [Validators.required]]
+    }, { validators: this.passwordMatchValidator });
+
+    this.datosPersonalesForm = this.formBuilder.group({
       nombre: ['', [Validators.required]],
       apellido: ['', [Validators.required]],
-      email: ['', [Validators.required, Validators.pattern(emailPattern)]],
       tipoDocumento: ['DNI', [Validators.required]],
       numeroDocumento: ['', [Validators.required, Validators.pattern(/^\d{8}$/)]],
       telefono: [''],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required]],
       aceptaTerminos: [false, [Validators.requiredTrue]]
-    }, { validators: this.passwordMatchValidator });
+    });
 
     this.recoveryForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.pattern(emailPattern)]],
@@ -65,7 +71,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     }, { validators: this.recoveryPasswordMatchValidator });
 
     this.subscriptions.add(
-      this.registroForm.get('tipoDocumento')!.valueChanges.subscribe((tipo) => {
+      this.datosPersonalesForm.get('tipoDocumento')!.valueChanges.subscribe((tipo) => {
         this.actualizarValidacionDocumento(tipo);
       })
     );
@@ -80,10 +86,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           this.error = '';
           this.success = '';
           this.loginForm.reset();
-          this.registroForm.reset({ tipoDocumento: 'DNI', aceptaTerminos: false });
+          this.resetRegistro();
           this.showLoginPassword = false;
-          this.showRegisterPassword = false;
-          this.showRegisterConfirmPassword = false;
           this.recoveryForm.reset();
           this.showRecoveryPassword = false;
           this.recoveryStep = 1;
@@ -106,8 +110,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     return this.loginForm.controls;
   }
 
-  get registroControls() {
-    return this.registroForm.controls;
+  get credencialesControls() {
+    return this.credencialesForm.controls;
+  }
+
+  get datosPersonalesControls() {
+    return this.datosPersonalesForm.controls;
   }
 
   get recoveryControls() {
@@ -115,7 +123,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   get maxLongitudDocumento(): number {
-    return this.registroControls['tipoDocumento'].value === 'CE' ? 9 : 8;
+    return this.datosPersonalesControls['tipoDocumento'].value === 'CE' ? 9 : 8;
   }
 
   /** Deja solo dígitos y corta al máximo permitido según el tipo de documento. */
@@ -125,12 +133,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     if (input.value !== limpio) {
       input.value = limpio;
     }
-    this.registroControls['numeroDocumento'].setValue(limpio);
+    this.datosPersonalesControls['numeroDocumento'].setValue(limpio);
   }
 
   private actualizarValidacionDocumento(tipo: string | null): void {
     const largo = tipo === 'CE' ? 9 : 8;
-    const control = this.registroControls['numeroDocumento'];
+    const control = this.datosPersonalesControls['numeroDocumento'];
     control.setValidators([
       Validators.required,
       Validators.pattern(new RegExp(`^\\d{${largo}}$`))
@@ -248,36 +256,93 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Paso 1 del registro: valida email, contraseña y confirmación en local y
+   * consulta si el correo está disponible antes de mostrar el resto de campos.
+   */
+  continuarRegistro(): void {
+    this.error = '';
+    this.success = '';
+
+    if (this.credencialesForm.invalid) {
+      this.credencialesForm.markAllAsTouched();
+      return;
+    }
+
+    const email = this.credencialesControls['email'].value;
+    this.verificandoEmail = true;
+
+    this.authService.verificarEmail(email).subscribe({
+      next: (response) => {
+        this.verificandoEmail = false;
+        if (!response.disponible) {
+          this.error = 'Este correo ya está registrado. Prueba con otro o inicia sesión.';
+          this.credencialesControls['email'].markAsTouched();
+          return;
+        }
+        this.registroStep = 2;
+      },
+      error: (response) => {
+        this.verificandoEmail = false;
+        this.error = response.error?.error || 'No se pudo verificar el correo. Inténtalo de nuevo.';
+      }
+    });
+  }
+
+  /** Regresa del paso 2 al paso 1 conservando lo ya escrito. */
+  volverACredenciales(): void {
+    this.error = '';
+    this.registroStep = 1;
+  }
+
   submitRegistro(): void {
     this.error = '';
     this.success = '';
 
-    if (this.registroForm.invalid) {
-      this.registroForm.markAllAsTouched();
+    if (this.datosPersonalesForm.invalid) {
+      this.datosPersonalesForm.markAllAsTouched();
       return;
     }
 
     this.loading = true;
     this.authService.registro(
-      this.registroControls['email'].value,
-      this.registroControls['password'].value,
-      this.registroControls['nombre'].value,
-      this.registroControls['apellido'].value,
-      this.registroControls['telefono'].value,
-      this.registroControls['tipoDocumento'].value,
-      this.registroControls['numeroDocumento'].value,
-      this.registroControls['aceptaTerminos'].value === true
+      this.credencialesControls['email'].value,
+      this.credencialesControls['password'].value,
+      this.datosPersonalesControls['nombre'].value,
+      this.datosPersonalesControls['apellido'].value,
+      this.datosPersonalesControls['telefono'].value,
+      this.datosPersonalesControls['tipoDocumento'].value,
+      this.datosPersonalesControls['numeroDocumento'].value,
+      this.datosPersonalesControls['aceptaTerminos'].value === true
     ).subscribe({
       next: () => {
-        this.success = 'Registro exitoso. Ya puedes iniciar sesión.';
         this.loading = false;
+        this.resetRegistro();
+        // setMode limpia los mensajes, por eso el éxito se asigna después
         this.setMode('login');
+        this.success = 'Registro exitoso. Ya puedes iniciar sesión con tu correo.';
       },
       error: (response) => {
-        this.error = response.error?.error || 'Error al registrar usuario';
+        const mensaje = response.error?.error || 'Error al registrar usuario';
+        this.error = mensaje;
         this.loading = false;
+        // Si otro usuario tomó el correo mientras se completaba el formulario,
+        // volvemos al paso 1 para que pueda cambiarlo.
+        if (mensaje.toLowerCase().includes('email')) {
+          this.registroStep = 1;
+        }
       }
     });
+  }
+
+  /** Limpia ambos formularios del registro y vuelve al paso 1. */
+  private resetRegistro(): void {
+    this.credencialesForm.reset();
+    this.datosPersonalesForm.reset({ tipoDocumento: 'DNI', aceptaTerminos: false });
+    this.registroStep = 1;
+    this.verificandoEmail = false;
+    this.showRegisterPassword = false;
+    this.showRegisterConfirmPassword = false;
   }
 
   submitRecovery(): void {

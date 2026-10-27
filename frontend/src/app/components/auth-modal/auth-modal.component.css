@@ -182,11 +182,56 @@
 }
 
 .recovery-note {
+  display: flex;
+  flex-direction: column;
   padding: 14px 16px;
   border-radius: 18px;
   background: linear-gradient(135deg, #eef5ff, #fff4eb);
   color: #1a2a4a;
   font-weight: 600;
+}
+
+/* Indicador de pasos del registro */
+.registro-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.registro-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid #d8e2ef;
+  background: #edf2f8;
+  color: #5a6782;
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.registro-step.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ea580c, #ff7a1a);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(234, 88, 12, 0.24);
+}
+
+.registro-step.done {
+  border-color: transparent;
+  background: #1a2a4a;
+  color: #fff;
+}
+
+.registro-step-line {
+  flex: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: #e2eaf5;
 }
 
 .auth-form .btn-block {

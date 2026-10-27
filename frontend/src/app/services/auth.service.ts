@@ -101,6 +101,20 @@ export class AuthService {
   }
 
   /**
+   * Consulta si un email está disponible para registrarse.
+   * Se usa en el primer paso del registro, antes de pedir el resto de datos.
+   *
+   * No reserva el email: el registro definitivo vuelve a validar la unicidad
+   * en el backend, por si otro usuario lo tomó mientras se completaba el formulario.
+   *
+   * @param email correo electrónico a consultar.
+   * @returns Observable con { disponible: boolean }.
+   */
+  verificarEmail(email: string): Observable<{ disponible: boolean }> {
+    return this.http.post<{ disponible: boolean }>(`${this.apiUrl}/verificar-email`, { email });
+  }
+
+  /**
    * Autentica al usuario y guarda el token JWT en localStorage.
    * 
    * Usa el operador `tap` de RxJS para ejecutar efectos secundarios

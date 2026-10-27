@@ -72,116 +72,159 @@
           </button>
         </form>
       } @else if (mode === 'registro') {
-        <form [formGroup]="registroForm" (ngSubmit)="submitRegistro()" class="auth-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="modal-nombre">Nombre</label>
-              <input id="modal-nombre" type="text" class="form-control" formControlName="nombre" placeholder="Tu nombre" />
+        <div class="registro-steps" aria-hidden="true">
+          <span class="registro-step" [class.active]="registroStep === 1" [class.done]="registroStep === 2">1</span>
+          <span class="registro-step-line"></span>
+          <span class="registro-step" [class.active]="registroStep === 2">2</span>
+        </div>
+
+        @if (registroStep === 1) {
+          <form [formGroup]="credencialesForm" (ngSubmit)="continuarRegistro()" class="auth-form">
+            <div class="recovery-note">
+              <strong>Paso 1 de 2 · Tus credenciales</strong>
+              <span>Verificaremos que el correo esté disponible antes de continuar.</span>
             </div>
 
             <div class="form-group">
-              <label for="modal-apellido">Apellido</label>
-              <input id="modal-apellido" type="text" class="form-control" formControlName="apellido" placeholder="Tu apellido" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="modal-email">Correo Electrónico</label>
-            <input id="modal-email" type="email" class="form-control" formControlName="email" placeholder="tu@email.com" />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="modal-tipo-documento">Tipo de documento</label>
-              <select id="modal-tipo-documento" class="form-control" formControlName="tipoDocumento">
-                <option value="DNI">DNI</option>
-                <option value="CE">Carnet de extranjería</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="modal-numero-documento">
-                {{ registroControls['tipoDocumento'].value === 'CE' ? 'N° de carnet de extranjería' : 'N° de DNI' }}
-              </label>
-              <input
-                id="modal-numero-documento"
-                type="text"
-                inputmode="numeric"
-                autocomplete="off"
-                class="form-control"
-                formControlName="numeroDocumento"
-                [attr.maxlength]="maxLongitudDocumento"
-                [placeholder]="registroControls['tipoDocumento'].value === 'CE' ? '9 dígitos' : '8 dígitos'"
-                (input)="soloNumeros($event)"
-              />
-              @if (registroControls['numeroDocumento'].touched && registroControls['numeroDocumento'].errors) {
-                <small class="field-error">Ingresa {{ maxLongitudDocumento }} dígitos numéricos</small>
+              <label for="modal-email">Correo Electrónico</label>
+              <input id="modal-email" type="email" class="form-control" formControlName="email" placeholder="tu@email.com" autocomplete="email" />
+              @if (credencialesControls['email'].touched && credencialesControls['email'].errors) {
+                <small class="field-error">Ingresa un correo válido</small>
               }
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="modal-telefono">Teléfono (Opcional)</label>
-            <input id="modal-telefono" type="tel" class="form-control" formControlName="telefono" placeholder="+51 999 999 999" />
-          </div>
-
-          <div class="form-group">
-            <label for="modal-password">Contraseña</label>
-            <div class="password-field password-field--action">
-              <input
-                id="modal-password"
-                [type]="showRegisterPassword ? 'text' : 'password'"
-                class="form-control"
-                formControlName="password"
-                placeholder="Mínimo 6 caracteres"
-              />
-              <button type="button" class="password-toggle" (click)="toggleRegisterPassword()">
-                {{ showRegisterPassword ? 'Ocultar' : 'Ver' }}
-              </button>
+            <div class="form-group">
+              <label for="modal-password">Contraseña</label>
+              <div class="password-field password-field--action">
+                <input
+                  id="modal-password"
+                  [type]="showRegisterPassword ? 'text' : 'password'"
+                  class="form-control"
+                  formControlName="password"
+                  placeholder="Mínimo 6 caracteres"
+                  autocomplete="new-password"
+                />
+                <button type="button" class="password-toggle" (click)="toggleRegisterPassword()">
+                  {{ showRegisterPassword ? 'Ocultar' : 'Ver' }}
+                </button>
+              </div>
+              @if (credencialesControls['password'].touched && credencialesControls['password'].errors) {
+                <small class="field-error">La contraseña debe tener al menos 6 caracteres</small>
+              }
             </div>
-          </div>
 
-          <div class="form-group">
-            <label for="modal-confirm-password">Confirmar contraseña</label>
-            <div class="password-field password-field--action">
-              <input
-                id="modal-confirm-password"
-                [type]="showRegisterConfirmPassword ? 'text' : 'password'"
-                class="form-control"
-                formControlName="confirmPassword"
-                placeholder="Repite tu contraseña"
-              />
-              <button type="button" class="password-toggle" (click)="toggleRegisterConfirmPassword()">
-                {{ showRegisterConfirmPassword ? 'Ocultar' : 'Ver' }}
-              </button>
+            <div class="form-group">
+              <label for="modal-confirm-password">Confirmar contraseña</label>
+              <div class="password-field password-field--action">
+                <input
+                  id="modal-confirm-password"
+                  [type]="showRegisterConfirmPassword ? 'text' : 'password'"
+                  class="form-control"
+                  formControlName="confirmPassword"
+                  placeholder="Repite tu contraseña"
+                  autocomplete="new-password"
+                />
+                <button type="button" class="password-toggle" (click)="toggleRegisterConfirmPassword()">
+                  {{ showRegisterConfirmPassword ? 'Ocultar' : 'Ver' }}
+                </button>
+              </div>
+              @if (credencialesForm.errors?.['passwordMismatch'] && credencialesControls['confirmPassword'].touched) {
+                <small class="field-error">Las contraseñas no coinciden</small>
+              }
             </div>
-            @if (registroForm.errors?.['passwordMismatch']) {
-              <small class="field-error">Las contraseñas no coinciden</small>
-            }
-          </div>
 
-          <div class="form-group terms-check">
-            <label class="terms-label" for="modal-acepta-terminos">
-              <input id="modal-acepta-terminos" type="checkbox" formControlName="aceptaTerminos" />
-              <span>
-                He leído y acepto los
-                <a href="/terminos-y-condiciones" target="_blank" rel="noopener">Términos y Condiciones</a>,
-                incluido que las recomendaciones de SofIA, el asistente virtual, son solo orientativas y su uso
-                queda bajo mi propia elección y riesgo.
-              </span>
-            </label>
-            @if (registroControls['aceptaTerminos'].touched && registroControls['aceptaTerminos'].errors) {
-              <small class="field-error">Debes aceptar los Términos y Condiciones para crear tu cuenta</small>
-            }
-          </div>
+            <button type="submit" class="btn btn-primary btn-block" [disabled]="credencialesForm.invalid || verificandoEmail">
+              @if (verificandoEmail) {
+                <span class="spinner-border spinner-border-sm mr-2"></span>
+              }
+              {{ verificandoEmail ? 'Verificando correo...' : 'Continuar' }}
+            </button>
+          </form>
+        } @else {
+          <form [formGroup]="datosPersonalesForm" (ngSubmit)="submitRegistro()" class="auth-form">
+            <div class="recovery-note">
+              <strong>Paso 2 de 2 · Tus datos</strong>
+              <span>Crearemos la cuenta de {{ credencialesControls['email'].value }}</span>
+            </div>
 
-          <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
-            @if (loading) {
-              <span class="spinner-border spinner-border-sm mr-2"></span>
-            }
-            Crear cuenta
-          </button>
-        </form>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="modal-nombre">Nombre</label>
+                <input id="modal-nombre" type="text" class="form-control" formControlName="nombre" placeholder="Tu nombre" />
+                @if (datosPersonalesControls['nombre'].touched && datosPersonalesControls['nombre'].errors) {
+                  <small class="field-error">Ingresa tu nombre</small>
+                }
+              </div>
+
+              <div class="form-group">
+                <label for="modal-apellido">Apellido</label>
+                <input id="modal-apellido" type="text" class="form-control" formControlName="apellido" placeholder="Tu apellido" />
+                @if (datosPersonalesControls['apellido'].touched && datosPersonalesControls['apellido'].errors) {
+                  <small class="field-error">Ingresa tu apellido</small>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="modal-tipo-documento">Tipo de documento</label>
+                <select id="modal-tipo-documento" class="form-control" formControlName="tipoDocumento">
+                  <option value="DNI">DNI</option>
+                  <option value="CE">Carnet de extranjería</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="modal-numero-documento">
+                  {{ datosPersonalesControls['tipoDocumento'].value === 'CE' ? 'N° de carnet de extranjería' : 'N° de DNI' }}
+                </label>
+                <input
+                  id="modal-numero-documento"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  class="form-control"
+                  formControlName="numeroDocumento"
+                  [attr.maxlength]="maxLongitudDocumento"
+                  [placeholder]="datosPersonalesControls['tipoDocumento'].value === 'CE' ? '9 dígitos' : '8 dígitos'"
+                  (input)="soloNumeros($event)"
+                />
+                @if (datosPersonalesControls['numeroDocumento'].touched && datosPersonalesControls['numeroDocumento'].errors) {
+                  <small class="field-error">Ingresa {{ maxLongitudDocumento }} dígitos numéricos</small>
+                }
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-telefono">Teléfono (Opcional)</label>
+              <input id="modal-telefono" type="tel" class="form-control" formControlName="telefono" placeholder="+51 999 999 999" />
+            </div>
+
+            <div class="form-group terms-check">
+              <label class="terms-label" for="modal-acepta-terminos">
+                <input id="modal-acepta-terminos" type="checkbox" formControlName="aceptaTerminos" />
+                <span>
+                  He leído y acepto los
+                  <a href="/terminos-y-condiciones" target="_blank" rel="noopener">Términos y Condiciones</a>,
+                  incluido que las recomendaciones de SofIA, el asistente virtual, son solo orientativas y su uso
+                  queda bajo mi propia elección y riesgo.
+                </span>
+              </label>
+              @if (datosPersonalesControls['aceptaTerminos'].touched && datosPersonalesControls['aceptaTerminos'].errors) {
+                <small class="field-error">Debes aceptar los Términos y Condiciones para crear tu cuenta</small>
+              }
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+              @if (loading) {
+                <span class="spinner-border spinner-border-sm mr-2"></span>
+              }
+              Crear cuenta
+            </button>
+
+            <button type="button" class="mini-link centered" (click)="volverACredenciales()">Volver a las credenciales</button>
+          </form>
+        }
       } @else {
         <form [formGroup]="recoveryForm" (ngSubmit)="submitRecovery()" class="auth-form">
           @if (recoveryStep === 1) {
