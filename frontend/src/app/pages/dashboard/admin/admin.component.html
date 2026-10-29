@@ -171,7 +171,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let venta of filteredVentas">
+              <tr *ngFor="let venta of ventasPaginado">
                 <td>#{{ venta.idPedido }}</td>
                 <td>
                   <div class="client-name">
@@ -189,8 +189,17 @@
               <tr *ngIf="filteredVentas.length === 0">
                 <td colspan="6" class="empty-message">No se encontraron ventas para esta búsqueda.</td>
               </tr>
+              <tr *ngIf="filteredVentas.length > 0 && ventasPaginado.length === 0">
+                <td colspan="6" class="empty-message">No hay ventas en esta página.</td>
+              </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Paginación Ventas -->
+        <div *ngIf="totalVentasPages > 1" class="pagination">
+          <button (click)="prevVentasPage()" [disabled]="ventasPage === 1">« Anterior</button>
+          <span>Página {{ ventasPage }} de {{ totalVentasPages }}</span>
+          <button (click)="nextVentasPage()" [disabled]="ventasPage === totalVentasPages">Siguiente »</button>
         </div>
       </div>
     </div>
@@ -222,7 +231,7 @@
               </tr>
             </thead>
             <tbody>
-                <ng-container *ngFor="let grupo of productosPorCategoria; trackBy: trackByCategoria">
+                <ng-container *ngFor="let grupo of productosPaginadoAgrupado; trackBy: trackByCategoria">
                   <tr class="categoria-row">
                     <td colspan="8">
                       <span class="categoria-titulo">{{ grupo.categoria }}</span>
@@ -275,8 +284,17 @@
                 <tr *ngIf="filteredProductos.length === 0">
                   <td colspan="8" class="empty-message">No se encontraron productos en el inventario.</td>
                 </tr>
+                <tr *ngIf="filteredProductos.length > 0 && productosPaginadoAgrupado.length === 0">
+                  <td colspan="8" class="empty-message">No hay productos en esta página.</td>
+                </tr>
               </tbody>
           </table>
+        </div>
+        <!-- Paginación Productos -->
+        <div *ngIf="totalProductosPages > 1" class="pagination">
+          <button (click)="prevProductosPage()" [disabled]="productosPage === 1">« Anterior</button>
+          <span>Página {{ productosPage }} de {{ totalProductosPages }}</span>
+          <button (click)="nextProductosPage()" [disabled]="productosPage === totalProductosPages">Siguiente »</button>
         </div>
       </div>
     </div>
@@ -392,7 +410,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let cliente of reporteData.clientesTop; let i = index"
+          <tr *ngFor="let cliente of clientesPaginado; let i = index"
   [style.background]="i === 0 ? '#fff7ed' : ''">
             <td style="text-align:center;font-size:18px;">
               <span *ngIf="i === 0">🥇</span>
@@ -420,8 +438,14 @@
           </tr>
         </tbody>
       </table>
+        <!-- Paginación Clientes -->
+        <div *ngIf="totalClientesPages > 1" class="pagination">
+          <button (click)="prevClientesPage()" [disabled]="clientesPage === 1">« Anterior</button>
+          <span>Página {{ clientesPage }} de {{ totalClientesPages }}</span>
+          <button (click)="nextClientesPage()" [disabled]="clientesPage === totalClientesPages">Siguiente »</button>
+        </div>
     </div>  
-  </div> 
+  </div>
   <div class="card" style="min-width:0;">    
           <!-- ════════════════════════════════════════════════════ -->
           <!-- REPORTE 2 — Top 10 Productos con Calendario         -->
@@ -567,7 +591,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let lote of reporteData.lotesProximosVencer">
+                  <tr *ngFor="let lote of lotesPaginado">
                     <td style="font-family:monospace;font-size:11px;padding:10px 12px;">{{ lote.codigoLote }}</td>
                     <td style="padding:10px 12px;"><span class="bold-text" style="font-size:13px;">{{ lote.producto
                         }}</span></td>
@@ -589,7 +613,16 @@
                     </td>
                   </tr>
                 </tbody>
+                <tr *ngIf="reporteData.lotesProximosVencer?.length > 0 && lotesPaginado.length === 0">
+                  <td colspan="5" class="empty-message">No hay lotes en esta página.</td>
+                </tr>
               </table>
+        <!-- Paginación Lotes -->
+        <div *ngIf="totalLotesPages > 1" class="pagination">
+          <button (click)="prevLotesPage()" [disabled]="lotesPage === 1">« Anterior</button>
+          <span>Página {{ lotesPage }} de {{ totalLotesPages }}</span>
+          <button (click)="nextLotesPage()" [disabled]="lotesPage === totalLotesPages">Siguiente »</button>
+        </div>
             </div>
           </div>
         </div>
@@ -776,7 +809,7 @@
             </div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; grid-auto-rows:1fr;">
-            <div *ngFor="let combo of prediccionVentaCruzada"
+            <div *ngFor="let combo of ventaCruzadaPaginado"
               style="border:1px solid #e2e8f0; border-radius:14px; padding:18px; background:#f8fafc; display:flex; flex-direction:column; transition: border-color 0.2s; height:100%;"
               onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -834,6 +867,12 @@
               </div>
             </div>
           </div>
+          <!-- Paginación Venta Cruzada -->
+          <div *ngIf="totalVentaCruzadaPages > 1" class="pagination" style="grid-column: 1 / -1; text-align:center; margin-top:12px;">
+            <button (click)="prevVentaCruzadaPage()" [disabled]="ventaCruzadaPage === 1">« Anterior</button>
+            <span>Página {{ ventaCruzadaPage }} de {{ totalVentaCruzadaPages }}</span>
+            <button (click)="nextVentaCruzadaPage()" [disabled]="ventaCruzadaPage === totalVentaCruzadaPages">Siguiente »</button>
+          </div>
         </div>
         <div class="card" style="grid-column: 1 / -1; margin-top: 10px; transition: transform 0.2s;"
   onmouseover="this.style.transform='translateY(-2px)'"
@@ -875,7 +914,7 @@
 
       <tbody>
         <tr
-          *ngFor="let item of sugerenciasDescuento | slice:0:(mostrarTodosDescuentos ? sugerenciasDescuento.length : 10)"
+          *ngFor="let item of descuentosPaginado"
           style="transition: background 0.2s;">
 
           <!-- Producto -->

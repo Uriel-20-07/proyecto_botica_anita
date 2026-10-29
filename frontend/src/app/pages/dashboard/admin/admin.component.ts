@@ -92,6 +92,87 @@ export class AdminDashboardComponent implements OnInit {
 
   mensajeExito: string = '';
 
+  // ===== PAGINACIÓN (20 por página) =====
+  ventasPage = 1;
+  ventasPageSize = 20;
+  productosPage = 1;
+  productosPageSize = 20;
+  lotesPage = 1;
+  lotesPageSize = 20;
+  ventaCruzadaPage = 1;
+  ventaCruzadaPageSize = 6;
+  descuentosPage = 1;
+  descuentosPageSize = 10;
+  clientesPage = 1;
+  clientesPageSize = 20;
+
+  // ── Propiedades computadas paginadas ──
+  get ventasPaginado(): any[] {
+    const start = (this.ventasPage - 1) * this.ventasPageSize;
+    return this.filteredVentas.slice(start, start + this.ventasPageSize);
+  }
+  get totalVentasPages(): number { return Math.ceil(this.filteredVentas.length / this.ventasPageSize) || 1; }
+  nextVentasPage() { if (this.ventasPage < this.totalVentasPages) this.ventasPage++; }
+  prevVentasPage() { if (this.ventasPage > 1) this.ventasPage--; }
+  setVentasPage(p: number) { this.ventasPage = Math.max(1, Math.min(p, this.totalVentasPages)); }
+
+  get productosPaginadoAgrupado(): { categoria: string; productos: any[] }[] {
+    const start = (this.productosPage - 1) * this.productosPageSize;
+    const paginados = this.filteredProductos.slice(start, start + this.productosPageSize);
+    const grupos = new Map<string, any[]>();
+    paginados.forEach((p) => {
+      const cat = this.getCategoriaNombre(p);
+      if (!grupos.has(cat)) grupos.set(cat, []);
+      grupos.get(cat)!.push(p);
+    });
+    return Array.from(grupos.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+      .map(([categoria, productos]) => ({ categoria, productos }));
+  }
+  get totalProductosPages(): number { return Math.ceil(this.filteredProductos.length / this.productosPageSize) || 1; }
+  nextProductosPage() { if (this.productosPage < this.totalProductosPages) this.productosPage++; }
+  prevProductosPage() { if (this.productosPage > 1) this.productosPage--; }
+  setProductosPage(p: number) { this.productosPage = Math.max(1, Math.min(p, this.totalProductosPages)); }
+
+  get lotesPaginado(): any[] {
+    const start = (this.lotesPage - 1) * this.lotesPageSize;
+    return (this.reporteData?.lotesProximosVencer || []).slice(start, start + this.lotesPageSize);
+  }
+  get totalLotesPages(): number { return Math.ceil((this.reporteData?.lotesProximosVencer?.length || 0) / this.lotesPageSize) || 1; }
+  nextLotesPage() { if (this.lotesPage < this.totalLotesPages) this.lotesPage++; }
+  prevLotesPage() { if (this.lotesPage > 1) this.lotesPage--; }
+  setLotesPage(p: number) { this.lotesPage = Math.max(1, Math.min(p, this.totalLotesPages)); }
+
+  get ventaCruzadaPaginado(): any[] {
+    const start = (this.ventaCruzadaPage - 1) * this.ventaCruzadaPageSize;
+    return this.prediccionVentaCruzada.slice(start, start + this.ventaCruzadaPageSize);
+  }
+  get totalVentaCruzadaPages(): number { return Math.ceil(this.prediccionVentaCruzada.length / this.ventaCruzadaPageSize) || 1; }
+  nextVentaCruzadaPage() { if (this.ventaCruzadaPage < this.totalVentaCruzadaPages) this.ventaCruzadaPage++; }
+  prevVentaCruzadaPage() { if (this.ventaCruzadaPage > 1) this.ventaCruzadaPage--; }
+  setVentaCruzadaPage(p: number) { this.ventaCruzadaPage = Math.max(1, Math.min(p, this.totalVentaCruzadaPages)); }
+
+  // Descuentos (10 por página)
+  get descuentosPaginado(): any[] {
+    const start = (this.descuentosPage - 1) * this.descuentosPageSize;
+    return this.sugerenciasDescuento.slice(start, start + this.descuentosPageSize);
+  }
+  get totalDescuentosPages(): number { return Math.ceil(this.sugerenciasDescuento.length / this.descuentosPageSize) || 1; }
+  nextDescuentosPage() { if (this.descuentosPage < this.totalDescuentosPages) this.descuentosPage++; }
+  prevDescuentosPage() { if (this.descuentosPage > 1) this.descuentosPage--; }
+  setDescuentosPage(p: number) { this.descuentosPage = Math.max(1, Math.min(p, this.totalDescuentosPages)); }
+
+  get clientesPaginado(): any[] {
+    const start = (this.clientesPage - 1) * this.clientesPageSize;
+    return (this.reporteData?.clientesTop || []).slice(start, start + this.clientesPageSize);
+  }
+  get totalClientesPages(): number { return Math.ceil((this.reporteData?.clientesTop?.length || 0) / this.clientesPageSize) || 1; }
+  nextClientesPage() { if (this.clientesPage < this.totalClientesPages) this.clientesPage++; }
+  prevClientesPage() { if (this.clientesPage > 1) this.clientesPage--; }
+  setClientesPage(p: number) { this.clientesPage = Math.max(1, Math.min(p, this.totalClientesPages)); }
+
+  // ===== FIN PAGINACIÓN =====
+
   // Variables Reportes
   reporteData: any = null;
   cargandoReportes: boolean = false;
