@@ -102,10 +102,7 @@
                     </div>
                 } @else if (productosFiltrados.length === 0) {
                     <div class="estado-vacio no-resultados">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none"
-                            stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24">
-                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                        </svg>
+                        <i class="bi bi-search" style="font-size:48px;color:#ccc"></i>
                         <p>No encontramos productos para <strong>"{{ busqueda }}"</strong>.</p>
                         <button class="btn-limpiar-filtros" (click)="limpiarFiltros()">Ver todos los productos</button>
                     </div>
@@ -128,12 +125,7 @@
                                     }
                                     <button type="button" class="btn-card-fav" [class.active]="isFavorito(producto.id)" 
                                             (click)="toggleFavorito(producto.id, $event)" title="Favorito">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" 
-                                             [attr.fill]="isFavorito(producto.id) ? '#ea580c' : 'none'" 
-                                             [attr.stroke]="isFavorito(producto.id) ? '#ea580c' : 'currentColor'" 
-                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                                        </svg>
+                                        <i class="bi"  [class.bi-heart-fill]="isFavorito(producto.id)" [class.bi-heart]="!(isFavorito(producto.id))" [style.color]="isFavorito(producto.id) ? '#ea580c' : null" style="font-size:16px"></i>
                                     </button>
                                 </div>
                                 <div class="producto-info">
@@ -161,10 +153,7 @@
                             </a>
                             <button type="button" class="btn-agregar" (click)="agregarProducto(producto)">
                                 <span>Agregar</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M12 5v14M5 12h14" />
-                                </svg>
+                                <i class="bi bi-plus-lg" style="font-size:18px"></i>
                             </button>
                         </div>
                     </div>

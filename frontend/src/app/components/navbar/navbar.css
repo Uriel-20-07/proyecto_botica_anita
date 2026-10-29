@@ -39,7 +39,8 @@
     font-size: 12px;
     color: rgba(255, 255, 255, 0.85);
 
-    svg {
+    svg,
+    .bi {
         flex-shrink: 0;
         opacity: 0.85;
         stroke: rgba(255, 255, 255, 0.85);
@@ -217,7 +218,8 @@
     transition: color 0.2s;
     position: relative;
 
-    svg {
+    svg,
+    .bi {
         stroke: currentColor;
         flex-shrink: 0;
     }
@@ -276,7 +278,8 @@
     font-family: inherit;
     transition: background 0.2s;
 
-    svg {
+    svg,
+    .bi {
         stroke: #ffffff;
         flex-shrink: 0;
     }
@@ -343,7 +346,8 @@
     transition: color 0.2s;
     white-space: nowrap;
 
-    svg {
+    svg,
+    .bi {
         flex-shrink: 0;
         stroke: currentColor;
         opacity: 0.6;
@@ -373,7 +377,8 @@
 .bn-link.active {
     color: #2b78e4;
 
-    svg {
+    svg,
+    .bi {
         opacity: 1;
     }
 

@@ -1,11 +1,7 @@
 <!-- Chatbot Floating Action Button -->
 <div class="chatbot-fab" (click)="toggleChat()" [class.active]="isOpen">
-  <svg *ngIf="!isOpen" xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
-  </svg>
-  <svg *ngIf="isOpen" xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-  </svg>
+  <i class="bi bi-chat-dots-fill" *ngIf="!isOpen" style="font-size:26px"></i>
+  <i class="bi bi-x-lg" *ngIf="isOpen" style="font-size:26px"></i>
 </div>
 
 <!-- Chatbot Window -->
@@ -68,9 +64,7 @@
   <form class="chatbot-input-form" (submit)="sendMessage($event)">
     <input type="text" name="userInput" [(ngModel)]="userInput" class="chatbot-input" placeholder="Pregunta sobre medicamentos..." autocomplete="off" />
     <button type="submit" class="chatbot-send-btn" [disabled]="!userInput.trim() || isLoading">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-      </svg>
+      <i class="bi bi-send-fill" style="font-size:18px"></i>
     </button>
   </form>
 </div>

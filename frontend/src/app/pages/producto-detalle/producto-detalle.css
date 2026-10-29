@@ -296,7 +296,8 @@
   background: var(--bg-light);
 }
 
-.method-item svg {
+.method-item svg,
+.method-item .bi {
   color: var(--primary-navy);
   flex-shrink: 0;
 }
