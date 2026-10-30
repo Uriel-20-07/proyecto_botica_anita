@@ -1,0 +1,51 @@
+@if (visible) {
+  <div class="calif-card" role="dialog" aria-live="polite" aria-label="Califica tu pedido">
+
+    @if (!gracias) {
+      <button type="button" class="calif-cerrar" (click)="omitir()" aria-label="Cerrar">&times;</button>
+
+      <p class="calif-titulo">
+        @if (esRecojo) {
+          Tu pedido {{ codigoPedido }} ya está listo para recojo
+        } @else {
+          Tu pedido {{ codigoPedido }} fue completado
+        }
+      </p>
+      <p class="calif-sub">¿Cómo fue tu experiencia con BoticaAnita?</p>
+
+      <div class="calif-estrellas" (mouseleave)="hover = 0">
+        @for (n of estrellasOpciones; track n) {
+          <button type="button" class="calif-estrella"
+            [class.activa]="(hover || estrellas) >= n"
+            (mouseenter)="hover = n"
+            (click)="elegir(n)"
+            [attr.aria-label]="n + (n === 1 ? ' estrella' : ' estrellas')">&#9733;</button>
+        }
+      </div>
+      <p class="calif-etiqueta">{{ etiquetaActual }}</p>
+
+      @if (estrellas > 0) {
+        <textarea class="calif-comentario" [(ngModel)]="comentario" maxlength="500" rows="3"
+          placeholder="¿Quieres contarnos algo más? (opcional)"></textarea>
+      }
+
+      @if (error) {
+        <p class="calif-error">{{ error }}</p>
+      }
+
+      <div class="calif-acciones">
+        <button type="button" class="calif-btn calif-btn-sec" (click)="omitir()">Ahora no</button>
+        <button type="button" class="calif-btn calif-btn-pri" (click)="enviar()" [disabled]="enviando">
+          {{ enviando ? 'Enviando…' : 'Enviar' }}
+        </button>
+      </div>
+    } @else {
+      <div class="calif-gracias">
+        <span class="calif-gracias-icono">&#10003;</span>
+        <p class="calif-titulo">¡Gracias por tu opinión!</p>
+        <p class="calif-sub">Nos ayuda a mejorar cada día.</p>
+      </div>
+    }
+
+  </div>
+}

@@ -5,38 +5,38 @@
     </div>
     <nav class="sidebar-nav">
       <button [class.active]="activeTab === 'resumen'" (click)="setTab('resumen')" class="nav-item">
-        <i class="bi bi-grid-1x2 nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-grid-1x2 nav-icon"></i>
         <span>Resumen</span>
       </button>
       <button [class.active]="activeTab === 'ventas'" (click)="setTab('ventas')" class="nav-item">
-        <i class="bi bi-cart nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-cart nav-icon"></i>
         <span>Ventas</span>
       </button>
       <button [class.active]="activeTab === 'inventario'" (click)="setTab('inventario')" class="nav-item">
-        <i class="bi bi-box-seam nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-box-seam nav-icon"></i>
         <span>Inventario</span>
       </button>
       <button [class.active]="activeTab === 'reportes'" (click)="setTab('reportes')" class="nav-item">
-        <i class="bi bi-file-earmark-text nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-file-earmark-text nav-icon"></i>
         <span>Reportes</span>
       </button>
       <button [class.active]="activeTab === 'predicciones'" (click)="setTab('predicciones')" class="nav-item">
-        <i class="bi bi-graph-up nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-graph-up nav-icon"></i>
         <span>Predicciones</span>
       </button>
       <button *ngIf="mostrarRecetas" [class.active]="activeTab === 'recetas'" (click)="setTab('recetas')" class="nav-item">
-        <i class="bi bi-file-earmark-text nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-file-earmark-text nav-icon"></i>
         <span>Aceptar Receta</span>
       </button>
       <button [class.active]="activeTab === 'cupones'" (click)="setTab('cupones')" class="nav-item">
-        <i class="bi bi-ticket-perforated nav-icon" style="font-size:20px"></i>
+        <i class="bi bi-server nav-icon"></i>
         <span>Lanzar Cupones</span>
       </button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-profile">
         <div class="user-avatar">
-          <i class="bi bi-person" style="font-size:24px"></i>
+          <i class="bi bi-person"></i>
         </div>
         <div class="user-info">
           <span class="user-name">{{ adminUser?.nombre }}</span>
@@ -44,7 +44,7 @@
         </div>
       </div>
       <button (click)="logout()" class="btn-logout">
-        <i class="bi bi-box-arrow-right icon-logout" style="font-size:16px"></i>
+        <i class="bi bi-box-arrow-right icon-logout"></i>
         Cerrar Sesión
       </button>
     </div>
@@ -65,7 +65,7 @@
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-icon val-icon">
-            <i class="bi bi-currency-dollar" style="font-size:24px"></i>
+            <i class="bi bi-currency-dollar"></i>
           </div>
           <div class="metric-details">
             <h3>Ventas Totales</h3>
@@ -74,7 +74,7 @@
         </div>
         <div class="metric-card">
           <div class="metric-icon ticket-icon">
-            <i class="bi bi-file-earmark-text" style="font-size:24px"></i>
+            <i class="bi bi-file-earmark-text"></i>
           </div>
           <div class="metric-details">
             <h3>Ticket Promedio</h3>
@@ -83,7 +83,7 @@
         </div>
         <div class="metric-card">
           <div class="metric-icon ped-icon">
-            <i class="bi bi-cart" style="font-size:24px"></i>
+            <i class="bi bi-cart"></i>
           </div>
           <div class="metric-details">
             <h3>Pedidos Totales</h3>
@@ -92,7 +92,7 @@
         </div>
         <div class="metric-card alert-card">
           <div class="metric-icon stock-icon">
-            <i class="bi bi-exclamation-triangle" style="font-size:24px"></i>
+            <i class="bi bi-exclamation-triangle"></i>
           </div>
           <div class="metric-details">
             <h3>Bajo Stock (&lt;60)</h3>
@@ -148,13 +148,135 @@
           </div>
         </div>
       </div>
+
+      <!-- ═════ Métodos de pago y satisfacción ═════ -->
+      <div class="insights-grid">
+
+        <!-- Dona: métodos de pago -->
+        <div class="card insight-card">
+          <div class="insight-head">
+            <div class="card-header">
+              <h2>Métodos de pago</h2>
+              <span class="card-subtitle">Cómo pagan tus clientes</span>
+            </div>
+            <div class="segmented" role="group" aria-label="Ver por">
+              <button type="button" [class.active]="metodoPagoModo === 'monto'" (click)="cambiarModoMetodoPago('monto')">Monto</button>
+              <button type="button" [class.active]="metodoPagoModo === 'cantidad'" (click)="cambiarModoMetodoPago('cantidad')">Pedidos</button>
+            </div>
+          </div>
+
+          <p *ngIf="metodosPago.length === 0" class="empty-note">Aún no hay pedidos para mostrar.</p>
+
+          <div *ngIf="metodosPago.length > 0" class="pay-wrap">
+            <svg viewBox="0 0 120 120" class="pay-donut" role="img" aria-label="Distribución de ventas por método de pago">
+              <circle cx="60" cy="60" r="46" fill="none" stroke="#eef2f7" stroke-width="16"></circle>
+              <circle *ngFor="let s of donutSegmentos" cx="60" cy="60" r="46" fill="none" stroke-width="16"
+                [attr.stroke]="s.color" [attr.stroke-dasharray]="s.dash" [attr.stroke-dashoffset]="s.offset"
+                transform="rotate(-90 60 60)">
+                <title>{{ s.detalle }}</title>
+              </circle>
+              <text x="60" y="58" text-anchor="middle" class="pay-center-value">
+                <ng-container *ngIf="metodoPagoModo === 'monto'">S/. {{ donutTotal | number:'1.2-2' }}</ng-container>
+                <ng-container *ngIf="metodoPagoModo === 'cantidad'">{{ donutTotal }}</ng-container>
+              </text>
+              <text x="60" y="72" text-anchor="middle" class="pay-center-label">
+                {{ metodoPagoModo === 'monto' ? 'Total vendido' : 'Pedidos' }}
+              </text>
+            </svg>
+
+            <ul class="pay-legend">
+              <li *ngFor="let m of metodosPago">
+                <span class="pay-dot" [style.background]="m.color"></span>
+                <div class="pay-legend-text">
+                  <strong>{{ m.etiqueta }}</strong>
+                  <span>{{ m.cantidad }} pedidos · S/. {{ m.monto | number:'1.2-2' }}</span>
+                </div>
+                <span class="pay-pct">{{ (metodoPagoModo === 'monto' ? m.pctMonto : m.pctCantidad) | number:'1.0-1' }}%</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Satisfacción del cliente -->
+        <div class="card insight-card">
+          <div class="card-header">
+            <h2>Satisfacción del cliente</h2>
+            <span class="card-subtitle">Calificaciones de los pedidos</span>
+          </div>
+
+          <p *ngIf="satisfaccionCargando" class="empty-note">Cargando…</p>
+          <p *ngIf="!satisfaccionCargando && satisfaccionError" class="empty-note">No se pudo cargar la satisfacción del cliente.</p>
+
+          <ng-container *ngIf="!satisfaccionCargando && !satisfaccionError && satisfaccion">
+            <p *ngIf="satisfaccion.total === 0" class="empty-note">
+              Aún no hay calificaciones. Aparecerán cuando los clientes califiquen sus pedidos.
+            </p>
+
+            <ng-container *ngIf="satisfaccion.total > 0">
+              <div class="sat-top">
+                <div class="sat-score">
+                  <span class="sat-score-num">{{ satisfaccion.promedio | number:'1.1-1' }}</span>
+                  <span class="sat-score-max">/ 5</span>
+                </div>
+                <div class="sat-score-side">
+                  <div class="sat-stars">
+                    <span *ngFor="let n of estrellas5" [class.on]="estrellaLlena(n)">★</span>
+                  </div>
+                  <span class="sat-meta">
+                    {{ satisfaccion.total }} calificaciones · {{ satisfaccion.satisfechosPorcentaje | number:'1.0-1' }}% satisfechos (4 y 5 estrellas)
+                  </span>
+                </div>
+              </div>
+
+              <div class="sat-dist">
+                <div class="sat-dist-row" *ngFor="let f of satisfaccion.distribucion">
+                  <span class="sat-dist-label">{{ f.estrellas }} ★</span>
+                  <div class="sat-dist-track"><div class="sat-dist-fill" [style.width.%]="f.porcentaje"></div></div>
+                  <span class="sat-dist-count">{{ f.cantidad }}</span>
+                </div>
+              </div>
+
+              <h3 class="sat-sub">Tendencia semanal (promedio)</h3>
+              <svg viewBox="0 0 300 112" class="sat-trend" preserveAspectRatio="xMidYMid meet">
+                <g class="sat-grid">
+                  <line x1="16" x2="284" y1="10" y2="10"></line>
+                  <line x1="16" x2="284" y1="41" y2="41"></line>
+                  <line x1="16" x2="284" y1="72" y2="72"></line>
+                  <text x="2" y="13">5</text>
+                  <text x="2" y="44">3</text>
+                  <text x="2" y="75">1</text>
+                </g>
+                <path *ngIf="satTendenciaPath" [attr.d]="satTendenciaPath" class="sat-trend-line"></path>
+                <g *ngFor="let p of satTendenciaPuntos">
+                  <circle *ngIf="p.promedio !== null" [attr.cx]="p.x" [attr.cy]="p.y" r="3.5" class="sat-trend-dot">
+                    <title>Semana del {{ p.semana | date:'dd LLL' }}: {{ p.promedio | number:'1.1-1' }} ({{ p.cantidad }} calificaciones)</title>
+                  </circle>
+                  <text [attr.x]="p.x" y="100" text-anchor="middle" class="sat-trend-label">{{ p.semana | date:'dd LLL' }}</text>
+                </g>
+              </svg>
+
+              <h3 class="sat-sub" *ngIf="satisfaccion.comentarios.length > 0">Comentarios recientes</h3>
+              <ul class="sat-comments" *ngIf="satisfaccion.comentarios.length > 0">
+                <li *ngFor="let c of satisfaccion.comentarios">
+                  <div class="sat-comment-head">
+                    <span class="sat-comment-stars">{{ estrellasTexto(c.estrellas) }}</span>
+                    <span class="sat-comment-meta">{{ c.cliente }} · {{ c.fecha | date:'dd LLL' }}</span>
+                  </div>
+                  <p>{{ c.comentario }}</p>
+                </li>
+              </ul>
+            </ng-container>
+          </ng-container>
+        </div>
+
+      </div>
     </div>
 
     <div *ngIf="activeTab === 'ventas'" class="tab-pane animated-fade">
       <div class="card table-card">
         <div class="table-actions">
           <div class="search-box">
-            <i class="bi bi-search search-icon" style="font-size:16px"></i>
+            <i class="bi bi-search search-icon"></i>
             <input type="text" [(ngModel)]="searchCliente" placeholder="Buscar por cliente..." />
           </div>
         </div>
@@ -171,7 +293,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let venta of ventasPaginado">
+              <tr *ngFor="let venta of filteredVentas">
                 <td>#{{ venta.idPedido }}</td>
                 <td>
                   <div class="client-name">
@@ -189,17 +311,8 @@
               <tr *ngIf="filteredVentas.length === 0">
                 <td colspan="6" class="empty-message">No se encontraron ventas para esta búsqueda.</td>
               </tr>
-              <tr *ngIf="filteredVentas.length > 0 && ventasPaginado.length === 0">
-                <td colspan="6" class="empty-message">No hay ventas en esta página.</td>
-              </tr>
             </tbody>
           </table>
-        </div>
-        <!-- Paginación Ventas -->
-        <div *ngIf="totalVentasPages > 1" class="pagination">
-          <button (click)="prevVentasPage()" [disabled]="ventasPage === 1">« Anterior</button>
-          <span>Página {{ ventasPage }} de {{ totalVentasPages }}</span>
-          <button (click)="nextVentasPage()" [disabled]="ventasPage === totalVentasPages">Siguiente »</button>
         </div>
       </div>
     </div>
@@ -212,7 +325,7 @@
                 <option value="">Todas las categorías</option>
                 <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
             </select>
-            <i class="bi bi-search search-icon" style="font-size:16px"></i>
+            <i class="bi bi-search search-icon"></i>
             <input type="text" [(ngModel)]="searchProducto" placeholder="Buscar por producto o descripción..." />
           </div>
         </div>
@@ -231,7 +344,7 @@
               </tr>
             </thead>
             <tbody>
-                <ng-container *ngFor="let grupo of productosPaginadoAgrupado; trackBy: trackByCategoria">
+                <ng-container *ngFor="let grupo of productosPorCategoria; trackBy: trackByCategoria">
                   <tr class="categoria-row">
                     <td colspan="8">
                       <span class="categoria-titulo">{{ grupo.categoria }}</span>
@@ -284,17 +397,8 @@
                 <tr *ngIf="filteredProductos.length === 0">
                   <td colspan="8" class="empty-message">No se encontraron productos en el inventario.</td>
                 </tr>
-                <tr *ngIf="filteredProductos.length > 0 && productosPaginadoAgrupado.length === 0">
-                  <td colspan="8" class="empty-message">No hay productos en esta página.</td>
-                </tr>
               </tbody>
           </table>
-        </div>
-        <!-- Paginación Productos -->
-        <div *ngIf="totalProductosPages > 1" class="pagination">
-          <button (click)="prevProductosPage()" [disabled]="productosPage === 1">« Anterior</button>
-          <span>Página {{ productosPage }} de {{ totalProductosPages }}</span>
-          <button (click)="nextProductosPage()" [disabled]="productosPage === totalProductosPages">Siguiente »</button>
         </div>
       </div>
     </div>
@@ -309,7 +413,7 @@
 
       <div *ngIf="cargandoReportes" class="empty-message"
         style="min-height:300px;display:flex;align-items:center;justify-content:center;gap:12px;">
-        <span class="spinner-border" style="width:20px;height:20px;border-width:2px;color:#ea580c" role="status"></span>
+        <i class="bi bi-arrow-repeat" style="font-size:20px;color:#ea580c;animation:spin 1s linear infinite;display:inline-block"></i>
         Cargando reportes...
       </div>
 
@@ -410,7 +514,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let cliente of clientesPaginado; let i = index"
+          <tr *ngFor="let cliente of reporteData.clientesTop; let i = index"
   [style.background]="i === 0 ? '#fff7ed' : ''">
             <td style="text-align:center;font-size:18px;">
               <span *ngIf="i === 0">🥇</span>
@@ -438,14 +542,8 @@
           </tr>
         </tbody>
       </table>
-        <!-- Paginación Clientes -->
-        <div *ngIf="totalClientesPages > 1" class="pagination">
-          <button (click)="prevClientesPage()" [disabled]="clientesPage === 1">« Anterior</button>
-          <span>Página {{ clientesPage }} de {{ totalClientesPages }}</span>
-          <button (click)="nextClientesPage()" [disabled]="clientesPage === totalClientesPages">Siguiente »</button>
-        </div>
     </div>  
-  </div>
+  </div> 
   <div class="card" style="min-width:0;">    
           <!-- ════════════════════════════════════════════════════ -->
           <!-- REPORTE 2 — Top 10 Productos con Calendario         -->
@@ -489,12 +587,12 @@
             </div>
 
             <div *ngIf="cargandoTopFiltrado" style="padding:30px;text-align:center;color:#718096;">
-              <span class="spinner-border" style="width:18px;height:18px;border-width:2px;color:#ea580c" role="status"></span>
+              <i class="bi bi-arrow-repeat" style="font-size:18px;color:#ea580c;animation:spin 0.8s linear infinite;display:inline-block"></i>
             </div>
 
             <div *ngIf="!cargandoTopFiltrado && topProductosFiltrados !== null && topProductosFiltrados.length === 0"
               style="padding:40px 16px;text-align:center;">
-              <i class="bi bi-calendar3" style="font-size:36px;color:#d1d5db;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;text-align:center;width:100%"></i>
+              <i class="bi bi-calendar3" style="font-size:36px;color:#d1d5db;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto"></i>
               <p style="color:#718096;font-size:14px;font-weight:600;margin:0;">Ese día no se realizaron ventas.</p>
             </div>
 
@@ -591,7 +689,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let lote of lotesPaginado">
+                  <tr *ngFor="let lote of reporteData.lotesProximosVencer">
                     <td style="font-family:monospace;font-size:11px;padding:10px 12px;">{{ lote.codigoLote }}</td>
                     <td style="padding:10px 12px;"><span class="bold-text" style="font-size:13px;">{{ lote.producto
                         }}</span></td>
@@ -613,16 +711,7 @@
                     </td>
                   </tr>
                 </tbody>
-                <tr *ngIf="reporteData.lotesProximosVencer?.length > 0 && lotesPaginado.length === 0">
-                  <td colspan="5" class="empty-message">No hay lotes en esta página.</td>
-                </tr>
               </table>
-        <!-- Paginación Lotes -->
-        <div *ngIf="totalLotesPages > 1" class="pagination">
-          <button (click)="prevLotesPage()" [disabled]="lotesPage === 1">« Anterior</button>
-          <span>Página {{ lotesPage }} de {{ totalLotesPages }}</span>
-          <button (click)="nextLotesPage()" [disabled]="lotesPage === totalLotesPages">Siguiente »</button>
-        </div>
             </div>
           </div>
         </div>
@@ -809,7 +898,7 @@
             </div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; grid-auto-rows:1fr;">
-            <div *ngFor="let combo of ventaCruzadaPaginado"
+            <div *ngFor="let combo of prediccionVentaCruzada"
               style="border:1px solid #e2e8f0; border-radius:14px; padding:18px; background:#f8fafc; display:flex; flex-direction:column; transition: border-color 0.2s; height:100%;"
               onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -867,12 +956,6 @@
               </div>
             </div>
           </div>
-          <!-- Paginación Venta Cruzada -->
-          <div *ngIf="totalVentaCruzadaPages > 1" class="pagination" style="grid-column: 1 / -1; text-align:center; margin-top:12px;">
-            <button (click)="prevVentaCruzadaPage()" [disabled]="ventaCruzadaPage === 1">« Anterior</button>
-            <span>Página {{ ventaCruzadaPage }} de {{ totalVentaCruzadaPages }}</span>
-            <button (click)="nextVentaCruzadaPage()" [disabled]="ventaCruzadaPage === totalVentaCruzadaPages">Siguiente »</button>
-          </div>
         </div>
         <div class="card" style="grid-column: 1 / -1; margin-top: 10px; transition: transform 0.2s;"
   onmouseover="this.style.transform='translateY(-2px)'"
@@ -914,7 +997,7 @@
 
       <tbody>
         <tr
-          *ngFor="let item of descuentosPaginado"
+          *ngFor="let item of sugerenciasDescuento | slice:0:(mostrarTodosDescuentos ? sugerenciasDescuento.length : 10)"
           style="transition: background 0.2s;">
 
           <!-- Producto -->

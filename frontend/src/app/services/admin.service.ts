@@ -78,6 +78,11 @@ export class AdminService {
   }
 
 
+  /** Resumen de satisfacción del cliente (promedio, distribución, tendencia y comentarios). */
+  getSatisfaccion(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/satisfaccion`, { headers: this.getHeaders() });
+  }
+
   getVentas(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/ventas`, { headers: this.getHeaders() });
   }

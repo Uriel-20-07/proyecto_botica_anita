@@ -1,0 +1,141 @@
+.calif-card {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  padding: 20px 20px 16px;
+  z-index: 10000;
+  animation: calif-entrada 0.35s ease-out;
+  font-family: inherit;
+}
+
+@keyframes calif-entrada {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.calif-cerrar {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.calif-cerrar:hover { color: #475569; }
+
+.calif-titulo {
+  margin: 0 22px 2px 0;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #0f172a;
+}
+
+.calif-sub {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  color: #64748b;
+}
+
+.calif-estrellas {
+  display: flex;
+  gap: 4px;
+}
+
+.calif-estrella {
+  border: none;
+  background: transparent;
+  font-size: 2rem;
+  line-height: 1;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: transform 0.12s, color 0.12s;
+}
+.calif-estrella.activa { color: #f59e0b; }
+.calif-estrella:hover { transform: scale(1.12); }
+
+.calif-etiqueta {
+  min-height: 1.2em;
+  margin: 4px 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.calif-comentario {
+  width: 100%;
+  resize: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+.calif-comentario:focus {
+  outline: none;
+  border-color: #ff6b00;
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.15);
+}
+
+.calif-error {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #dc2626;
+}
+
+.calif-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.calif-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.calif-btn-sec { background: #f1f5f9; color: #475569; }
+.calif-btn-sec:hover { background: #e2e8f0; }
+.calif-btn-pri { background: #ff6b00; color: #ffffff; }
+.calif-btn-pri:hover { background: #d05303; }
+.calif-btn-pri:disabled { opacity: 0.6; cursor: default; }
+
+.calif-gracias { text-align: center; padding: 6px 0 2px; }
+.calif-gracias .calif-titulo { margin: 6px 0 2px; }
+.calif-gracias-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* En celular: ancho completo y por encima del botón flotante del chat */
+@media (max-width: 520px) {
+  .calif-card {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 104px;
+  }
+}

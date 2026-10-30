@@ -55,6 +55,22 @@ export class AdminDashboardComponent implements OnInit {
   totalPedidos = 0;
   bajoStockCount = 0;
 
+  // ── Métodos de pago (gráfico de dona) ────────────────────────────────
+  metodoPagoModo: 'monto' | 'cantidad' = 'monto';
+  metodosPago: Array<{ clave: string; etiqueta: string; color: string; cantidad: number; monto: number; pctCantidad: number; pctMonto: number }> = [];
+  donutSegmentos: Array<{ clave: string; color: string; dash: string; offset: number; detalle: string }> = [];
+  donutTotal = 0;
+  readonly donutRadio = 46;
+  readonly donutCircunferencia = 2 * Math.PI * 46;
+
+  // ── Satisfacción del cliente ─────────────────────────────────────────
+  satisfaccion: any = null;
+  satisfaccionCargando = true;
+  satisfaccionError = false;
+  satTendenciaPuntos: Array<{ x: number; y: number; promedio: number | null; cantidad: number; semana: string }> = [];
+  satTendenciaPath = '';
+  readonly estrellas5 = [1, 2, 3, 4, 5];
+
   selectedVenta: any = null;
 
   // Variables Lotes
@@ -91,87 +107,6 @@ export class AdminDashboardComponent implements OnInit {
   mostrarCruzadaCollapse: boolean = false;
 
   mensajeExito: string = '';
-
-  // ===== PAGINACIÓN (20 por página) =====
-  ventasPage = 1;
-  ventasPageSize = 20;
-  productosPage = 1;
-  productosPageSize = 20;
-  lotesPage = 1;
-  lotesPageSize = 20;
-  ventaCruzadaPage = 1;
-  ventaCruzadaPageSize = 6;
-  descuentosPage = 1;
-  descuentosPageSize = 10;
-  clientesPage = 1;
-  clientesPageSize = 20;
-
-  // ── Propiedades computadas paginadas ──
-  get ventasPaginado(): any[] {
-    const start = (this.ventasPage - 1) * this.ventasPageSize;
-    return this.filteredVentas.slice(start, start + this.ventasPageSize);
-  }
-  get totalVentasPages(): number { return Math.ceil(this.filteredVentas.length / this.ventasPageSize) || 1; }
-  nextVentasPage() { if (this.ventasPage < this.totalVentasPages) this.ventasPage++; }
-  prevVentasPage() { if (this.ventasPage > 1) this.ventasPage--; }
-  setVentasPage(p: number) { this.ventasPage = Math.max(1, Math.min(p, this.totalVentasPages)); }
-
-  get productosPaginadoAgrupado(): { categoria: string; productos: any[] }[] {
-    const start = (this.productosPage - 1) * this.productosPageSize;
-    const paginados = this.filteredProductos.slice(start, start + this.productosPageSize);
-    const grupos = new Map<string, any[]>();
-    paginados.forEach((p) => {
-      const cat = this.getCategoriaNombre(p);
-      if (!grupos.has(cat)) grupos.set(cat, []);
-      grupos.get(cat)!.push(p);
-    });
-    return Array.from(grupos.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
-      .map(([categoria, productos]) => ({ categoria, productos }));
-  }
-  get totalProductosPages(): number { return Math.ceil(this.filteredProductos.length / this.productosPageSize) || 1; }
-  nextProductosPage() { if (this.productosPage < this.totalProductosPages) this.productosPage++; }
-  prevProductosPage() { if (this.productosPage > 1) this.productosPage--; }
-  setProductosPage(p: number) { this.productosPage = Math.max(1, Math.min(p, this.totalProductosPages)); }
-
-  get lotesPaginado(): any[] {
-    const start = (this.lotesPage - 1) * this.lotesPageSize;
-    return (this.reporteData?.lotesProximosVencer || []).slice(start, start + this.lotesPageSize);
-  }
-  get totalLotesPages(): number { return Math.ceil((this.reporteData?.lotesProximosVencer?.length || 0) / this.lotesPageSize) || 1; }
-  nextLotesPage() { if (this.lotesPage < this.totalLotesPages) this.lotesPage++; }
-  prevLotesPage() { if (this.lotesPage > 1) this.lotesPage--; }
-  setLotesPage(p: number) { this.lotesPage = Math.max(1, Math.min(p, this.totalLotesPages)); }
-
-  get ventaCruzadaPaginado(): any[] {
-    const start = (this.ventaCruzadaPage - 1) * this.ventaCruzadaPageSize;
-    return this.prediccionVentaCruzada.slice(start, start + this.ventaCruzadaPageSize);
-  }
-  get totalVentaCruzadaPages(): number { return Math.ceil(this.prediccionVentaCruzada.length / this.ventaCruzadaPageSize) || 1; }
-  nextVentaCruzadaPage() { if (this.ventaCruzadaPage < this.totalVentaCruzadaPages) this.ventaCruzadaPage++; }
-  prevVentaCruzadaPage() { if (this.ventaCruzadaPage > 1) this.ventaCruzadaPage--; }
-  setVentaCruzadaPage(p: number) { this.ventaCruzadaPage = Math.max(1, Math.min(p, this.totalVentaCruzadaPages)); }
-
-  // Descuentos (10 por página)
-  get descuentosPaginado(): any[] {
-    const start = (this.descuentosPage - 1) * this.descuentosPageSize;
-    return this.sugerenciasDescuento.slice(start, start + this.descuentosPageSize);
-  }
-  get totalDescuentosPages(): number { return Math.ceil(this.sugerenciasDescuento.length / this.descuentosPageSize) || 1; }
-  nextDescuentosPage() { if (this.descuentosPage < this.totalDescuentosPages) this.descuentosPage++; }
-  prevDescuentosPage() { if (this.descuentosPage > 1) this.descuentosPage--; }
-  setDescuentosPage(p: number) { this.descuentosPage = Math.max(1, Math.min(p, this.totalDescuentosPages)); }
-
-  get clientesPaginado(): any[] {
-    const start = (this.clientesPage - 1) * this.clientesPageSize;
-    return (this.reporteData?.clientesTop || []).slice(start, start + this.clientesPageSize);
-  }
-  get totalClientesPages(): number { return Math.ceil((this.reporteData?.clientesTop?.length || 0) / this.clientesPageSize) || 1; }
-  nextClientesPage() { if (this.clientesPage < this.totalClientesPages) this.clientesPage++; }
-  prevClientesPage() { if (this.clientesPage > 1) this.clientesPage--; }
-  setClientesPage(p: number) { this.clientesPage = Math.max(1, Math.min(p, this.totalClientesPages)); }
-
-  // ===== FIN PAGINACIÓN =====
 
   // Variables Reportes
   reporteData: any = null;
@@ -231,6 +166,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   cargarDatos(): void {
+    this.cargarSatisfaccion();
     this.adminService.getProductos().subscribe({
       next: (data: any[]) => {
         this.productos = data;
@@ -356,6 +292,123 @@ export class AdminDashboardComponent implements OnInit {
     this.totalPedidos = this.ventas.length;
     this.totalVentas = this.ventas.reduce((acc, v) => acc + v.total, 0);
     this.ticketPromedio = this.totalPedidos > 0 ? this.totalVentas / this.totalPedidos : 0;
+    this.calcularMetodosPago();
+  }
+
+  // ══════════ Métodos de pago (dona) ══════════
+  /** Agrupa las ventas ya cargadas por método de pago (mismos datos que las tarjetas de arriba). */
+  calcularMetodosPago(): void {
+    const defs = [
+      { clave: 'TARJETA', etiqueta: 'Tarjeta', color: '#1a2a4a' },
+      { clave: 'YAPE', etiqueta: 'Yape', color: '#7c3aed' },
+      { clave: 'PLIN', etiqueta: 'Plin', color: '#06b6d4' },
+      { clave: 'SIP', etiqueta: 'SIP', color: '#16a34a' },
+      { clave: 'OTRO', etiqueta: 'Otro / sin registrar', color: '#94a3b8' },
+    ];
+    const acum: Record<string, { cantidad: number; monto: number }> = {};
+    defs.forEach((d) => (acum[d.clave] = { cantidad: 0, monto: 0 }));
+
+    for (const v of this.ventas) {
+      const clave = String(v.metodoPago ?? '').toUpperCase();
+      const destino = acum[clave] ? clave : 'OTRO';
+      acum[destino].cantidad += 1;
+      acum[destino].monto += Number(v.total) || 0;
+    }
+
+    const totalCantidad = defs.reduce((a, d) => a + acum[d.clave].cantidad, 0);
+    const totalMonto = defs.reduce((a, d) => a + acum[d.clave].monto, 0);
+    this.metodosPago = defs
+      .map((d) => ({
+        ...d,
+        cantidad: acum[d.clave].cantidad,
+        monto: acum[d.clave].monto,
+        pctCantidad: totalCantidad ? (acum[d.clave].cantidad / totalCantidad) * 100 : 0,
+        pctMonto: totalMonto ? (acum[d.clave].monto / totalMonto) * 100 : 0,
+      }))
+      .filter((m) => m.cantidad > 0);
+    this.actualizarDonut();
+  }
+
+  cambiarModoMetodoPago(modo: 'monto' | 'cantidad'): void {
+    this.metodoPagoModo = modo;
+    this.actualizarDonut();
+  }
+
+  private actualizarDonut(): void {
+    const porMonto = this.metodoPagoModo === 'monto';
+    const valorDe = (m: { cantidad: number; monto: number }) => (porMonto ? m.monto : m.cantidad);
+    this.donutTotal = this.metodosPago.reduce((a, m) => a + valorDe(m), 0);
+
+    let acumulado = 0;
+    this.donutSegmentos = this.donutTotal === 0
+      ? []
+      : this.metodosPago
+          .filter((m) => valorDe(m) > 0)
+          .map((m) => {
+            const largo = (valorDe(m) / this.donutTotal) * this.donutCircunferencia;
+            const segmento = {
+              clave: m.clave,
+              color: m.color,
+              dash: `${largo} ${this.donutCircunferencia - largo}`,
+              offset: -acumulado,
+              detalle: `${m.etiqueta}: ${m.cantidad} pedidos · S/. ${m.monto.toFixed(2)}`,
+            };
+            acumulado += largo;
+            return segmento;
+          });
+  }
+
+  // ══════════ Satisfacción del cliente ══════════
+  cargarSatisfaccion(): void {
+    this.adminService.getSatisfaccion().subscribe({
+      next: (data: any) => {
+        this.satisfaccion = data;
+        this.satisfaccionCargando = false;
+        this.satisfaccionError = false;
+        this.prepararTendenciaSatisfaccion();
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.satisfaccionCargando = false;
+        this.satisfaccionError = true;
+      },
+    });
+  }
+
+  /** ¿La estrella n va "encendida" para el promedio actual? */
+  estrellaLlena(n: number): boolean {
+    return n <= Math.round(this.satisfaccion?.promedio ?? 0);
+  }
+
+  /** Repite la estrella n veces (para mostrar la calificación de un comentario). */
+  estrellasTexto(n: number): string {
+    return '★'.repeat(Math.max(0, Math.min(5, n)));
+  }
+
+  /** Convierte los promedios semanales en puntos y trazo para el mini gráfico de tendencia (escala de 1 a 5). */
+  private prepararTendenciaSatisfaccion(): void {
+    const semanas: any[] = this.satisfaccion?.tendencia ?? [];
+    const ancho = 300, alto = 90, padX = 16, padTop = 10, padBottom = 8;
+    const n = semanas.length;
+    const paso = n > 1 ? (ancho - padX * 2) / (n - 1) : 0;
+    const yDe = (prom: number) => padTop + (1 - (prom - 1) / 4) * (alto - padTop - padBottom);
+
+    this.satTendenciaPuntos = semanas.map((s, i) => ({
+      x: padX + i * paso,
+      y: s.promedio == null ? 0 : yDe(Number(s.promedio)),
+      promedio: s.promedio ?? null,
+      cantidad: s.cantidad ?? 0,
+      semana: s.semana,
+    }));
+
+    let trazo = '';
+    let anteriorConDato = false;
+    for (const p of this.satTendenciaPuntos) {
+      if (p.promedio == null) { anteriorConDato = false; continue; }
+      trazo += `${anteriorConDato ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+      anteriorConDato = true;
+    }
+    this.satTendenciaPath = trazo.trim();
   }
 
   generarGrafico(): void {

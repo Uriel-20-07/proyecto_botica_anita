@@ -4,12 +4,13 @@ import { NavbarComponent } from './components/navbar/navbar';
 import { FooterComponent } from './components/footer/footer';
 import { AuthModalComponent } from './components/auth-modal/auth-modal.component';
 import { ChatbotComponent } from './components/chatbot/chatbot';
+import { CalificacionFlotanteComponent } from './components/calificacion-flotante/calificacion-flotante';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, FooterComponent, AuthModalComponent, ChatbotComponent, CommonModule],
+  imports: [RouterOutlet, NavbarComponent, FooterComponent, AuthModalComponent, ChatbotComponent, CalificacionFlotanteComponent, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

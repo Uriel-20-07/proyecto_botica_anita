@@ -82,9 +82,7 @@
 }
 
 .nav-icon {
-  width: 20px;
-  height: 20px;
-  stroke-width: 2px;
+  font-size: 20px;
 }
 
 .sidebar-footer {
@@ -111,10 +109,8 @@
   align-items: center;
 }
 
-.user-avatar svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 2px;
+.user-avatar .bi {
+  font-size: 24px;
 }
 
 .user-info {
@@ -159,8 +155,7 @@
 }
 
 .icon-logout {
-  width: 16px;
-  height: 16px;
+  font-size: 16px;
 }
 
 /* Main Content Area */
@@ -241,9 +236,8 @@
   color: white;
 }
 
-.metric-icon svg {
-  width: 24px;
-  height: 24px;
+.metric-icon .bi {
+  font-size: 24px;
 }
 
 .val-icon {
@@ -395,8 +389,7 @@
 .search-icon {
   position: absolute;
   left: 14px;
-  width: 16px;
-  height: 16px;
+  font-size: 16px;
   color: #718096;
 }
 
@@ -1028,52 +1021,310 @@
   border-collapse: collapse;
 }
 
-/* =====================================
-   PAGINACIÓN
-   ===================================== */
-.pagination {
+/* ==========================================================================
+   Resumen: métodos de pago (dona) y satisfacción del cliente
+   ========================================================================== */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1100px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.insight-card .card-header {
+  margin-bottom: 18px;
+}
+
+.insight-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.empty-note {
+  color: #718096;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+/* Interruptor Monto / Pedidos */
+.segmented {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.segmented button {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.segmented button.active {
+  background: #ffffff;
+  color: #1a2a4a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* Dona */
+.pay-wrap {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 16px;
-  margin-bottom: 8px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
-.pagination button {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+.pay-donut {
+  width: 190px;
+  height: 190px;
+  flex-shrink: 0;
+}
+
+.pay-donut circle {
+  transition: stroke-dasharray 0.4s ease;
+}
+
+.pay-center-value {
+  font-size: 10px;
+  font-weight: 800;
+  fill: #1e293b;
+}
+
+.pay-center-label {
+  font-size: 7px;
+  fill: #718096;
+}
+
+.pay-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pay-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pay-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pay-legend-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.pay-legend-text strong {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.pay-legend-text span {
+  font-size: 12px;
+  color: #718096;
+}
+
+.pay-pct {
+  font-weight: 700;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+/* Satisfacción */
+.sat-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.sat-score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.sat-score-num {
+  font-size: 44px;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1;
+}
+
+.sat-score-max {
+  font-size: 16px;
+  color: #718096;
+}
+
+.sat-score-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sat-stars {
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #e2e8f0;
+}
+
+.sat-stars .on {
+  color: #f59e0b;
+}
+
+.sat-meta {
+  font-size: 12px;
+  color: #718096;
+}
+
+.sat-dist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.sat-dist-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.sat-dist-label {
   color: #475569;
-  padding: 8px 14px;
-  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.pagination button:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #1e293b;
-}
-
-.pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.sat-dist-track {
+  height: 10px;
   background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #94a3b8;
+  border-radius: 99px;
+  overflow: hidden;
 }
 
-.pagination span {
-  font-size: 13px;
-  font-weight: 600;
+.sat-dist-fill {
+  height: 100%;
+  background: #f59e0b;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.sat-dist-count {
+  text-align: right;
+  color: #475569;
+}
+
+.sat-sub {
+  font-size: 14px;
+  font-weight: 700;
   color: #1e293b;
-  padding: 8px 10px;
+  margin: 18px 0 8px;
+}
+
+.sat-trend {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.sat-grid line {
+  stroke: #e2e8f0;
+  stroke-dasharray: 3 3;
+}
+
+.sat-grid text {
+  font-size: 8px;
+  fill: #94a3b8;
+}
+
+.sat-trend-line {
+  fill: none;
+  stroke: #ea580c;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sat-trend-dot {
+  fill: #ffffff;
+  stroke: #ea580c;
+  stroke-width: 2;
+}
+
+.sat-trend-label {
+  font-size: 7.5px;
+  fill: #718096;
+}
+
+.sat-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.sat-comments li {
   background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  margin: 0 4px;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.sat-comment-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.sat-comment-stars {
+  color: #f59e0b;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.sat-comment-meta {
+  font-size: 12px;
+  color: #718096;
+}
+
+.sat-comments p {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  word-break: break-word;
 }
