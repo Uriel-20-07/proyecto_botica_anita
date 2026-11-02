@@ -68,6 +68,42 @@ public class EmailService {
     }
 
     /**
+     * Envía el código de 6 dígitos que confirma el correo durante el registro.
+     *
+     * A diferencia de {@link #sendVerificationEmail(String, String)}, este método
+     * devuelve si el envío fue exitoso para que el flujo de registro pueda avisar
+     * al usuario cuando el SMTP falla.
+     *
+     * @param destinatario      email a verificar.
+     * @param codigo            código numérico de 6 dígitos.
+     * @param expiracionMinutos minutos de vigencia del código.
+     * @return {@code true} si el correo se envió; {@code false} si hubo un error.
+     */
+    public boolean sendVerificationCodeEmail(String destinatario, String codigo, int expiracionMinutos) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("noreply@boticaanita.com");
+            message.setTo(destinatario);
+            message.setSubject("Confirma tu correo - BoticaAnita");
+
+            String contenido = "Hola,\n\n" +
+                    "Gracias por registrarte en BoticaAnita.\n\n" +
+                    "Tu código de verificación es: " + codigo + "\n\n" +
+                    "Ingresa este código en la ventana de registro para confirmar tu correo.\n" +
+                    "El código expirará en " + expiracionMinutos + " minutos.\n\n" +
+                    "Si no solicitaste este registro, puedes ignorar este correo.\n\n" +
+                    "Saludos,\nEquipo BoticaAnita";
+
+            message.setText(contenido);
+            mailSender.send(message);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Error enviando email de verificación: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Envía un correo para verificar la dirección de email del usuario.
      * 
      * Nota: La verificación de email está preparada pero no está completamente

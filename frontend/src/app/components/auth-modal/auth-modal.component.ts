@@ -7,6 +7,26 @@ import { AuthService } from '../../services/auth.service';
 import { AdminService } from '../../services/admin.service';
 import { AuthModalMode, AuthModalService } from '../../services/auth-modal.service';
 
+/**
+ * Progreso del registro que se guarda temporalmente en sessionStorage para
+ * sobrevivir a una recarga de página. Se borra al cerrar el modal, al cambiar
+ * de pestaña o al completar el registro.
+ */
+interface ProgresoRegistro {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  nombre: string;
+  apellido: string;
+  tipoDocumento: string;
+  numeroDocumento: string;
+  telefono: string;
+  aceptaTerminos: boolean;
+  paso: number;
+  codigoEnviadoEn?: number;
+  guardadoEn: number;
+}
+
 @Component({
   selector: 'app-auth-modal',
   standalone: true,
@@ -15,6 +35,12 @@ import { AuthModalMode, AuthModalService } from '../../services/auth-modal.servi
   styleUrl: './auth-modal.component.css'
 })
 export class AuthModalComponent implements OnInit, OnDestroy {
+  /** Clave de sessionStorage donde se guarda el progreso del registro. */
+  private static readonly CLAVE_PROGRESO = 'registroPendiente';
+
+  /** Vigencia máxima del progreso guardado: 30 minutos. */
+  private static readonly PROGRESO_TTL_MS = 30 * 60 * 1000;
+
   isOpen = false;
   mode: AuthModalMode = 'login';
   loginForm: FormGroup;
@@ -36,6 +62,9 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   private readonly subscriptions = new Subscription();
   private cooldownInterval?: ReturnType<typeof setInterval>;
+
+  /** Momento en que se envió (o reutilizó) el último código, para el cooldown. */
+  private codigoEnviadoEn = 0;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -85,6 +114,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Se restaura antes de suscribirse a open$: si había un registro en curso,
+    // el modal se reabre directamente y el manejador de cierre no lo resetea.
+    this.restaurarProgreso();
+
     this.subscriptions.add(
       this.authModalService.open$.subscribe((isOpen) => {
         this.isOpen = isOpen;
@@ -106,6 +139,14 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       this.authModalService.mode$.subscribe((mode) => {
         this.mode = mode;
       })
+    );
+
+    // Guarda el avance del registro para poder retomarlo tras una recarga.
+    this.subscriptions.add(
+      this.credencialesForm.valueChanges.subscribe(() => this.guardarProgreso())
+    );
+    this.subscriptions.add(
+      this.datosPersonalesForm.valueChanges.subscribe(() => this.guardarProgreso())
     );
   }
 
@@ -194,6 +235,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   setMode(mode: AuthModalMode): void {
+    // Si el usuario abandona la pestaña de registro, se descarta el borrador
+    // guardado para no reabrir el modal en un registro a medias.
+    if (mode !== 'registro' && this.mode === 'registro') {
+      this.limpiarProgreso();
+    }
+
     this.authModalService.setMode(mode);
     this.error = '';
     this.success = '';
@@ -295,26 +342,22 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     const email = this.credencialesControls['email'].value;
     this.enviandoCodigo = true;
 
-    this.authService.solicitarCodigo(email).subscribe({
-      next: () => {
+    // reenviar = false: si ya hay un código vigente, el backend lo reutiliza
+    // y no manda otro correo (por ejemplo, tras recargar la página).
+    this.authService.solicitarCodigo(email, false).subscribe({
+      next: (response) => {
         this.enviandoCodigo = false;
         this.registroStep = 2;
-        this.success = `Enviamos un código de 6 dígitos a ${email}. Revisa tu correo.`;
+        this.success = response.enviado
+          ? `Enviamos un código de 6 dígitos a ${email}. Revisa tu correo.`
+          : `Ya te enviamos un código a ${email}. Usa el que llegó a tu correo.`;
+        this.codigoEnviadoEn = Date.now();
         this.iniciarCooldown(60);
+        this.guardarProgreso();
       },
       error: (response) => {
         this.enviandoCodigo = false;
         const mensaje = response.error?.error || 'No se pudo enviar el código. Inténtalo de nuevo.';
-
-        // Si el backend rechaza por cooldown, significa que ya hay un código
-        // vigente para ese correo: se deja continuar en vez de bloquear el flujo.
-        if (mensaje.toLowerCase().includes('espera')) {
-          this.registroStep = 2;
-          this.success = `Ya enviamos un código a ${email}. Revisa tu correo.`;
-          this.iniciarCooldown(60);
-          return;
-        }
-
         this.error = mensaje;
         if (mensaje.toLowerCase().includes('registrado')) {
           this.credencialesControls['email'].markAsTouched();
@@ -337,6 +380,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     }
 
     this.registroStep = 3;
+    this.guardarProgreso();
   }
 
   /** Reenvía el código de verificación respetando el cooldown del backend. */
@@ -350,15 +394,27 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.success = '';
     this.enviandoCodigo = true;
 
-    this.authService.solicitarCodigo(email).subscribe({
-      next: () => {
+    // reenviar = true: el usuario pidió explícitamente un código nuevo.
+    this.authService.solicitarCodigo(email, true).subscribe({
+      next: (response) => {
         this.enviandoCodigo = false;
-        this.success = `Enviamos un nuevo código a ${email}.`;
+        this.success = response.enviado
+          ? `Enviamos un nuevo código a ${email}.`
+          : `Ya hay un código vigente para ${email}. Revisa tu correo.`;
+        this.codigoEnviadoEn = Date.now();
         this.iniciarCooldown(60);
+        this.guardarProgreso();
       },
       error: (response) => {
         this.enviandoCodigo = false;
-        this.error = response.error?.error || 'No se pudo reenviar el código.';
+        const mensaje = response.error?.error || 'No se pudo reenviar el código.';
+        this.error = mensaje;
+
+        // El backend puede rechazar por cooldown: se refleja en el contador.
+        const segundos = this.extraerSegundosEspera(mensaje);
+        if (segundos !== null) {
+          this.iniciarCooldown(segundos);
+        }
       }
     });
   }
@@ -369,6 +425,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.success = '';
     this.verificacionForm.reset();
     this.registroStep = 1;
+    this.guardarProgreso();
   }
 
   /** Regresa del paso 3 al paso 2 conservando los datos ya escritos. */
@@ -376,6 +433,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.error = '';
     this.success = '';
     this.registroStep = 2;
+    this.guardarProgreso();
   }
 
   /** Paso 3: valida el código y crea la cuenta en el backend. */
@@ -420,14 +478,16 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Limpia los formularios del registro y vuelve al paso 1. */
+  /** Limpia los formularios del registro, el progreso guardado y vuelve al paso 1. */
   private resetRegistro(): void {
     this.credencialesForm.reset();
     this.datosPersonalesForm.reset({ tipoDocumento: 'DNI', aceptaTerminos: false });
     this.verificacionForm.reset();
     this.registroStep = 1;
     this.enviandoCodigo = false;
+    this.codigoEnviadoEn = 0;
     this.detenerCooldown();
+    this.limpiarProgreso();
     this.showRegisterPassword = false;
     this.showRegisterConfirmPassword = false;
   }
@@ -451,6 +511,150 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       this.cooldownInterval = undefined;
     }
     this.reenvioCooldown = 0;
+  }
+
+  /** Extrae los segundos de un mensaje del tipo "Espera 42 segundos...". */
+  private extraerSegundosEspera(mensaje: string): number | null {
+    const coincidencia = /espera\s+(\d+)\s+segundos/i.exec(mensaje);
+    return coincidencia ? Number(coincidencia[1]) : null;
+  }
+
+  /**
+   * Acceso seguro a sessionStorage: en SSR (o si el navegador lo bloquea)
+   * devuelve null y la persistencia simplemente se omite.
+   */
+  private obtenerSessionStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Guarda en sessionStorage el avance del registro (solo si hay un email
+   * escrito en modo registro). Así, recargar la página no obliga a empezar
+   * de cero ni a pedir un código nuevo.
+   */
+  private guardarProgreso(): void {
+    if (this.mode !== 'registro') {
+      return;
+    }
+
+    const email = this.credencialesControls['email'].value;
+    if (!email) {
+      return;
+    }
+
+    const storage = this.obtenerSessionStorage();
+    if (!storage) {
+      return;
+    }
+
+    const progreso: ProgresoRegistro = {
+      email,
+      password: this.credencialesControls['password'].value || '',
+      confirmPassword: this.credencialesControls['confirmPassword'].value || '',
+      nombre: this.datosPersonalesControls['nombre'].value || '',
+      apellido: this.datosPersonalesControls['apellido'].value || '',
+      tipoDocumento: this.datosPersonalesControls['tipoDocumento'].value || 'DNI',
+      numeroDocumento: this.datosPersonalesControls['numeroDocumento'].value || '',
+      telefono: this.datosPersonalesControls['telefono'].value || '',
+      aceptaTerminos: this.datosPersonalesControls['aceptaTerminos'].value === true,
+      paso: this.registroStep,
+      codigoEnviadoEn: this.codigoEnviadoEn || undefined,
+      guardadoEn: Date.now()
+    };
+
+    try {
+      storage.setItem(AuthModalComponent.CLAVE_PROGRESO, JSON.stringify(progreso));
+    } catch {
+      // Si el almacenamiento está lleno o bloqueado, se ignora: es solo una ayuda.
+    }
+  }
+
+  /** Elimina el progreso guardado del registro. */
+  private limpiarProgreso(): void {
+    const storage = this.obtenerSessionStorage();
+    if (!storage) {
+      return;
+    }
+    try {
+      storage.removeItem(AuthModalComponent.CLAVE_PROGRESO);
+    } catch {
+      // Sin acceso al almacenamiento no hay nada que limpiar.
+    }
+  }
+
+  /**
+   * Retoma un registro a medias tras una recarga: restaura los datos y reabre
+   * el modal en el paso donde se quedó el usuario.
+   *
+   * Se descarta el progreso vencido (más de 30 min), inválido o de un usuario
+   * que ya inició sesión.
+   */
+  private restaurarProgreso(): void {
+    const storage = this.obtenerSessionStorage();
+    if (!storage) {
+      return;
+    }
+
+    if (this.authService.isAuthenticated()) {
+      this.limpiarProgreso();
+      return;
+    }
+
+    let progreso: ProgresoRegistro | null = null;
+    try {
+      const crudo = storage.getItem(AuthModalComponent.CLAVE_PROGRESO);
+      progreso = crudo ? (JSON.parse(crudo) as ProgresoRegistro) : null;
+    } catch {
+      progreso = null;
+    }
+
+    if (!progreso || !progreso.email) {
+      this.limpiarProgreso();
+      return;
+    }
+
+    if (!progreso.guardadoEn
+      || Date.now() - progreso.guardadoEn > AuthModalComponent.PROGRESO_TTL_MS) {
+      this.limpiarProgreso();
+      return;
+    }
+
+    this.credencialesForm.setValue({
+      email: progreso.email,
+      password: progreso.password || '',
+      confirmPassword: progreso.confirmPassword || progreso.password || ''
+    });
+
+    this.datosPersonalesForm.setValue({
+      nombre: progreso.nombre || '',
+      apellido: progreso.apellido || '',
+      tipoDocumento: progreso.tipoDocumento || 'DNI',
+      numeroDocumento: progreso.numeroDocumento || '',
+      telefono: progreso.telefono || '',
+      aceptaTerminos: progreso.aceptaTerminos === true
+    });
+
+    this.registroStep = progreso.paso === 3 ? 3 : progreso.paso === 2 ? 2 : 1;
+    this.codigoEnviadoEn = progreso.codigoEnviadoEn || 0;
+    this.success = 'Recuperamos tu registro. Continúa donde lo dejaste.';
+
+    // Si el código se envió hace menos de 60 s, se respeta el tiempo restante.
+    if (this.codigoEnviadoEn) {
+      const transcurrido = Math.floor((Date.now() - this.codigoEnviadoEn) / 1000);
+      const restante = 60 - transcurrido;
+      if (restante > 0) {
+        this.iniciarCooldown(restante);
+      }
+    }
+
+    this.authModalService.open('registro');
   }
 
   submitRecovery(): void {

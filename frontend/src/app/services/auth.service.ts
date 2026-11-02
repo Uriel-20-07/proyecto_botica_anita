@@ -105,17 +105,25 @@ export class AuthService {
   }
 
   /**
-   * Solicita el envío de un código de 6 dígitos al correo para confirmar la cuenta.
+   * Asegura que exista un código de 6 dígitos vigente para el correo.
    * Se usa en el primer paso del registro. El backend valida que el correo esté
    * disponible y aplica un cooldown entre envíos.
    *
-   * @param email correo al que se enviará el código.
-   * @returns Observable con el mensaje y los minutos de vigencia del código.
+   * Si ya hay un código vigente y `reenviar` es false, el backend reutiliza el
+   * código sin enviar un correo nuevo (`enviado: false`). Así, recargar la
+   * página no duplica correos ni invalida el código ya recibido.
+   *
+   * @param email    correo al que se enviará el código.
+   * @param reenviar true para forzar un código nuevo (botón "Reenviar código").
+   * @returns Observable con `enviado`, el mensaje y los minutos de vigencia.
    */
-  solicitarCodigo(email: string): Observable<{ mensaje: string; expiracionMinutos: number }> {
-    return this.http.post<{ mensaje: string; expiracionMinutos: number }>(
+  solicitarCodigo(
+    email: string,
+    reenviar = false
+  ): Observable<{ mensaje: string; enviado: boolean; expiracionMinutos: number }> {
+    return this.http.post<{ mensaje: string; enviado: boolean; expiracionMinutos: number }>(
       `${this.apiUrl}/solicitar-codigo`,
-      { email }
+      { email, reenviar: String(reenviar) }
     );
   }
 
