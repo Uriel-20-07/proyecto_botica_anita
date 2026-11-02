@@ -68,6 +68,7 @@ export class AuthService {
 
   /**
    * Registra un nuevo usuario en el sistema.
+   * Requiere el código de 6 dígitos enviado al correo en el paso 1.
    * El email de bienvenida con cupón se envía automáticamente desde el backend.
    *
    * @param email    correo electrónico único del usuario.
@@ -75,6 +76,7 @@ export class AuthService {
    * @param nombre   nombre del usuario.
    * @param apellido apellido del usuario.
    * @param telefono número de teléfono (opcional).
+   * @param codigo   código de 6 dígitos enviado al correo en el paso 1.
    * @returns Observable con la respuesta del backend (id, email, nombre, apellido).
    */
   registro(
@@ -85,7 +87,8 @@ export class AuthService {
     telefono: string,
     tipoDocumento: string,
     numeroDocumento: string,
-    aceptaTerminos: boolean
+    aceptaTerminos: boolean,
+    codigo: string
   ): Observable<any> {
     return this.http.post(`${this.apiUrl}/registro`, {
       email,
@@ -96,8 +99,24 @@ export class AuthService {
       tipoDocumento,
       numeroDocumento,
       // El endpoint recibe un Map<String, String>, por eso se envía como texto
-      aceptaTerminos: String(aceptaTerminos)
+      aceptaTerminos: String(aceptaTerminos),
+      codigo
     });
+  }
+
+  /**
+   * Solicita el envío de un código de 6 dígitos al correo para confirmar la cuenta.
+   * Se usa en el primer paso del registro. El backend valida que el correo esté
+   * disponible y aplica un cooldown entre envíos.
+   *
+   * @param email correo al que se enviará el código.
+   * @returns Observable con el mensaje y los minutos de vigencia del código.
+   */
+  solicitarCodigo(email: string): Observable<{ mensaje: string; expiracionMinutos: number }> {
+    return this.http.post<{ mensaje: string; expiracionMinutos: number }>(
+      `${this.apiUrl}/solicitar-codigo`,
+      { email }
+    );
   }
 
   /**

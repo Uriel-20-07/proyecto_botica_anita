@@ -73,16 +73,18 @@
         </form>
       } @else if (mode === 'registro') {
         <div class="registro-steps" aria-hidden="true">
-          <span class="registro-step" [class.active]="registroStep === 1" [class.done]="registroStep === 2">1</span>
+          <span class="registro-step" [class.active]="registroStep === 1" [class.done]="registroStep > 1">1</span>
           <span class="registro-step-line"></span>
-          <span class="registro-step" [class.active]="registroStep === 2">2</span>
+          <span class="registro-step" [class.active]="registroStep === 2" [class.done]="registroStep > 2">2</span>
+          <span class="registro-step-line"></span>
+          <span class="registro-step" [class.active]="registroStep === 3">3</span>
         </div>
 
         @if (registroStep === 1) {
           <form [formGroup]="credencialesForm" (ngSubmit)="continuarRegistro()" class="auth-form">
             <div class="recovery-note">
-              <strong>Paso 1 de 2 · Tus credenciales</strong>
-              <span>Verificaremos que el correo esté disponible antes de continuar.</span>
+              <strong>Paso 1 de 3 · Tus credenciales</strong>
+              <span>Verificaremos que el correo esté disponible y te enviaremos un código de 6 dígitos.</span>
             </div>
 
             <div class="form-group">
@@ -133,18 +135,18 @@
               }
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block" [disabled]="credencialesForm.invalid || verificandoEmail">
-              @if (verificandoEmail) {
+            <button type="submit" class="btn btn-primary btn-block" [disabled]="credencialesForm.invalid || enviandoCodigo">
+              @if (enviandoCodigo) {
                 <span class="spinner-border spinner-border-sm mr-2"></span>
               }
-              {{ verificandoEmail ? 'Verificando correo...' : 'Continuar' }}
+              {{ enviandoCodigo ? 'Enviando código...' : 'Continuar' }}
             </button>
           </form>
-        } @else {
-          <form [formGroup]="datosPersonalesForm" (ngSubmit)="submitRegistro()" class="auth-form">
+        } @else if (registroStep === 2) {
+          <form [formGroup]="datosPersonalesForm" (ngSubmit)="continuarDatos()" class="auth-form">
             <div class="recovery-note">
-              <strong>Paso 2 de 2 · Tus datos</strong>
-              <span>Crearemos la cuenta de {{ credencialesControls['email'].value }}</span>
+              <strong>Paso 2 de 3 · Tus datos</strong>
+              <span>Completa tus datos personales. El código lo usarás en el último paso.</span>
             </div>
 
             <div class="form-row">
@@ -215,6 +217,45 @@
               }
             </div>
 
+            <button type="submit" class="btn btn-primary btn-block">Continuar</button>
+
+            <button type="button" class="mini-link centered" (click)="volverACredenciales()">Volver a las credenciales</button>
+          </form>
+        } @else {
+          <form [formGroup]="verificacionForm" (ngSubmit)="confirmarRegistro()" class="auth-form">
+            <div class="recovery-note">
+              <strong>Paso 3 de 3 · Confirma tu correo</strong>
+              <span>Enviamos un código de 6 dígitos a {{ credencialesControls['email'].value }}.</span>
+            </div>
+
+            <div class="form-group">
+              <div class="field-head">
+                <label for="modal-codigo">Código de verificación</label>
+                <button
+                  type="button"
+                  class="mini-link"
+                  (click)="reenviarCodigo()"
+                  [disabled]="reenvioCooldown > 0 || enviandoCodigo || loading"
+                >
+                  {{ reenvioCooldown > 0 ? 'Reenviar en ' + reenvioCooldown + 's' : (enviandoCodigo ? 'Enviando...' : 'Reenviar código') }}
+                </button>
+              </div>
+              <input
+                id="modal-codigo"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                class="form-control code-input"
+                formControlName="codigo"
+                maxlength="6"
+                placeholder="000000"
+                (input)="soloNumerosCodigo($event)"
+              />
+              @if (verificacionControls['codigo'].touched && verificacionControls['codigo'].errors) {
+                <small class="field-error">Ingresa el código de 6 dígitos</small>
+              }
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
               @if (loading) {
                 <span class="spinner-border spinner-border-sm mr-2"></span>
@@ -222,7 +263,7 @@
               Crear cuenta
             </button>
 
-            <button type="button" class="mini-link centered" (click)="volverACredenciales()">Volver a las credenciales</button>
+            <button type="button" class="mini-link centered" (click)="volverADatos()" [disabled]="loading">Volver a mis datos</button>
           </form>
         }
       } @else {

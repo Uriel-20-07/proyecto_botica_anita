@@ -181,6 +181,19 @@
   margin-top: 2px;
 }
 
+.mini-link:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Código de verificación de 6 dígitos */
+.code-input {
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
 .recovery-note {
   display: flex;
   flex-direction: column;

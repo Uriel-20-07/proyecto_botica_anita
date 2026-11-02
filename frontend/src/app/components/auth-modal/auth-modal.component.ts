@@ -20,9 +20,11 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   loginForm: FormGroup;
   credencialesForm: FormGroup;
   datosPersonalesForm: FormGroup;
+  verificacionForm: FormGroup;
   recoveryForm: FormGroup;
   loading = false;
-  verificandoEmail = false;
+  enviandoCodigo = false;
+  reenvioCooldown = 0;
   error = '';
   success = '';
   showLoginPassword = false;
@@ -30,9 +32,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   showRegisterConfirmPassword = false;
   showRecoveryPassword = false;
   recoveryStep: 1 | 2 = 1;
-  registroStep: 1 | 2 = 1;
+  registroStep: 1 | 2 | 3 = 1;
 
   private readonly subscriptions = new Subscription();
+  private cooldownInterval?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -61,6 +64,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       numeroDocumento: ['', [Validators.required, Validators.pattern(/^\d{8}$/)]],
       telefono: [''],
       aceptaTerminos: [false, [Validators.requiredTrue]]
+    });
+
+    this.verificacionForm = this.formBuilder.group({
+      codigo: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
     });
 
     this.recoveryForm = this.formBuilder.group({
@@ -103,6 +110,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.detenerCooldown();
     this.subscriptions.unsubscribe();
   }
 
@@ -116,6 +124,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   get datosPersonalesControls() {
     return this.datosPersonalesForm.controls;
+  }
+
+  get verificacionControls() {
+    return this.verificacionForm.controls;
   }
 
   get recoveryControls() {
@@ -134,6 +146,16 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       input.value = limpio;
     }
     this.datosPersonalesControls['numeroDocumento'].setValue(limpio);
+  }
+
+  /** Deja solo dígitos y corta el código de verificación a 6 caracteres. */
+  soloNumerosCodigo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const limpio = input.value.replace(/\D/g, '').slice(0, 6);
+    if (input.value !== limpio) {
+      input.value = limpio;
+    }
+    this.verificacionControls['codigo'].setValue(limpio);
   }
 
   private actualizarValidacionDocumento(tipo: string | null): void {
@@ -258,7 +280,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   /**
    * Paso 1 del registro: valida email, contraseña y confirmación en local y
-   * consulta si el correo está disponible antes de mostrar el resto de campos.
+   * solicita al backend el envío de un código de 6 dígitos al correo. El
+   * backend valida la disponibilidad del correo antes de enviarlo.
    */
   continuarRegistro(): void {
     this.error = '';
@@ -270,21 +293,72 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     }
 
     const email = this.credencialesControls['email'].value;
-    this.verificandoEmail = true;
+    this.enviandoCodigo = true;
 
-    this.authService.verificarEmail(email).subscribe({
-      next: (response) => {
-        this.verificandoEmail = false;
-        if (!response.disponible) {
-          this.error = 'Este correo ya está registrado. Prueba con otro o inicia sesión.';
-          this.credencialesControls['email'].markAsTouched();
-          return;
-        }
+    this.authService.solicitarCodigo(email).subscribe({
+      next: () => {
+        this.enviandoCodigo = false;
         this.registroStep = 2;
+        this.success = `Enviamos un código de 6 dígitos a ${email}. Revisa tu correo.`;
+        this.iniciarCooldown(60);
       },
       error: (response) => {
-        this.verificandoEmail = false;
-        this.error = response.error?.error || 'No se pudo verificar el correo. Inténtalo de nuevo.';
+        this.enviandoCodigo = false;
+        const mensaje = response.error?.error || 'No se pudo enviar el código. Inténtalo de nuevo.';
+
+        // Si el backend rechaza por cooldown, significa que ya hay un código
+        // vigente para ese correo: se deja continuar en vez de bloquear el flujo.
+        if (mensaje.toLowerCase().includes('espera')) {
+          this.registroStep = 2;
+          this.success = `Ya enviamos un código a ${email}. Revisa tu correo.`;
+          this.iniciarCooldown(60);
+          return;
+        }
+
+        this.error = mensaje;
+        if (mensaje.toLowerCase().includes('registrado')) {
+          this.credencialesControls['email'].markAsTouched();
+        }
+      }
+    });
+  }
+
+  /**
+   * Paso 2: valida los datos personales en local y avanza al paso 3.
+   * No llama al backend: la cuenta se crea recién al confirmar el código.
+   */
+  continuarDatos(): void {
+    this.error = '';
+    this.success = '';
+
+    if (this.datosPersonalesForm.invalid) {
+      this.datosPersonalesForm.markAllAsTouched();
+      return;
+    }
+
+    this.registroStep = 3;
+  }
+
+  /** Reenvía el código de verificación respetando el cooldown del backend. */
+  reenviarCodigo(): void {
+    if (this.reenvioCooldown > 0 || this.enviandoCodigo || this.loading) {
+      return;
+    }
+
+    const email = this.credencialesControls['email'].value;
+    this.error = '';
+    this.success = '';
+    this.enviandoCodigo = true;
+
+    this.authService.solicitarCodigo(email).subscribe({
+      next: () => {
+        this.enviandoCodigo = false;
+        this.success = `Enviamos un nuevo código a ${email}.`;
+        this.iniciarCooldown(60);
+      },
+      error: (response) => {
+        this.enviandoCodigo = false;
+        this.error = response.error?.error || 'No se pudo reenviar el código.';
       }
     });
   }
@@ -292,15 +366,25 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   /** Regresa del paso 2 al paso 1 conservando lo ya escrito. */
   volverACredenciales(): void {
     this.error = '';
+    this.success = '';
+    this.verificacionForm.reset();
     this.registroStep = 1;
   }
 
-  submitRegistro(): void {
+  /** Regresa del paso 3 al paso 2 conservando los datos ya escritos. */
+  volverADatos(): void {
+    this.error = '';
+    this.success = '';
+    this.registroStep = 2;
+  }
+
+  /** Paso 3: valida el código y crea la cuenta en el backend. */
+  confirmarRegistro(): void {
     this.error = '';
     this.success = '';
 
-    if (this.datosPersonalesForm.invalid) {
-      this.datosPersonalesForm.markAllAsTouched();
+    if (this.verificacionForm.invalid) {
+      this.verificacionForm.markAllAsTouched();
       return;
     }
 
@@ -313,14 +397,15 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       this.datosPersonalesControls['telefono'].value,
       this.datosPersonalesControls['tipoDocumento'].value,
       this.datosPersonalesControls['numeroDocumento'].value,
-      this.datosPersonalesControls['aceptaTerminos'].value === true
+      this.datosPersonalesControls['aceptaTerminos'].value === true,
+      this.verificacionControls['codigo'].value
     ).subscribe({
       next: () => {
         this.loading = false;
         this.resetRegistro();
         // setMode limpia los mensajes, por eso el éxito se asigna después
         this.setMode('login');
-        this.success = 'Registro exitoso. Ya puedes iniciar sesión con tu correo.';
+        this.success = 'Correo confirmado. Ya puedes iniciar sesión.';
       },
       error: (response) => {
         const mensaje = response.error?.error || 'Error al registrar usuario';
@@ -335,14 +420,37 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Limpia ambos formularios del registro y vuelve al paso 1. */
+  /** Limpia los formularios del registro y vuelve al paso 1. */
   private resetRegistro(): void {
     this.credencialesForm.reset();
     this.datosPersonalesForm.reset({ tipoDocumento: 'DNI', aceptaTerminos: false });
+    this.verificacionForm.reset();
     this.registroStep = 1;
-    this.verificandoEmail = false;
+    this.enviandoCodigo = false;
+    this.detenerCooldown();
     this.showRegisterPassword = false;
     this.showRegisterConfirmPassword = false;
+  }
+
+  /** Inicia el contador visual de reenvío (el backend también lo valida). */
+  private iniciarCooldown(segundos: number): void {
+    this.detenerCooldown();
+    this.reenvioCooldown = segundos;
+    this.cooldownInterval = setInterval(() => {
+      this.reenvioCooldown = Math.max(0, this.reenvioCooldown - 1);
+      if (this.reenvioCooldown === 0) {
+        this.detenerCooldown();
+      }
+    }, 1000);
+  }
+
+  /** Detiene y reinicia el contador de reenvío. */
+  private detenerCooldown(): void {
+    if (this.cooldownInterval) {
+      clearInterval(this.cooldownInterval);
+      this.cooldownInterval = undefined;
+    }
+    this.reenvioCooldown = 0;
   }
 
   submitRecovery(): void {
