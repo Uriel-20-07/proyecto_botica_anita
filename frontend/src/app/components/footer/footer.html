@@ -30,17 +30,54 @@
                 </div>
 
                 <!-- Col 2 — Catálogo -->
-                <div class="footer-col">
-                    <h4 class="footer-heading">Catálogo</h4>
-                    <ul class="footer-list">
-                        <li><a href="/catalogo/medicamentos">Medicamentos</a></li>
-                        <li><a href="/catalogo/vitaminas">Vitaminas y Suplementos</a></li>
-                        <li><a href="/catalogo/belleza">Cuidado Personal</a></li>
-                        <li><a href="/catalogo/bebes">Bebés y Mamás</a></li>
-                        <li><a href="/catalogo/dispositivos">Dispositivos Médicos</a></li>
-                        <li><a href="/ofertas">Ofertas Especiales</a></li>
-                    </ul>
-                </div>
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Catálogo</h4>
+                        <ul class="footer-list">
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ categoria: 'Medicamentos' }">
+                                    Medicamentos
+                                </a>
+                            </li>
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ categoria: 'Vitaminas / Suplementos' }">
+                                    Vitaminas y Suplementos
+                                </a>
+                            </li>
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ categoria: 'Cuidado Personal' }">
+                                    Cuidado Personal
+                                </a>
+                            </li>
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ categoria: 'Bebé' }">
+                                    Bebés y Mamás
+                                </a>
+                            </li>
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ categoria: 'Equipos Médicos' }">
+                                    Dispositivos Médicos
+                                </a>
+                            </li>
+
+                            <li>
+                                <a [routerLink]="['/catalogo']"
+                                [queryParams]="{ ofertas: 'true' }">
+                                    Ofertas Especiales
+                                </a>
+                            </li>
+
+                        </ul>
+</div>
 
                 <!-- Col 3 — Soporte -->
                 <div class="footer-col">

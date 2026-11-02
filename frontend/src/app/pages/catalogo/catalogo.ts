@@ -72,6 +72,13 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   private queryCategoria = '';
   private destroy$ = new Subject<void>();
 
+  private normalizarTexto(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
   private readonly imagenPorCategoria: Record<string, string> = {
     medicamentos: 'assets/img/producto1.png',
     'cuidado personal': 'assets/img/producto2.png',
@@ -413,24 +420,31 @@ export class CatalogoComponent implements OnInit, OnDestroy {
    * dispara la búsqueda en Algolia o el filtrado local según corresponda.
    */
   private aplicarFiltrosDesdeUrl(): void {
-    this.busqueda = this.queryBusqueda;
 
-    if (this.queryCategoria) {
-      const categoriaNormalizada = this.queryCategoria.toLowerCase();
-      const encontrada = this.categorias.find((c) => c.nombre.toLowerCase() === categoriaNormalizada);
-      this.categoriaSeleccionadaId = encontrada?.idCategoria ?? null;
-    } else {
-      this.categoriaSeleccionadaId = null;
-    }
+  this.busqueda = this.queryBusqueda;
 
-    if (this.busqueda.trim()) {
-      // Hay término de búsqueda: usar Algolia
-      this.buscar();
-    } else {
-      // Sin término: filtrado local por categoría/precio
-      this.aplicarFiltros();
-    }
+  if (this.queryCategoria) {
+
+    const categoriaNormalizada =
+      this.normalizarTexto(this.queryCategoria);
+
+    const encontrada = this.categorias.find(
+      c => this.normalizarTexto(c.nombre) === categoriaNormalizada
+    );
+
+    this.categoriaSeleccionadaId =
+      encontrada?.idCategoria ?? null;
+
+  } else {
+    this.categoriaSeleccionadaId = null;
   }
+
+  if (this.busqueda.trim()) {
+    this.buscar();
+  } else {
+    this.aplicarFiltros();
+  }
+}
 
   isFavorito(idProducto: number): boolean {
     return this.favoritosService.isFavorito(idProducto);
