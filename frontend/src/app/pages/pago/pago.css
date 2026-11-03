@@ -87,7 +87,7 @@
 }
 
 /* ── FORMULARIO ── */
-.form-group { margin-bottom: 18px; }
+.form-group { margin-bottom: 18px; position: relative; }
 .form-group label {
     display: block;
     font-size: 13px;
@@ -617,3 +617,38 @@
 /* ─── SIP (antes Ágora) ────────────────────────────────────────────────── */
 .sip-badge-logo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 .sip-cuenta { background: #f5f3ff; border-color: #ddd6fe; }
+
+/* ── Búsqueda predictiva Geoapify ── */
+.sugerencias-lista {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(26, 46, 74, 0.15);
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 50;
+  margin: 0;
+  padding: 6px 0;
+}
+.sugerencia-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.875rem;
+  color: #334155;
+  transition: background 0.15s, color 0.15s;
+}
+.sugerencia-item:last-child { border-bottom: none; }
+.sugerencia-item:hover { background: #f1f5f9; color: #1a2e4a; }
+.sug-texto { font-weight: 500; }
+
+
+.distrito-detectado { margin: 8px 0; }
+.chip-distrito { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
