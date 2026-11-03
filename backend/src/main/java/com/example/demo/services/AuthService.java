@@ -1,9 +1,11 @@
 package com.example.demo.services;
 
 import com.example.demo.models.Cupon;
+import com.example.demo.models.EmailVerificationCode;
 import com.example.demo.models.PasswordResetToken;
 import com.example.demo.models.User;
 import com.example.demo.repositories.CuponRepository;
+import com.example.demo.repositories.EmailVerificationCodeRepository;
 import com.example.demo.repositories.PasswordResetTokenRepository;
 import com.example.demo.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,7 +24,7 @@ import java.util.UUID;
  * Servicio de autenticación y gestión de usuarios.
  * 
  * Centraliza la lógica de negocio relacionada con:
- * - Registro de nuevos usuarios (con validaciones y cupón de bienvenida).
+ * - Registro de nuevos usuarios (con validaciones, verificación de correo por código y cupón de bienvenida).
  * - Login y generación de tokens JWT.
  * - Recuperación de contraseña por email (flujo de reset por token).
  * - Cambio de contraseña (tanto por token como autenticado).
@@ -34,14 +38,30 @@ public class AuthService {
     /** Versión vigente de los Términos y Condiciones (debe coincidir con TerminosComponent en el frontend). */
     public static final String VERSION_TERMINOS = "1.0";
 
+    /** Minutos de vigencia del código de verificación enviado al correo. */
+    public static final int CODIGO_EXPIRACION_MINUTOS = 15;
+
+    /** Intentos máximos permitidos para acertar el código de verificación. */
+    private static final int CODIGO_MAX_INTENTOS = 5;
+
+    /** Segundos mínimos entre envíos de código para un mismo correo. */
+    private static final int CODIGO_REENVIO_COOLDOWN_SEGUNDOS = 60;
+
 
     /** Repositorio de usuarios clientes. */
     @Autowired
     private UserRepository userRepository;
 
+    /** Repositorio de códigos temporales de verificación de correo. */
+    @Autowired
+    private EmailVerificationCodeRepository emailVerificationCodeRepository;
+
     /** Repositorio de tokens de recuperación de contraseña. */
     @Autowired
     private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    /** Generador seguro de códigos de verificación. */
+    private final SecureRandom secureRandom = new SecureRandom();
 
     /** Servicio para generar y validar tokens JWT. */
     @Autowired
@@ -70,7 +90,7 @@ public class AuthService {
      * Indica si un email está libre para registrarse.
      *
      * Solo comprueba la disponibilidad del correo; no crea ni reserva nada.
-     * La unicidad definitiva se vuelve a validar en {@link #registrar(String, String, String, String, String, String, String, boolean)}
+     * La unicidad definitiva se vuelve a validar en {@link #registrar(String, String, String, String, String, String, String, boolean, String)}
      * y por la restricción unique de la base de datos.
      *
      * @param email correo electrónico a consultar.
@@ -81,14 +101,140 @@ public class AuthService {
     }
 
     /**
-     * Registra un nuevo usuario en el sistema.
-     * 
+     * Genera un código de 6 dígitos y lo envía al correo indicado.
+     *
+     * Flujo del registro:
+     * - Paso 1 (credenciales): el frontend llama a este método después de
+     *   comprobar que el correo está disponible.
+     * - Paso 3 (código): el registro definitivo valida el código con
+     *   {@link #validarCodigoVerificacion(String, String)} y recién ahí crea la cuenta.
+     *
+     * El código se guarda hasheado con BCrypt y vence a los
+     * {@value #CODIGO_EXPIRACION_MINUTOS} minutos. Se permite un solo código
+     * vigente por correo y se aplica un cooldown entre envíos para evitar spam.
+     *
+     * Si ya existe un código vigente y {@code reenviar} es {@code false}, el
+     * código se reutiliza y no se envía un correo nuevo. Esto evita correos
+     * duplicados cuando el usuario recarga la página o vuelve al paso 1.
+     *
+     * @param email correo al que se enviará el código.
+     * @param reenviar {@code true} para forzar un código nuevo (botón "Reenviar código").
+     * @return {@code true} si se envió un correo nuevo; {@code false} si se
+     *         reutilizó un código vigente.
+     * @throws RuntimeException si el correo ya está registrado, si se solicita
+     *                          demasiado rápido o si el envío del correo falla.
+     */
+    public boolean enviarCodigoVerificacion(String email, boolean reenviar) {
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("El email es requerido");
+        }
+        email = email.trim();
+
+        if (!emailDisponible(email)) {
+            throw new RuntimeException("Este correo ya está registrado");
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        Optional<EmailVerificationCode> existenteOpt = emailVerificationCodeRepository.findByEmail(email);
+
+        if (existenteOpt.isPresent() && !existenteOpt.get().isExpired()) {
+            EmailVerificationCode existente = existenteOpt.get();
+
+            // Ya hay un código vigente: se reutiliza salvo que el usuario pida reenviar.
+            if (!reenviar) {
+                return false;
+            }
+
+            boolean enCooldown = existente.getFechaCreacion()
+                    .plusSeconds(CODIGO_REENVIO_COOLDOWN_SEGUNDOS).isAfter(ahora);
+            if (enCooldown) {
+                long segundos = CODIGO_REENVIO_COOLDOWN_SEGUNDOS
+                        - Duration.between(existente.getFechaCreacion(), ahora).getSeconds();
+                throw new RuntimeException("Espera " + Math.max(segundos, 1)
+                        + " segundos antes de solicitar otro código");
+            }
+        }
+
+        // Código numérico de 6 dígitos (100000-999999), sin depender del locale
+        String codigo = String.valueOf(100000 + secureRandom.nextInt(900000));
+
+        EmailVerificationCode registro = existenteOpt.orElseGet(EmailVerificationCode::new);
+        registro.setEmail(email);
+        registro.setCodigoHash(passwordEncoder.encode(codigo));
+        registro.setFechaCreacion(ahora);
+        registro.setFechaExpiracion(ahora.plusMinutes(CODIGO_EXPIRACION_MINUTOS));
+        registro.setIntentos(0);
+        emailVerificationCodeRepository.save(registro);
+
+        boolean enviado = emailService.sendVerificationCodeEmail(email, codigo, CODIGO_EXPIRACION_MINUTOS);
+        if (!enviado) {
+            // Si el correo no salió, se elimina el código para permitir reintentar de inmediato.
+            emailVerificationCodeRepository.delete(registro);
+            throw new RuntimeException("No se pudo enviar el correo de verificación. Inténtalo de nuevo");
+        }
+
+        return true;
+    }
+
+    /**
+     * Valida el código de verificación asociado a un correo.
+     *
+     * Si el código es incorrecto incrementa el contador de intentos; al llegar
+     * al máximo se elimina el código y se obliga a solicitar uno nuevo.
+     * Si el código es correcto, devuelve el registro para que el registro
+     * definitivo lo elimine una vez creada la cuenta.
+     *
+     * @param email  correo al que se envió el código.
+     * @param codigo código de 6 dígitos ingresado por el usuario.
+     * @return el registro del código validado.
+     * @throws RuntimeException si el código no existe, expiró, es incorrecto
+     *                          o se agotaron los intentos.
+     */
+    private EmailVerificationCode validarCodigoVerificacion(String email, String codigo) {
+        if (codigo == null || !codigo.matches("\\d{6}")) {
+            throw new RuntimeException("El código de verificación debe tener 6 dígitos");
+        }
+
+        EmailVerificationCode registro = emailVerificationCodeRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Código inválido o expirado. Solicita uno nuevo"));
+
+        if (registro.isExpired()) {
+            emailVerificationCodeRepository.delete(registro);
+            throw new RuntimeException("El código expiró. Solicita uno nuevo");
+        }
+
+        int intentosActuales = registro.getIntentos() == null ? 0 : registro.getIntentos();
+        if (intentosActuales >= CODIGO_MAX_INTENTOS) {
+            emailVerificationCodeRepository.delete(registro);
+            throw new RuntimeException("Demasiados intentos. Solicita un nuevo código");
+        }
+
+        if (!passwordEncoder.matches(codigo, registro.getCodigoHash())) {
+            int intentos = intentosActuales + 1;
+            if (intentos >= CODIGO_MAX_INTENTOS) {
+                emailVerificationCodeRepository.delete(registro);
+                throw new RuntimeException("Demasiados intentos. Solicita un nuevo código");
+            }
+            registro.setIntentos(intentos);
+            emailVerificationCodeRepository.save(registro);
+            throw new RuntimeException("Código incorrecto. Te quedan "
+                    + (CODIGO_MAX_INTENTOS - intentos) + " intentos");
+        }
+
+        return registro;
+    }
+
+    /**
+     * Registra un nuevo usuario en el sistema, previa confirmación del correo.
+     *
      * Proceso:
      * 1. Verifica que el email no esté ya registrado.
-     * 2. Valida que la contraseña tenga al menos 6 caracteres.
-     * 3. Crea el usuario con contraseña hasheada.
-     * 4. Crea un cupón de bienvenida con 30% de descuento (válido 30 días).
-     * 5. Envía el código del cupón por email.
+     * 2. Valida el código de verificación enviado al correo en el paso 1.
+     * 3. Valida la contraseña y el documento.
+     * 4. Crea el usuario con contraseña hasheada y email ya verificado.
+     * 5. Elimina el código de verificación utilizado.
+     * 6. Crea un cupón de bienvenida con 30% de descuento (válido 30 días).
+     * 7. Envía el código del cupón por email.
      *
      * @param email    correo electrónico único del nuevo usuario.
      * @param password contraseña en texto plano (se hashea antes de guardar).
@@ -97,21 +243,32 @@ public class AuthService {
      * @param telefono número de teléfono (opcional).
      * @param tipoDocumento "DNI" (8 dígitos) o "CE" (9 dígitos).
      * @param numeroDocumento número del documento, solo dígitos.
+     * @param aceptaTerminos indica si el usuario aceptó los Términos y Condiciones.
+     * @param codigo   código de 6 dígitos enviado al correo.
      * @return el usuario recién creado y persistido.
-     * @throws RuntimeException si el email ya existe o la contraseña es muy corta.
+     * @throws RuntimeException si el email ya existe, el código es inválido,
+     *                          la contraseña es muy corta o el documento es inválido.
      */
     public User registrar(String email, String password, String nombre, String apellido,
                           String telefono, String tipoDocumento, String numeroDocumento,
-                          boolean aceptaTerminos) {
+                          boolean aceptaTerminos, String codigo) {
         // Sin aceptar los Términos y Condiciones no se puede crear la cuenta
         if (!aceptaTerminos) {
             throw new RuntimeException("Debes aceptar los Términos y Condiciones para registrarte");
         }
 
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("El email es requerido");
+        }
+        email = email.trim();
+
         // Verificar unicidad del email
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("El email ya está registrado");
         }
+
+        // Validar el código enviado al correo antes de crear la cuenta
+        EmailVerificationCode codigoVerificacion = validarCodigoVerificacion(email, codigo);
 
         // Validar longitud mínima de contraseña
         if (password == null || password.length() < 6) {
@@ -146,13 +303,21 @@ public class AuthService {
         usuario.setFechaAceptacionTerminos(java.time.LocalDateTime.now());
         usuario.setVersionTerminos(VERSION_TERMINOS);
         usuario.setActivo(true);
-        usuario.setEmailVerificado(false); // El email no está verificado al registrarse
+        usuario.setEmailVerificado(true); // La cuenta se crea solo con el correo ya confirmado
 
         User usuarioGuardado = userRepository.save(usuario);
 
-        // Crear cupón de bienvenida y notificar al usuario por correo
-        Cupon cuponBienvenida = crearCuponBienvenida(usuarioGuardado);
-        emailService.sendWelcomeCouponEmail(email, nombre, cuponBienvenida.getCodigo());
+        // El código ya se usó: se elimina para que no pueda reutilizarse
+        emailVerificationCodeRepository.delete(codigoVerificacion);
+
+        // Crear cupón de bienvenida y notificar al usuario por correo.
+        // Un fallo del cupón no debe invalidar una cuenta ya creada y verificada.
+        try {
+            Cupon cuponBienvenida = crearCuponBienvenida(usuarioGuardado);
+            emailService.sendWelcomeCouponEmail(email, nombre, cuponBienvenida.getCodigo());
+        } catch (Exception e) {
+            System.out.println("No se pudo crear/enviar el cupón de bienvenida: " + e.getMessage());
+        }
 
         return usuarioGuardado;
     }

@@ -25,8 +25,9 @@ import com.example.demo.services.AuthService;
  * los puntos de entrada al sistema para usuarios no autenticados.
  * 
  * Endpoints disponibles:
- * - POST /api/auth/registro              → Registro de nuevo usuario.
+ * - POST /api/auth/registro              → Registro de nuevo usuario (requiere código de verificación).
  * - POST /api/auth/verificar-email       → Consultar si un email está disponible.
+ * - POST /api/auth/solicitar-codigo      → Enviar un código de 6 dígitos al correo.
  * - POST /api/auth/login                 → Login y obtención de token JWT.
  * - POST /api/auth/solicitar-recuperacion → Solicitar recuperación por email.
  * - GET  /api/auth/validar-token/{token} → Validar token de recuperación.
@@ -42,11 +43,11 @@ public class AuthController {
     private AuthService authService;
 
     /**
-     * Registra un nuevo usuario en el sistema.
-     * 
-     * Valida que email, password y nombre estén presentes antes de delegar
-     * al servicio. En caso de éxito, retorna HTTP 201 (Created) con los
-     * datos básicos del usuario (sin contraseña).
+     * Registra un nuevo usuario en el sistema, previa confirmación del correo.
+     *
+     * Valida que email, password, nombre y código de verificación estén presentes
+     * antes de delegar al servicio. En caso de éxito, retorna HTTP 201 (Created)
+     * con los datos básicos del usuario (sin contraseña).
      * 
      * Body esperado (JSON):
      * {
@@ -57,7 +58,8 @@ public class AuthController {
      *   "telefono": "987654321",
      *   "tipoDocumento": "DNI",
      *   "numeroDocumento": "12345678",
-     *   "aceptaTerminos": "true"
+     *   "aceptaTerminos": "true",
+     *   "codigo": "123456"
      * }
      *
      * @param request mapa con los datos del nuevo usuario.
@@ -74,6 +76,7 @@ public class AuthController {
             String tipoDocumento = request.get("tipoDocumento");
             String numeroDocumento = request.get("numeroDocumento");
             boolean aceptaTerminos = "true".equalsIgnoreCase(request.get("aceptaTerminos"));
+            String codigo = request.get("codigo");
 
             // Validaciones básicas de campos obligatorios
             if (email == null || email.isEmpty()) {
@@ -89,7 +92,7 @@ public class AuthController {
                         .body(Map.of("error", "El nombre es requerido"));
             }
 
-            User usuario = authService.registrar(email, password, nombre, apellido, telefono, tipoDocumento, numeroDocumento, aceptaTerminos);
+            User usuario = authService.registrar(email, password, nombre, apellido, telefono, tipoDocumento, numeroDocumento, aceptaTerminos, codigo);
 
             // Respuesta de éxito: no incluir la contraseña
             Map<String, Object> response = new HashMap<>();
@@ -132,6 +135,54 @@ public class AuthController {
 
         boolean disponible = authService.emailDisponible(email);
         return ResponseEntity.ok(Map.of("disponible", disponible));
+    }
+
+    /**
+     * Asegura que exista un código de 6 dígitos vigente para el correo indicado.
+     *
+     * Se usa en el primer paso del registro. Si el correo ya está registrado,
+     * se responde con error para que el usuario pueda cambiarlo antes de
+     * completar sus datos. El código vence a los 15 minutos y tiene un
+     * cooldown de 60 segundos entre envíos para evitar spam.
+     *
+     * Si ya existe un código vigente y no se pide reenviar, se reutiliza y no
+     * se envía un correo nuevo. Así, recargar la página o volver al paso 1 no
+     * duplica correos ni invalida el código que el usuario ya recibió.
+     *
+     * Body esperado (JSON):
+     * { "email": "usuario@email.com", "reenviar": "false" }
+     *
+     * @param request mapa con el email y, opcionalmente, el flag {@code reenviar}.
+     * @return 200 con {@code enviado}, el mensaje y los minutos de vigencia,
+     *         o 400 con el error.
+     */
+    @PostMapping("/solicitar-codigo")
+    public ResponseEntity<?> solicitarCodigo(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "El email es requerido"));
+        }
+
+        boolean reenviar = "true".equalsIgnoreCase(request.get("reenviar"));
+
+        try {
+            boolean enviado = authService.enviarCodigoVerificacion(email, reenviar);
+
+            Map<String, Object> respuesta = new HashMap<>();
+            respuesta.put("mensaje", enviado
+                    ? "Código enviado al correo"
+                    : "Ya existe un código vigente para este correo");
+            respuesta.put("enviado", enviado);
+            respuesta.put("expiracionMinutos", AuthService.CODIGO_EXPIRACION_MINUTOS);
+
+            return ResponseEntity.ok(respuesta);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**

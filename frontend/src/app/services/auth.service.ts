@@ -68,6 +68,7 @@ export class AuthService {
 
   /**
    * Registra un nuevo usuario en el sistema.
+   * Requiere el código de 6 dígitos enviado al correo en el paso 1.
    * El email de bienvenida con cupón se envía automáticamente desde el backend.
    *
    * @param email    correo electrónico único del usuario.
@@ -75,6 +76,7 @@ export class AuthService {
    * @param nombre   nombre del usuario.
    * @param apellido apellido del usuario.
    * @param telefono número de teléfono (opcional).
+   * @param codigo   código de 6 dígitos enviado al correo en el paso 1.
    * @returns Observable con la respuesta del backend (id, email, nombre, apellido).
    */
   registro(
@@ -85,7 +87,8 @@ export class AuthService {
     telefono: string,
     tipoDocumento: string,
     numeroDocumento: string,
-    aceptaTerminos: boolean
+    aceptaTerminos: boolean,
+    codigo: string
   ): Observable<any> {
     return this.http.post(`${this.apiUrl}/registro`, {
       email,
@@ -96,8 +99,32 @@ export class AuthService {
       tipoDocumento,
       numeroDocumento,
       // El endpoint recibe un Map<String, String>, por eso se envía como texto
-      aceptaTerminos: String(aceptaTerminos)
+      aceptaTerminos: String(aceptaTerminos),
+      codigo
     });
+  }
+
+  /**
+   * Asegura que exista un código de 6 dígitos vigente para el correo.
+   * Se usa en el primer paso del registro. El backend valida que el correo esté
+   * disponible y aplica un cooldown entre envíos.
+   *
+   * Si ya hay un código vigente y `reenviar` es false, el backend reutiliza el
+   * código sin enviar un correo nuevo (`enviado: false`). Así, recargar la
+   * página no duplica correos ni invalida el código ya recibido.
+   *
+   * @param email    correo al que se enviará el código.
+   * @param reenviar true para forzar un código nuevo (botón "Reenviar código").
+   * @returns Observable con `enviado`, el mensaje y los minutos de vigencia.
+   */
+  solicitarCodigo(
+    email: string,
+    reenviar = false
+  ): Observable<{ mensaje: string; enviado: boolean; expiracionMinutos: number }> {
+    return this.http.post<{ mensaje: string; enviado: boolean; expiracionMinutos: number }>(
+      `${this.apiUrl}/solicitar-codigo`,
+      { email, reenviar: String(reenviar) }
+    );
   }
 
   /**
