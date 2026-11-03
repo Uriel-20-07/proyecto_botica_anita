@@ -6,6 +6,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,7 +54,20 @@ public class ChatbotController {
     @Value("${gemini.model.fallback:gemini-3.5-flash-lite}")
     private String geminiModelFallback;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
+
+    private final RestTemplate restTemplate = crearRestTemplate();
+
+    private static RestTemplate crearRestTemplate() {
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(Duration.ofSeconds(5));
+        f.setReadTimeout(Duration.ofSeconds(25));
+        return new RestTemplate(f);
+    }
+
+    private static String urlGemini(String modelo) {
+        return "https://generativelanguage.googleapis.com/v1beta/models/" + modelo + ":generateContent";
+    }
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -57,25 +76,34 @@ public class ChatbotController {
      * respaldo.
      */
     private ResponseEntity<Map> callGemini(Map<String, Object> payload) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("x-goog-api-key", geminiApiKey);
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("x-goog-api-key", geminiApiKey);
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
 
-        String primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + geminiModelPrimary + ":generateContent";
-        try {
-            return restTemplate.postForEntity(primaryUrl, entity, Map.class);
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            int status = e.getStatusCode().value();
-            boolean cuotaOSaturado = status == 429 || status == 503;
-            if (cuotaOSaturado && geminiModelFallback != null && !geminiModelFallback.isBlank()
-                    && !geminiModelFallback.equals(geminiModelPrimary)) {
-                String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/"
-                        + geminiModelFallback + ":generateContent";
-                return restTemplate.postForEntity(fallbackUrl, entity, Map.class);
-            }
-            throw e;
+    long t0 = System.currentTimeMillis();
+    try {
+        ResponseEntity<Map> r = restTemplate.postForEntity(urlGemini(geminiModelPrimary), entity, Map.class);
+        log.info("[Chatbot] Gemini {} respondió en {} ms", geminiModelPrimary, System.currentTimeMillis() - t0);
+        return r;
+    } catch (RuntimeException e) {
+        boolean reintentable = false;
+        if (e instanceof ResourceAccessException) {
+            reintentable = true; // timeout o sin conexión
+        } else if (e instanceof HttpStatusCodeException s) {
+            int c = s.getStatusCode().value();
+            reintentable = c == 429 || c == 503;
+        }
+        log.warn("[Chatbot] Gemini {} falló a los {} ms: {}", geminiModelPrimary,
+                System.currentTimeMillis() - t0, e.getMessage());
+        if (reintentable && geminiModelFallback != null && !geminiModelFallback.isBlank()
+                && !geminiModelFallback.equals(geminiModelPrimary)) {
+            long t1 = System.currentTimeMillis();
+            ResponseEntity<Map> r = restTemplate.postForEntity(urlGemini(geminiModelFallback), entity, Map.class);
+            log.info("[Chatbot] Respaldo {} respondió en {} ms", geminiModelFallback, System.currentTimeMillis() - t1);
+            return r;
+        }
+        throw e;
         }
     }
 
@@ -148,7 +176,10 @@ public class ChatbotController {
                                         String query = args != null && args.containsKey("query")
                                                 ? (String) args.get("query")
                                                 : "";
-                                        List<Producto> productos = productoService.buscarPorNombre(query);
+                                        long tBd = System.currentTimeMillis();
+                                            List<Producto> productos = productoService.buscarPorNombre(query);
+                                            log.info("[Chatbot] buscarProductos('{}') → {} resultados en {} ms",
+                                                    query, productos.size(), System.currentTimeMillis() - tBd);
 
                                         // Agregar la llamada a la función al historial.
                                         // IMPORTANTE (Gemini 3.x): se reutiliza "firstPart" tal cual lo devolvió
@@ -178,7 +209,7 @@ public class ChatbotController {
 
                                         Map<String, Object> responseContent = new HashMap<>();
                                         List<Map<String, Object>> simplifiedProductos = new ArrayList<>();
-                                        for (Producto p : productos) {
+                                        for (Producto p : productos.stream().limit(5).toList()) {
                                             Map<String, Object> simplified = new HashMap<>();
                                             simplified.put("id", p.getIdProducto());
                                             simplified.put("nombre", p.getNombre());
@@ -264,12 +295,25 @@ public class ChatbotController {
     private Map<String, Object> buildGeminiPayload(List<Map<String, Object>> contents) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("contents", contents);
+        Map<String, Object> thinking = new HashMap<>();
+        thinking.put("thinkingLevel", "low");
+        Map<String, Object> generationConfig = new HashMap<>();
+        generationConfig.put("thinkingConfig", thinking);
+        generationConfig.put("maxOutputTokens", 1024);
+        payload.put("generationConfig", generationConfig);
+        
 
         // System Instruction
         Map<String, Object> systemInstruction = new HashMap<>();
         List<Map<String, Object>> parts = new ArrayList<>();
         Map<String, Object> part = new HashMap<>();
         String instrucciones = """
+                                ESTILO DE RESPUESTA
+
+                0. Responde siempre con mensajes MUY cortos: máximo 2 frases (menos de 40 palabras), sin listas largas ni párrafos.
+                   Cuando el cliente describa un síntoma o una necesidad, no des explicaciones largas: haz UNA sola pregunta corta con 2 a 4 opciones claras (por ejemplo: "¿Es dolor de cabeza, de garganta o de estómago?") y espera su respuesta.
+                   Al mostrar productos, menciona como máximo 3, con nombre y precio.
+                   
                 IDENTIDAD Y PROPÓSITO
 
                 Eres SofIA, la Asistente Virtual Inteligente de BoticaAnita, una botica ubicada en Lima, Perú.
