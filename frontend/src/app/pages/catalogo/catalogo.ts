@@ -9,6 +9,7 @@ import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { Subject, takeUntil } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 /**
  * Interfaz interna para representar un producto adaptado a la vista del catálogo.
@@ -51,7 +52,8 @@ interface ProductoVista {
   styleUrls: ['./catalogo.css']
 })
 export class CatalogoComponent implements OnInit, OnDestroy {
-
+   // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
+  readonly mostrarRecetas = environment.mostrarRecetas ?? false;
   // ─── Estado principal ─────────────────────────────────────────────────────
   categorias: CategoriaApi[] = [];
   productos: ProductoVista[] = [];
