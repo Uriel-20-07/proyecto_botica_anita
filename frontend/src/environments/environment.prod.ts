@@ -3,7 +3,6 @@ export const environment = {
   apiUrl: 'https://farma-back-ckaycmdjg2dqbacj.eastus2-01.azurewebsites.net',
   // Mostrar flujo de recetas médicas (subida en checkout, tab admin, avisos). En false se oculta sin borrar código.
   mostrarRecetas: false,
-  mapboxToken: '',
   geoapifyApiKey: '',
   stripePublishableKey: '',
 };
