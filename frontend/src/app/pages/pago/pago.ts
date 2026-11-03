@@ -9,7 +9,8 @@ import { CartService } from '../../services/cart.service';
 import { PagoService } from '../../services/pago.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
-import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, RADIO_COBERTURA_KM } from '../../services/tracking-ruta.service';
+import { MapaRutaService, GeoapifySuggestion, RADIO_COBERTURA_KM, BOTICA_ANITA } from '../../services/mapa-ruta.service';
+import { MapaPreviewComponent } from '../../components/tracking/mapa-preview.component';
 import { environment } from '../../../environments/environment';
 
 // Stripe Elements para el diseño profesional
@@ -67,6 +68,16 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   pagoExitoso: boolean = false;
   folioGenerado: string = '';
   direccionFinal: string = '';
+
+  // --- Búsqueda predictiva de direcciones (Geoapify) ---
+  sugerenciasDireccion: GeoapifySuggestion[] = [];
+  mostrarSugerencias = false;
+  coordsSeleccionadas: [number, number] | null = null;
+
+  /** Tipo de entrega inferido de la opción seleccionada. */
+  get tipoEntrega(): 'delivery' | 'recojo' {
+    return this.formPago.esUrgente ? 'delivery' : 'recojo';
+  }
 
   // --- PLIN ---
   plinInfo: { numero: string; titular: string } | null = null;
@@ -219,7 +230,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     private readonly pagoService: PagoService,
     private readonly authService: AuthService,
     private readonly recetasService: RecetasService,
-    private readonly rutaService: TrackingRutaService
+    private readonly mapaService: MapaRutaService
   ) {}
 
   async ngOnInit() {
@@ -252,7 +263,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
 
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!
-    this.stripe = await loadStripe('pk_test_51UTDWtB9zD3sDEYE12Dh7Jn4mBZeR21FNqbTTMeF7BYlMNLhYhrCdTMLkAVPtGbGW2hLatVxmrtrmFmLTtPVW7tN00bn92lKEK');
+    this.stripe = await loadStripe(environment.stripePublishableKey);
   }
 
   ngAfterViewChecked() {
@@ -356,6 +367,73 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     this.formPago.referencia = '';
     this.formPago.puntoSeleccionado = '';
     this.calcularTotales();
+  }
+
+  /** Buscador predictivo de direcciones con Geoapify. */
+  async onDireccionInput(event: Event): Promise<void> {
+    const input = (event.target as HTMLInputElement).value;
+    this.formPago.direccionDetalle = input;
+    this.coordsSeleccionadas = null;
+    if (!input || input.trim().length < 3) {
+      this.sugerenciasDireccion = [];
+      this.mostrarSugerencias = false;
+      return;
+    }
+    this.sugerenciasDireccion = await this.mapaService.buscarDirecciones(
+      `${input}, ${this.formPago.distrito}, Lima`
+    );
+    this.mostrarSugerencias = this.sugerenciasDireccion.length > 0;
+  }
+
+  /** Selecciona una sugerencia y geocodifica para obtener coordenadas exactas. */
+  async seleccionarDireccion(sug: GeoapifySuggestion): Promise<void> {
+    this.formPago.direccionDetalle = sug.label;
+    this.coordsSeleccionadas = [sug.lat, sug.lon];
+    this.sugerenciasDireccion = [];
+    this.mostrarSugerencias = false;
+    this.mensajeError = '';
+
+    // Detectar automáticamente el distrito desde la sugerencia de Geoapify
+    const distritoDetectado = this.detectarDistrito(sug);
+    if (distritoDetectado) {
+      this.formPago.distrito = distritoDetectado;
+    }
+  }
+
+  /** Detecta el distrito de Lima desde la sugerencia de Geoapify. */
+  private detectarDistrito(sug: GeoapifySuggestion): string | null {
+    const distritosLima = this.distritosLima;
+    const label = (sug.label || '').toLowerCase();
+    const city = (sug.city || '').toLowerCase();
+    const address = (sug.address_line1 || '').toLowerCase();
+
+    // Buscar coincidencia exacta en city primero
+    for (const dist of distritosLima) {
+      if (city === dist.toLowerCase()) {
+        return dist;
+      }
+    }
+
+    // Buscar en el label
+    for (const dist of distritosLima) {
+      if (label.includes(dist.toLowerCase())) {
+        return dist;
+      }
+    }
+
+    // Buscar en address_line1
+    for (const dist of distritosLima) {
+      if (address.includes(dist.toLowerCase())) {
+        return dist;
+      }
+    }
+
+    return null;
+  }
+
+  limpiarSugerencias(): void {
+    this.sugerenciasDireccion = [];
+    this.mostrarSugerencias = false;
   }
 
   onPuntoRecojoChange() {
@@ -480,11 +558,25 @@ this.descuento = subtotalElegible * (valor / 100);
   }
 
   calcularTotales() {
-    if (this.formPago.esUrgente) {
-      this.costoEnvio = 5;
-    } else {
-      // Recojo en tienda siempre gratis, delivery cobra S/ 5.00
+    if (!this.formPago.esUrgente) {
+      // Recojo en tienda siempre gratis y SIN costo de envío
       this.costoEnvio = 0;
+    } else if (this.coordsSeleccionadas) {
+      const [lat, lng] = this.coordsSeleccionadas;
+      const distM = this.mapaService.distanciaM(
+        BOTICA_ANITA.lat,
+        BOTICA_ANITA.lng,
+        lat,
+        lng
+      );
+      const distKm = distM / 1000;
+      this.costoEnvio = this.mapaService.costoEnvio(distKm, true);
+      if (Number.isNaN(this.costoEnvio)) {
+        this.costoEnvio = 5; // fuera de cobertura: aún se cobra, el backend rechazará si aplica
+      }
+    } else {
+      // Delivery sin coords aún: valor por defecto, se valida cobertura al pagar.
+      this.costoEnvio = 5;
     }
     const descuentoAutomatico = Math.max(0, this.subtotalOriginal - this.subtotal);
     this.descuentoTotal = descuentoAutomatico + this.descuento;
@@ -502,25 +594,50 @@ this.descuento = subtotalElegible * (valor / 100);
     this.mensajeError = '';
 
     if (!this.formPago.distrito) { this.mensajeError = 'Selecciona el distrito.'; return; }
-    if (!this.formPago.direccionDetalle.trim()) { this.mensajeError = 'Ingresa la dirección.'; return; }
+
+    // Validar dirección detallada SOLO para delivery. El recojo usa el punto fijo de tienda.
+    if (this.formPago.esUrgente) {
+      if (!this.formPago.direccionDetalle.trim()) { this.mensajeError = 'Ingresa la dirección.'; return; }
+    }
 
     // Validar cobertura de delivery (solo para envío a domicilio, no recojo en tienda)
     if (this.formPago.esUrgente) {
-      const coords = await this.rutaService.buscarCoordenadas(
-        this.formPago.direccionDetalle,
-        this.formPago.distrito
-      );
-      // Si el navegador no logra ubicar la dirección (Nominatim saturado o sin
-      // internet), no se bloquea el pago: el backend valida la cobertura igual.
-      if (coords) {
-        const [lat, lng] = coords;
-        const distM = this.rutaService.distanciaM(TIENDA_LAT, TIENDA_LNG, lat, lng);
+      // Bloquear si el distrito detectado no es Independencia (la tienda solo entrega ahí).
+      if (this.formPago.distrito && this.formPago.distrito !== 'Independencia') {
+        this.mensajeError = `Solo realizamos delivery en el distrito de Independencia. Tu direccion esta en ${this.formPago.distrito}.`;
+        return;
+      }
+      // Si el usuario seleccionó una sugerencia, usar sus coords exactas (no re-geocodificar).
+      if (this.coordsSeleccionadas) {
+        const [lat, lng] = this.coordsSeleccionadas;
+        const distM = this.mapaService.distanciaM(BOTICA_ANITA.lat, BOTICA_ANITA.lng, lat, lng);
         const distKm = distM / 1000;
-        if (distKm > RADIO_COBERTURA_KM) {
-          this.mensajeError = `Tu dirección está a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
+        if (distKm > RADIO_COBERTURA_KM && distKm <= 50) {
+          this.mensajeError = `Tu direccion esta a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
           return;
         }
+        if (distKm > 50) {
+          // Coords sospechosas: dejar que el backend valide.
+        }
+      } else {
+        const cobertura = await this.mapaService.validarCoberturaDelivery(
+          this.formPago.direccionDetalle,
+          this.formPago.distrito
+        );
+        if (cobertura.distKm === Infinity) {
+          this.mensajeError = 'No pudimos verificar la direccion. Selecciona una sugerencia del autocompletado.';
+          return;
+        }
+        const distKm = cobertura.distKm;
+        if (distKm <= 50 && !cobertura.dentro) {
+          this.mensajeError = `Tu direccion esta a ${distKm.toFixed(1)} km de la botica. Solo entregamos hasta ${RADIO_COBERTURA_KM} km.`;
+          return;
+        }
+        this.coordsSeleccionadas = cobertura.coords ?? null;
       }
+    } else {
+      // Recojo: desactivar validaciones de entrega a domicilio.
+      this.coordsSeleccionadas = null;
     }
 
     if (this.requiereReceta && !this.recetaSubidaExito) {
@@ -548,6 +665,8 @@ this.descuento = subtotalElegible * (valor / 100);
                  codigoCupon: this.cuponAplicado ? this.codigoAplicado : null,
                  direccionEnvio: `${this.formPago.direccionDetalle}, ${this.formPago.distrito}`,
                  distrito: this.formPago.distrito,
+                 latitudEntrega: this.coordsSeleccionadas ? this.coordsSeleccionadas[0] : null,
+                 longitudEntrega: this.coordsSeleccionadas ? this.coordsSeleccionadas[1] : null,
                  metodoPago: this.metodoSeleccionado,
                  esUrgente: this.formPago.esUrgente,
                  idReceta: this.recetaSubidaId
@@ -616,6 +735,8 @@ this.descuento = subtotalElegible * (valor / 100);
             codigoCupon: this.cuponAplicado ? this.codigoAplicado : null,
             direccionEnvio: `${this.formPago.direccionDetalle}, ${this.formPago.distrito}`,
             distrito: this.formPago.distrito,
+            latitudEntrega: this.coordsSeleccionadas ? this.coordsSeleccionadas[0] : null,
+            longitudEntrega: this.coordsSeleccionadas ? this.coordsSeleccionadas[1] : null,
             esUrgente: this.formPago.esUrgente,
             idReceta: this.recetaSubidaId,
             numeroOperacion: (this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP') ? this.formPago.numeroOperacion.trim() : null

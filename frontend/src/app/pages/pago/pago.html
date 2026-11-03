@@ -1,4 +1,4 @@
-<div class="exito-overlay" *ngIf="pagoExitoso">
+﻿<div class="exito-overlay" *ngIf="pagoExitoso">
   <div class="exito-card">
     <div class="exito-check-wrap">
       <svg class="exito-check-svg" viewBox="0 0 52 52">
@@ -70,18 +70,11 @@
           </label>
         </div>
 
-        <div class="form-row-doble">
-          <div class="form-group">
-            <label>Distrito</label>
-            <select [(ngModel)]="formPago.distrito" class="form-input">
-              <option *ngFor="let d of distritosLima" [value]="d">{{ d }}</option>
-            </select>
+        @if (formPago.distrito) {
+          <div class="distrito-detectado">
+            <span class="chip-distrito">📍 {{ formPago.distrito }}, Lima</span>
           </div>
-          <div class="form-group">
-            <label>Departamento</label>
-            <input type="text" value="Lima" class="form-input" readonly />
-          </div>
-        </div>
+        }
 
         <div *ngIf="!formPago.esUrgente">
           <div class="form-group" *ngIf="formPago.distrito">
@@ -105,8 +98,18 @@
           <div class="form-group" *ngIf="formPago.distrito">
             <label>Dirección Domiciliaria Detallada <span class="req">*</span></label>
             <input type="text" [(ngModel)]="formPago.direccionDetalle" class="form-input"
-              placeholder="Ej: Calle Melgar 123, Dpto 202" />
-            <span class="field-hint">Ingresa la dirección exacta en Lima para el delivery a domicilio</span>
+              placeholder="Ej: Calle Melgar 123, Dpto 202"
+              (input)="onDireccionInput($event)"
+              (blur)="limpiarSugerencias()" />
+            <span class="field-hint">Ingresa la dirección exacta en Lima Para mayor precision, selecciona una sugerencia del autocompletado.</span>
+
+            <!-- Sugerencias predictivas de Geoapify -->
+            <div *ngIf="mostrarSugerencias && sugerenciasDireccion.length > 0" class="sugerencias-lista">
+              <div *ngFor="let sug of sugerenciasDireccion" class="sugerencia-item"
+                (mousedown)="seleccionarDireccion(sug); $event.preventDefault()">
+                <span class="sug-texto">{{ sug.label }}</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">
@@ -135,7 +138,7 @@
       <section class="pago-seccion" *ngIf="requiereReceta">
         <div class="seccion-header">
           <span class="paso-num" style="background: #1a2e4a; display: inline-flex; align-items: center; justify-content: center;">
-            <i class="bi bi-file-earmark-text" style="font-size:12px;color: white"></i>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: white;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           </span>
           <h2 style="color: #1a2e4a;">Cargar Receta Médica Obligatoria</h2>
         </div>

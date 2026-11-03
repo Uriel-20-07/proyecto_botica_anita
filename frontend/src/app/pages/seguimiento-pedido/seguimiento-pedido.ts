@@ -6,7 +6,14 @@ import { takeUntil } from 'rxjs/operators';
 import { PedidoService } from '../../services/pedido.service';
 import { TrackingService } from '../../services/tracking.service';
 import { TrackingMapaComponent } from '../../components/tracking/tracking-mapa.component';
-import { TrackingRutaService, TIENDA_LAT, TIENDA_LNG, MIN_CONFIRMADO, MIN_DESPACHO, MIN_MOTORIZADO, MIN_ENTREGA_EXTRA } from '../../services/tracking-ruta.service';
+import {
+  MapaRutaService,
+  BOTICA_ANITA,
+  MIN_CONFIRMADO,
+  MIN_DESPACHO,
+  MIN_MOTORIZADO,
+  MIN_ENTREGA_EXTRA,
+} from '../../services/mapa-ruta.service';
 import { msDesdeFecha, fechaComoDate } from '../../services/fecha-util';
 
 @Component({
@@ -33,7 +40,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private pedidoService: PedidoService,
     private trackingService: TrackingService,
-    private ruta: TrackingRutaService
+    private mapaService: MapaRutaService
   ) { }
 
   estadoActual = signal(0);
@@ -83,9 +90,9 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
 
         this.numeroPedido.set(numeroVisible);
 
-        // Misma ruta y tiempo que el mapa: se resuelve el destino una sola vez (con caché).
-        const [la, ln] = await this.ruta.resolverDestino(pedido);
-        const r = await this.ruta.obtenerRuta(TIENDA_LAT, TIENDA_LNG, la, ln);
+        // Se resuelve el destino una sola vez (con caché del servicio de mapa).
+        const [la, ln] = await this.mapaService.resolverDestino(pedido);
+        const r = await this.mapaService.obtenerRutaPorCalles(BOTICA_ANITA.lng, BOTICA_ANITA.lat, ln, la);
         this.tripMin = r.tripMin;
         this.calcularEstado(pedido.fecha);
         this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
@@ -208,10 +215,17 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     return fechaComoDate(this.pedido()?.fecha);
   }
 
-  /** El mapa solo existe para delivery y se oculta cuando ya se entregó/completó. */
+  /** Tipo de entrega inferido del estado del pedido. */
+  tipoEntrega(): 'delivery' | 'recojo' {
+    const ped = this.pedido();
+    return ped?.esUrgente === false ? 'recojo' : 'delivery';
+  }
+
+  /** El mapa de delivery solo existe para delivery y se oculta cuando ya se entregó/completó.
+       Se oculta con clase CSS (no con *ngIf) para no romper el WebGL de Mapbox. */
   mapaVisible(): boolean {
     const ped = this.pedido();
-    if (ped?.esUrgente === false) return false;
+    if (this.tipoEntrega() === 'recojo') return false;
     const est = (ped?.estado || '').toUpperCase();
     return !(est.includes('COMPLETAD') || est.includes('ENTREGAD'));
   }
@@ -225,6 +239,16 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     if (est.includes('LISTO')) return 2;
     if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return urgente ? 2 : 1;
     return urgente ? 4 : 3;
+  }
+
+  /** Paso mínimo que impone el estado real del backend (no se puede retroceder). */
+  private pasoMinimoBackend(): number {
+    const est = (this.pedido()?.estado || '').toUpperCase();
+    if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 4;
+    if (est.includes('EN_CAMINO')) return 3;
+    if (est.includes('LISTO')) return 2;
+    if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 1;
+    return 0;
   }
 
   calcularEstado(fechaPedido: string): void {
@@ -255,6 +279,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
       } else {
         paso = 3;
       }
+      paso = Math.max(paso, this.pasoMinimoBackend());
       this.estadoActual.set(Math.min(paso, this.topeEstadoPedido()));
       return;
     }
@@ -280,6 +305,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     else {
       paso = 4;
     }
+    paso = Math.max(paso, this.pasoMinimoBackend());
     this.estadoActual.set(Math.min(paso, this.topeEstadoPedido()));
   }
 

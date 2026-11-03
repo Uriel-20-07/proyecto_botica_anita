@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PedidoTrackingService {
 
     // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado).
-    public static final double TIENDA_LAT = -12.001181821042714;
-    public static final double TIENDA_LNG = -77.04736614959307;
+    public static final double TIENDA_LAT = -12.001353207277829;
+    public static final double TIENDA_LNG = -77.04735384172724;
 
     // Minutos fijos por etapa antes del viaje (igual que el frontend).
     public static final long MIN_CONFIRMADO = 0;

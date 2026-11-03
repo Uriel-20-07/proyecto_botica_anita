@@ -8,6 +8,8 @@ public class PagoRequest {
     private String metodoPago; 
     private String direccionEnvio;
     private String distrito;
+    private Double latitudEntrega;
+    private Double longitudEntrega;
     private String codigoCupon;
     private boolean esUrgente;
     private Integer idReceta;

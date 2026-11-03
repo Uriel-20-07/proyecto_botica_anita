@@ -56,8 +56,8 @@ public class PagoService {
     private String sipTitular;
 
     // Tienda Botica Anita: Av. Los Jazmines 408, Independencia (pin verificado)
-    private static final double TIENDA_LAT = -12.001181821042714;
-    private static final double TIENDA_LNG = -77.04736614959307;
+    private static final double TIENDA_LAT = -12.001353207277829;
+    private static final double TIENDA_LNG = -77.04735384172724;
     // Radio de cobertura de delivery en km
     private static final double RADIO_COBERTURA_KM = 2.0;
 
@@ -79,16 +79,27 @@ public class PagoService {
      * Valida que la dirección de entrega esté dentro del radio de cobertura desde la tienda.
      * Lanza RuntimeException si está fuera de cobertura.
      */
-    private void validarCobertura(String direccion, String distrito) {
-        if (direccion == null || direccion.isBlank()) return;
-        geocodificacionService.esperarTurno();
+    private void validarCobertura(String direccion, String distrito, Double lat, Double lng) {
+        double latU;
+        double lngU;
+        if (lat != null && lng != null) {
+            latU = lat;
+            lngU = lng;
+        } else {
+            if (direccion == null || direccion.isBlank()) {
+                throw new RuntimeException("Ingresa la direccion de entrega.");
+            }
+            geocodificacionService.esperarTurno();
         double[] coords = geocodificacionService.buscar(direccion, distrito);
         if (coords == null) {
+            throw new RuntimeException("No se pudo verificar la direccion de entrega. Selecciona una sugerencia del autocompletado.");
             // No se pudo ubicar la dirección (o Nominatim está saturado):
             // no se bloquea el pago, el frontend ya avisa si no encuentra la dirección.
-            return;
         }
-        double distM = distanciaM(TIENDA_LAT, TIENDA_LNG, coords[0], coords[1]);
+        latU = coords[0];
+        lngU = coords[1];
+        }
+        double distM = distanciaM(TIENDA_LAT, TIENDA_LNG, latU, lngU);
         double distKm = distM / 1000.0;
         if (distKm > RADIO_COBERTURA_KM) {
             throw new RuntimeException("Tu dirección está fuera del área de cobertura de delivery (máx. "
@@ -158,7 +169,11 @@ public class PagoService {
         // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
         // El recojo en tienda es gratis y no tiene radio de entrega.
         if (request.isEsUrgente()) {
-            validarCobertura(request.getDireccionEnvio(), request.getDistrito());
+            // Solo se entrega en el distrito de Independencia.
+            if (request.getDistrito() != null && !request.getDistrito().trim().equalsIgnoreCase("Independencia")) {
+                throw new RuntimeException("Solo realizamos delivery en el distrito de Independencia.");
+            }
+            validarCobertura(request.getDireccionEnvio(), request.getDistrito(), request.getLatitudEntrega(), request.getLongitudEntrega());
         }
 
         double subtotal = 0.0;
@@ -206,7 +221,11 @@ public class PagoService {
         // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
         // El recojo en tienda es gratis y no tiene radio de entrega.
         if (request.isEsUrgente()) {
-            validarCobertura(request.getDireccionEnvio(), request.getDistrito());
+            // Solo se entrega en el distrito de Independencia.
+            if (request.getDistrito() != null && !request.getDistrito().trim().equalsIgnoreCase("Independencia")) {
+                throw new RuntimeException("Solo realizamos delivery en el distrito de Independencia.");
+            }
+            validarCobertura(request.getDireccionEnvio(), request.getDistrito(), request.getLatitudEntrega(), request.getLongitudEntrega());
         }
 
         // --- Validación de pagos por transferencia: Plin y SIP (antes de consumir cupones o stock) ---
@@ -270,6 +289,20 @@ public class PagoService {
         pedido.setDireccionEnvio(request.getDireccionEnvio());
         pedido.setEsUrgente(request.isEsUrgente());
         pedido.setDistrito(request.getDistrito());
+        // Guardar coordenadas precisas del frontend (Geoapify) si vienen; si no, geocodificar con Nominatim.
+        if (request.getLatitudEntrega() != null && request.getLongitudEntrega() != null) {
+            pedido.setLatitudEntrega(BigDecimal.valueOf(request.getLatitudEntrega()));
+            pedido.setLongitudEntrega(BigDecimal.valueOf(request.getLongitudEntrega()));
+        } else {
+            try {
+                double[] coords = geocodificacionService.buscar(request.getDireccionEnvio(), request.getDistrito());
+                if (coords != null) {
+                    pedido.setLatitudEntrega(BigDecimal.valueOf(coords[0]));
+                    pedido.setLongitudEntrega(BigDecimal.valueOf(coords[1]));
+                }
+            } catch (Exception ignored) {
+            }
+        }
         pedido.setMetodoPago(request.getMetodoPago());
         pedido.setIdReceta(request.getIdReceta());
         pedidoRepository.save(pedido); // Guarda el objeto
