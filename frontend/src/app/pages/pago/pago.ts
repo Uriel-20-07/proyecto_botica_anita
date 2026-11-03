@@ -10,7 +10,6 @@ import { PagoService } from '../../services/pago.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
 import { MapaRutaService, GeoapifySuggestion, RADIO_COBERTURA_KM, BOTICA_ANITA } from '../../services/mapa-ruta.service';
-import { MapaPreviewComponent } from '../../components/tracking/mapa-preview.component';
 import { environment } from '../../../environments/environment';
 
 // Stripe Elements para el diseño profesional
