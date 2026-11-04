@@ -67,6 +67,10 @@
         <span>Productos</span>
         <strong>{{ getCount() }}</strong>
       </div>
+      <div class="summary-row promo-row" *ngFor="let promo of getPromosAplicadas()">
+        <span>Promo: {{ promo.titulo }}<ng-container *ngIf="promo.veces > 1"> (×{{ promo.veces }})</ng-container></span>
+        <strong class="promo-discount">− S/ {{ promo.descuento | number:'1.2-2' }}</strong>
+      </div>
       <div class="summary-row total">
         <span>Total a Pagar</span>
         <strong>S/ {{ getSubtotal() | number:'1.2-2' }}</strong>
