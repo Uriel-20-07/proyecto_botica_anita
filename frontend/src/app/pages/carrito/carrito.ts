@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CartService } from '../../services/cart.service';
+import { PromocionService, PromoAplicada } from '../../services/promocion.service';
 
 @Component({
   selector: 'app-carrito',
@@ -27,7 +28,11 @@ export class CarritoComponent {
   constructor(
     private readonly cartService: CartService,
     private readonly router: Router,
-  ) {}
+    private readonly promocionService: PromocionService,
+  ) {
+    // Reglas de las promociones para calcular el descuento del carrito
+    this.promocionService.cargarReglas().subscribe();
+  }
 
   /**
    * MÉTODO AUXILIAR: Captura la fecha sin importar si Spring Boot
@@ -85,8 +90,17 @@ export class CarritoComponent {
     return this.cartService.getFinalPrice(producto);
   }
 
+  /** Promociones que se cumplen con lo que hay ahora en el carrito (se pierden solas al quitar un producto). */
+  getPromosAplicadas(): PromoAplicada[] {
+    return this.promocionService.calcularDescuento(this.cartService.getItems()).aplicadas;
+  }
+
+  getDescuentoPromos(): number {
+    return this.promocionService.calcularDescuento(this.cartService.getItems()).total;
+  }
+
   getSubtotal(): number {
-    return this.cartService.getTotal();
+    return Math.max(0, this.cartService.getTotal() - this.getDescuentoPromos());
   }
 
   getCount(): number {

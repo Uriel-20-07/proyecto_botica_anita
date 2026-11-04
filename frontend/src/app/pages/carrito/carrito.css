@@ -248,3 +248,6 @@
     align-items: flex-start;
   }
 }
+/* Promociones aplicadas en el resumen */
+.promo-row span { color: #0b2350; }
+.promo-discount { color: #16a34a; white-space: nowrap; }

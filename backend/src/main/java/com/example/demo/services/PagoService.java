@@ -27,6 +27,8 @@ public class PagoService {
     @Autowired
     private CarritoService carritoService;
     @Autowired
+    private PromocionService promocionService;
+    @Autowired
     private CuponRepository cuponRepository;
     @Autowired
     private PedidoRepository pedidoRepository;
@@ -181,6 +183,9 @@ public class PagoService {
             subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
         }
 
+        // Promociones (3x2, combos, etc.): se derivan de lo que hay en el carrito
+        subtotal -= promocionService.calcularDescuento(carrito).total().doubleValue();
+
         if (request.getCodigoCupon() != null
         && !request.getCodigoCupon().trim().isEmpty()) {
 
@@ -246,7 +251,8 @@ public class PagoService {
         for (DetalleCarrito d : carrito.getDetalles()) {
             subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
         }
-        BigDecimal totalFinal = BigDecimal.valueOf(subtotal);
+        BigDecimal totalFinal = BigDecimal.valueOf(subtotal)
+                .subtract(promocionService.calcularDescuento(carrito).total());
 
         if (request.getCodigoCupon() != null
         && !request.getCodigoCupon().trim().isEmpty()) {

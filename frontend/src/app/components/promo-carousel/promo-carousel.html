@@ -1,0 +1,134 @@
+<section class="promo-section" *ngIf="cargando || promociones.length > 0" aria-label="Promociones">
+  <div class="promo-band">
+    <div class="promo-head">
+      <h2 class="promo-heading">
+        <span class="promo-heading-top">Aprovecha nuestras</span>
+        <span class="promo-heading-main">promociones</span>
+      </h2>
+      <p class="promo-sub">Agrega la promoción completa con un solo clic.</p>
+    </div>
+
+    <div class="promo-skeleton" *ngIf="cargando" aria-hidden="true">
+      <div class="sk-card" *ngFor="let _ of [1, 2, 3]"></div>
+    </div>
+
+    <div class="promo-stage" *ngIf="!cargando"
+      (mouseenter)="pausado = true" (mouseleave)="pausado = false"
+      (focusin)="pausado = true" (focusout)="pausado = false">
+      <button type="button" class="promo-arrow prev" (click)="anterior()"
+        *ngIf="promociones.length > 1" aria-label="Promociones anteriores">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+
+      <div class="promo-viewport">
+        <div class="promo-track" [class.sin-transicion]="sinTransicion"
+          [style.--visibles]="visiblesEfectivos" [style.--indice]="indice">
+          <article class="promo-slot" *ngFor="let p of slides">
+            <div class="promo-card">
+              <div class="promo-copy">
+                <span class="promo-tag">{{ p.etiqueta }}</span>
+                <h3 class="promo-title">{{ p.titulo }}</h3>
+                <p class="promo-desc">{{ p.descripcion }}</p>
+
+                <div class="promo-price">
+                  <span class="promo-price-label">{{ unidades(p) > 1 ? 'Llévalo por' : 'Ahora' }}</span>
+                  <span class="promo-price-now">S/ {{ p.precioPromo | number:'1.2-2' }}</span>
+                  <span class="promo-price-old">Antes S/ {{ p.precioNormal | number:'1.2-2' }}</span>
+                </div>
+              </div>
+
+              <div class="promo-media" [class.is-combo]="p.items.length > 1" [class.is-pack]="esPaquete(p)">
+                <span class="promo-badge">{{ insignia(p) }}</span>
+                <ng-container *ngFor="let item of p.items">
+                  <img *ngFor="let c of copias(p, item)" [src]="imagen(item.imgUrl)" [alt]="item.nombre"
+                    (error)="imagenRota($event)" loading="lazy" />
+                </ng-container>
+              </div>
+            </div>
+
+            <div class="promo-actions">
+              <button type="button" class="btn-ver-mas" (click)="verMas(p)">Ver más</button>
+              <button type="button" class="btn-agregar-promo" (click)="agregar(p)"
+                [disabled]="estado[p.id] === 'cargando'" [class.is-ok]="estado[p.id] === 'ok'">
+                {{ textoBoton(p) }}
+              </button>
+            </div>
+            <p class="promo-error" *ngIf="errores[p.id]" role="alert">{{ errores[p.id] }}</p>
+          </article>
+        </div>
+      </div>
+
+      <button type="button" class="promo-arrow next" (click)="siguiente()"
+        *ngIf="promociones.length > 1" aria-label="Promociones siguientes">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+
+    <div class="promo-dots" *ngIf="!cargando && promociones.length > 1">
+      <button type="button" *ngFor="let p of promociones; let k = index" [class.activo]="k === posicionActiva"
+        (click)="irA(k)" [attr.aria-label]="'Ver ' + p.titulo"></button>
+    </div>
+  </div>
+</section>
+
+<!-- Detalle de la promoción: cada producto en su propia división, como las tarjetas del carrusel -->
+<div class="promo-overlay" *ngIf="detalle as d" (click)="cerrarDetalle()">
+  <div class="promo-modal" role="dialog" aria-modal="true" [attr.aria-label]="d.titulo"
+    (click)="$event.stopPropagation()">
+    <button type="button" class="promo-close" (click)="cerrarDetalle()" aria-label="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <header class="modal-head">
+      <span class="promo-tag">{{ d.etiqueta }}</span>
+      <h3 class="modal-title">{{ d.titulo }}</h3>
+      <p class="modal-desc">{{ d.descripcion }}</p>
+    </header>
+
+    <div class="modal-grid" [class.uno]="d.items.length === 1">
+      <div class="promo-card modal-card" *ngFor="let item of d.items">
+        <div class="promo-copy">
+          <span class="promo-tag">{{ item.cantidad }} {{ item.cantidad > 1 ? 'unidades' : 'unidad' }}</span>
+          <h4 class="modal-card-name">{{ item.nombre }}</h4>
+          <div class="promo-price">
+            <span class="promo-price-label">Precio unitario</span>
+            <span class="promo-price-now">S/ {{ item.precioUnitario | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="promo-media" [class.is-pack]="esPaquete(d)">
+          <img *ngFor="let c of copias(d, item)" [src]="imagen(item.imgUrl)" [alt]="item.nombre"
+            (error)="imagenRota($event)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <dl class="modal-resumen">
+        <div>
+          <dt>Precio normal</dt>
+          <dd class="tachado">S/ {{ d.precioNormal | number:'1.2-2' }}</dd>
+        </div>
+        <div>
+          <dt>Ahorras</dt>
+          <dd class="ahorro">S/ {{ d.ahorro | number:'1.2-2' }}</dd>
+        </div>
+        <div class="total">
+          <dt>Precio promoción</dt>
+          <dd>S/ {{ d.precioPromo | number:'1.2-2' }}</dd>
+        </div>
+      </dl>
+
+      <div class="modal-cta">
+        <p class="modal-nota">
+          El descuento se aplica en tu carrito mientras tengas todos los productos de la promoción.
+          Si quitas alguno, la promoción se pierde.
+        </p>
+        <button type="button" class="btn-agregar-promo grande" (click)="agregar(d)"
+          [disabled]="estado[d.id] === 'cargando'" [class.is-ok]="estado[d.id] === 'ok'">
+          {{ textoBoton(d) }}
+        </button>
+        <p class="promo-error" *ngIf="errores[d.id]" role="alert">{{ errores[d.id] }}</p>
+      </div>
+    </div>
+  </div>
+</div>
