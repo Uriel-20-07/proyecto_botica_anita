@@ -1,6 +1,7 @@
 package com.example.demo.services;
 
 import com.example.demo.models.Pedido;
+import com.example.demo.models.User;
 import com.example.demo.repositories.PedidoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,10 +46,12 @@ public class PedidoTrackingService {
 
     private final PedidoRepository pedidoRepository;
     private final GeocodificacionService geocodificacion;
+    private final EmailService emailService;
 
-    public PedidoTrackingService(PedidoRepository pedidoRepository, GeocodificacionService geocodificacion) {
+    public PedidoTrackingService(PedidoRepository pedidoRepository, GeocodificacionService geocodificacion, EmailService emailService) {
         this.pedidoRepository = pedidoRepository;
         this.geocodificacion = geocodificacion;
+        this.emailService = emailService;
     }
 
     /**
@@ -91,8 +94,20 @@ public class PedidoTrackingService {
         boolean cambio = false;
         boolean urgente = pedido.isEsUrgente();
         if ((estado.equals("PAGADO") || estado.equals("CONFIRMADO")) && segundos >= MIN_PREVIOS * 60) {
-            pedido.setEstado(urgente ? "EN_CAMINO" : "LISTO_RECOJO");
+            String nuevoEstado = urgente ? "EN_CAMINO" : "LISTO_RECOJO";
+            pedido.setEstado(nuevoEstado);
             cambio = true;
+            // Enviar email "en camino" solo para delivery y una sola vez.
+            if (urgente && emailService != null) {
+                try {
+                    User u = pedido.getUsuario();
+                    if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
+                        String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
+                        emailService.sendEnCaminoEmail(u.getEmail(), u.getNombre(), pedido, nro);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
         }
         if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado())
                 && segundos >= MIN_PREVIOS * 60 + tripMinSeg + 10) {

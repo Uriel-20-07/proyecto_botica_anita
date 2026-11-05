@@ -276,6 +276,49 @@ public class EmailService {
     }
 
     /**
+     * Envía un correo al usuario cuando su pedido pasa a estado "EN CAMINO"
+     * (el repartidor ya salió de la tienda hacia su domicilio).
+     *
+     * @param destinatario email del usuario.
+     * @param nombre       nombre del usuario.
+     * @param pedido       pedido en camino.
+     * @param nroBoleta    número de boleta/pedido.
+     */
+    public void sendEnCaminoEmail(String destinatario, String nombre, Pedido pedido, String nroBoleta) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("noreply@boticaanita.com");
+            message.setTo(destinatario);
+            message.setSubject("Tu pedido #" + nroBoleta + " está en camino - BoticaAnita");
+
+            StringBuilder contenido = new StringBuilder();
+            contenido.append("Hola ").append(nombre).append(",\n\n")
+                    .append("¡Buenas noticias! Tu pedido ya está en camino.\n")
+                    .append("El repartidor ha salido de la tienda y se dirige a tu domicilio.\n\n")
+                    .append("Detalles de tu pedido:\n")
+                    .append("--------------------------------------------------\n")
+                    .append("Código de pedido: #").append(nroBoleta).append("\n")
+                    .append("Dirección de envío: ").append(pedido.getDireccionEnvio() != null ? pedido.getDireccionEnvio() : "No especificada").append("\n")
+                    .append("Distrito: ").append(pedido.getDistrito() != null ? pedido.getDistrito() : "No especificado").append("\n");
+
+            if (pedido.getLatitudEntrega() != null && pedido.getLongitudEntrega() != null) {
+                contenido.append("Ubicación de entrega: https://www.google.com/maps?q=")
+                        .append(pedido.getLatitudEntrega()).append(",").append(pedido.getLongitudEntrega()).append("\n");
+            }
+
+            contenido.append("\n")
+                    .append("Puedes seguir el recorrido en tiempo real desde tu cuenta en BoticaAnita.\n\n")
+                    .append("Si tienes alguna duda o consulta, puedes responder a este correo o escribir a soporte@boticaanita.com.\n\n")
+                    .append("Saludos,\nEquipo BoticaAnita");
+
+            message.setText(contenido.toString());
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.out.println("Error enviando email 'en camino': " + e.getMessage());
+        }
+    }
+
+    /**
      * Envía un correo electrónico con un cupón de descuento promocional de campaña.
      *
      * @param destinatario email del usuario.

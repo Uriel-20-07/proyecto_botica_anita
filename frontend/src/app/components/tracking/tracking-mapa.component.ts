@@ -521,6 +521,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
   private bearingActual = 0;
   /** Coordenadas corregidas manualmente por el usuario (persisten entre polls). */
   private coordsOverride: { lat: number; lng: number } | null = null;
+  private ultimasCoordsDestino: { lat: number; lng: number } | null = null;
   private markerTienda?: maplibregl.Marker;
   private markerDestino?: maplibregl.Marker;
   private markerRepartidor?: maplibregl.Marker;
@@ -1018,6 +1019,14 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     const lat = Number(ped.latitudEntrega) || 0;
     const lng = Number(ped.longitudEntrega) || 0;
     if (!lat || !lng) return;
+
+    // Solo re-fetch si las coords cambiaron (evita parpadeo en cada poll).
+    if (this.ultimasCoordsDestino &&
+        Math.abs(this.ultimasCoordsDestino.lat - lat) < 0.00001 &&
+        Math.abs(this.ultimasCoordsDestino.lng - lng) < 0.00001) {
+      return;
+    }
+    this.ultimasCoordsDestino = { lat, lng };
 
     if (this.markerDestino) {
       this.markerDestino.setLngLat([lng, lat]);
