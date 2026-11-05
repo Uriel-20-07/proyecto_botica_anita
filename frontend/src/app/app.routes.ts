@@ -7,6 +7,10 @@ import { CarritoComponent } from './pages/carrito/carrito';
 import { MarcasComponent } from './pages/marcas/marcas';
 import { NosotrosComponent } from './pages/nosotros/nosotros';
 import { TerminosComponent } from './pages/terminos/terminos';
+import { CentroAyudaComponent } from './pages/centro-ayuda/centro-ayuda';
+import { PoliticasEnvioComponent } from './pages/politicas-envio/politicas-envio';
+import { DevolucionesComponent } from './pages/devoluciones/devoluciones';
+import { PoliticaPrivacidadComponent } from './pages/politica-privacidad/politica-privacidad';
 import { PerfilComponent } from './pages/perfil/perfil';
 import { PagoComponent } from './pages/pago/pago';
 import { AdminDashboardComponent } from './pages/dashboard/admin/admin.component';
@@ -69,6 +73,10 @@ export const routes: Routes = [
   { path: 'marcas', component: MarcasComponent },
   { path: 'nosotros', component: NosotrosComponent },
   { path: 'terminos-y-condiciones', component: TerminosComponent },
+  { path: 'centro-de-ayuda', component: CentroAyudaComponent },
+  { path: 'politicas-de-envio', component: PoliticasEnvioComponent },
+  { path: 'devoluciones', component: DevolucionesComponent },
+  { path: 'politica-de-privacidad', component: PoliticaPrivacidadComponent },
 
   // Perfil del usuario autenticado
   { path: 'perfil', component: PerfilComponent },

@@ -1,0 +1,104 @@
+<div class="terminos-page">
+  <article class="terminos-card">
+
+    <header class="terminos-header">
+      <h1>Política de Privacidad</h1>
+      <p class="terminos-meta">Última actualización: {{ fechaActualizacion }}</p>
+      <p class="terminos-intro">
+        En BoticaAnita cuidamos tus datos personales. Esta política explica qué información recogemos, para qué la
+        usamos y qué derechos tienes, conforme a la Ley N.° 29733, Ley de Protección de Datos Personales. Complementa
+        la sección 8 de nuestros <a routerLink="/terminos-y-condiciones">Términos y Condiciones</a>.
+      </p>
+    </header>
+
+    <section>
+      <h2>1. Responsable del tratamiento</h2>
+      <p>
+        BoticaAnita, con domicilio en {{ c.direccion }}. Para cualquier consulta sobre tus datos escríbenos a
+        <a [href]="'mailto:' + c.correo">{{ c.correo }}</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Qué datos recogemos</h2>
+      <ul>
+        <li><strong>Datos de tu cuenta:</strong> nombre, correo, teléfono, DNI o carnet de extranjería y tu contraseña (la guardamos cifrada, no podemos verla).</li>
+        <li><strong>Datos de tus pedidos:</strong> productos comprados, dirección y ubicación de entrega, comprobantes y estado del pedido.</li>
+        <li><strong>Datos de pago:</strong> los pagos con tarjeta los procesa Stripe; la Botica no almacena el número de tu tarjeta.</li>
+        <li><strong>Conversaciones con SofIA:</strong> los mensajes que escribes al asistente virtual.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Para qué usamos tus datos</h2>
+      <ul>
+        <li>Crear y administrar tu cuenta.</li>
+        <li>Procesar tus pedidos, cobros, entregas y comprobantes, y permitirte seguirlos.</li>
+        <li>Atender tus consultas y reclamos, y orientarte con el asistente virtual.</li>
+        <li>Enviarte correos del servicio, como la confirmación de compra o la recuperación de contraseña.</li>
+        <li>Cumplir obligaciones legales y mantener la seguridad de la plataforma.</li>
+      </ul>
+      <p>No vendemos tus datos personales.</p>
+    </section>
+
+    <section>
+      <h2>4. Con quién los compartimos</h2>
+      <p>Solo con proveedores necesarios para prestar el servicio:</p>
+      <ul>
+        <li><strong>Stripe</strong>, para procesar los pagos con tarjeta.</li>
+        <li><strong>Servicios de correo electrónico</strong>, para enviarte confirmaciones y avisos.</li>
+        <li><strong>OpenStreetMap</strong>, para ubicar tu dirección de entrega y mostrar el mapa de seguimiento.</li>
+        <li><strong>Google (Gemini)</strong>: los mensajes que escribes a SofIA se envían a este proveedor para generar las respuestas. Te recomendamos no escribir en el chat datos sensibles como tu DNI o contraseñas.</li>
+        <li><strong>Algolia</strong>, que procesa los términos que buscas en el catálogo.</li>
+        <li><strong>Proveedores de infraestructura en la nube</strong>, donde se aloja el sitio y la base de datos.</li>
+      </ul>
+      <p>
+        Algunos de estos proveedores pueden procesar información en servidores ubicados fuera del Perú. También
+        compartiremos datos cuando una norma o una autoridad competente lo exija.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Cuánto tiempo los conservamos</h2>
+      <p>
+        Mientras tu cuenta esté activa y durante el tiempo necesario para cumplir obligaciones legales, como la
+        conservación de comprobantes de pago.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Seguridad y sesión</h2>
+      <p>
+        Aplicamos medidas razonables de seguridad: tu contraseña se almacena cifrada y los pagos con tarjeta no
+        pasan por nuestros servidores. Usamos el almacenamiento de tu navegador para mantener tu sesión iniciada.
+      </p>
+    </section>
+
+    <section class="aviso-destacado">
+      <h2>7. Tus derechos</h2>
+      <p>
+        Puedes ejercer tus derechos de acceso, rectificación, cancelación y oposición, así como retirar tu
+        consentimiento, escribiendo a <a [href]="'mailto:' + c.correo">{{ c.correo }}</a> desde el correo asociado a
+        tu cuenta. Si consideras que no atendimos tu solicitud, puedes acudir a la Autoridad Nacional de Protección de
+        Datos Personales del Ministerio de Justicia y Derechos Humanos.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Menores de edad</h2>
+      <p>Esta plataforma está dirigida a mayores de 18 años.</p>
+    </section>
+
+    <section>
+      <h2>9. Cambios en esta política</h2>
+      <p>
+        Si modificamos esta política, publicaremos la nueva versión en esta página con su fecha de actualización.
+      </p>
+    </section>
+
+    <footer class="terminos-footer">
+      <a routerLink="/" class="btn-volver-inicio">Volver al inicio</a>
+    </footer>
+
+  </article>
+</div>

@@ -1,0 +1,87 @@
+<div class="terminos-page">
+  <article class="terminos-card">
+
+    <header class="terminos-header">
+      <h1>Políticas de Envío</h1>
+      <p class="terminos-meta">Última actualización: {{ fechaActualizacion }}</p>
+      <p class="terminos-intro">
+        En BoticaAnita puedes recibir tu pedido en tu domicilio o recogerlo en nuestra tienda.
+        Aquí te explicamos cómo funciona cada opción.
+      </p>
+    </header>
+
+    <section>
+      <h2>1. Opciones de entrega</h2>
+      <ul>
+        <li><strong>Recojo en tienda: gratis.</strong> Recoge tu pedido en {{ c.direccion }}.</li>
+        <li><strong>Delivery a domicilio: S/ 5.00.</strong> El costo se suma al total de tu compra y puedes elegir esta opción al momento de pagar.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. Zona de cobertura</h2>
+      <p>
+        Realizamos entregas a domicilio en el distrito de Independencia. Al pagar, el sistema verifica que tu
+        dirección se encuentre dentro de nuestra zona de cobertura. Si tu dirección queda fuera, puedes elegir el
+        recojo en tienda.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Tiempo de entrega</h2>
+      <p>
+        El tiempo de entrega depende de la distancia entre la botica y tu domicilio, por lo que no manejamos un plazo
+        fijo. Puedes seguir el avance de tu pedido en todo momento desde la sección de seguimiento.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Horarios de atención</h2>
+      <ul>
+        <li><strong>Pedidos por la página web (delivery):</strong> {{ c.horarioWeb }}</li>
+        <li><strong>Atención presencial en la tienda:</strong> {{ c.horarioPresencial }}</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Seguimiento de tu pedido</h2>
+      <p>
+        Desde <a routerLink="/perfil" [queryParams]="{ seccion: 'pedidos' }">Mis pedidos</a> puedes ver el estado de
+        tu compra (pagado, en camino o entregado) y, cuando el pedido va en camino, el recorrido del repartidor en el
+        mapa.
+      </p>
+    </section>
+
+    <section class="aviso-destacado">
+      <h2>6. Medicamentos de venta bajo receta</h2>
+      <p>
+        Para entregar un medicamento que requiere receta médica, el repartidor te pedirá que la muestres al momento
+        de la entrega. Si no se presenta la receta, o si resulta falsa o adulterada, el medicamento no será entregado.
+        Consulta la <a routerLink="/devoluciones">política de devoluciones</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Al recibir tu pedido</h2>
+      <p>
+        Revisa que el pedido esté completo y que los productos estén en buen estado y dentro de su fecha de
+        vencimiento. Si algo no está bien, comunícate con nosotros: lo atendemos según nuestra
+        <a routerLink="/devoluciones">política de devoluciones</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Contacto</h2>
+      <ul>
+        <li>WhatsApp: <a [href]="c.whatsappHref" target="_blank" rel="noopener noreferrer">{{ c.whatsapp }}</a></li>
+        <li>Teléfono: <a [href]="c.telefonoHref">{{ c.telefono }}</a></li>
+        <li>Correo: <a [href]="'mailto:' + c.correo">{{ c.correo }}</a></li>
+      </ul>
+    </section>
+
+    <footer class="terminos-footer">
+      <a routerLink="/" class="btn-volver-inicio">Volver al inicio</a>
+    </footer>
+
+  </article>
+</div>

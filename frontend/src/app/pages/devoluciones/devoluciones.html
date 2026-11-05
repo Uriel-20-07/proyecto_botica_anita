@@ -1,0 +1,70 @@
+<div class="terminos-page">
+  <article class="terminos-card">
+
+    <header class="terminos-header">
+      <h1>Devoluciones</h1>
+      <p class="terminos-meta">Última actualización: {{ fechaActualizacion }}</p>
+      <p class="terminos-intro">
+        Queremos que recibas productos en perfectas condiciones. Si algo no salió bien con tu pedido, esta política
+        te explica cómo ayudarte.
+      </p>
+    </header>
+
+    <section>
+      <h2>1. Cuándo aceptamos una devolución</h2>
+      <ul>
+        <li><strong>Producto dañado:</strong> el producto o su empaque llegó en mal estado.</li>
+        <li><strong>Producto equivocado:</strong> recibiste un producto distinto al que pediste.</li>
+        <li><strong>Producto vencido:</strong> el producto llegó con la fecha de vencimiento cumplida.</li>
+        <li><strong>Restricción por receta:</strong> el medicamento requería receta y, al mostrarla al repartidor, resultó falsa o adulterada (ver el punto 2).</li>
+      </ul>
+    </section>
+
+    <section class="aviso-destacado">
+      <h2>2. Medicamentos que requieren receta</h2>
+      <p>
+        Por tu seguridad y por la normativa sanitaria, los medicamentos de venta bajo receta solo se entregan si se
+        presenta una receta válida. Si la receta mostrada al repartidor es falsa o adulterada, el medicamento no será
+        entregado y ese producto quedará sujeto a devolución conforme a esta política.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Cómo solicitar una devolución</h2>
+      <p>Comunícate con nosotros lo antes posible por cualquiera de estos medios e indícanos:</p>
+      <ul>
+        <li>Tu número de pedido y el producto afectado.</li>
+        <li>El motivo de la devolución.</li>
+        <li>Si puedes, fotos del producto y de su empaque.</li>
+      </ul>
+      <p>
+        WhatsApp: <a [href]="c.whatsappHref" target="_blank" rel="noopener noreferrer">{{ c.whatsapp }}</a> ·
+        Teléfono: <a [href]="c.telefonoHref">{{ c.telefono }}</a> ·
+        Correo: <a [href]="'mailto:' + c.correo">{{ c.correo }}</a>
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Qué hacemos cuando se aprueba</h2>
+      <ul>
+        <li>Revisamos tu caso y, si corresponde, te enviamos el producto correcto o te devolvemos el importe.</li>
+        <li>El reembolso se hace por el mismo medio de pago que usaste. El tiempo en que lo veas reflejado depende de tu banco o billetera digital.</li>
+        <li>También puedes acercarte a la tienda: {{ c.direccion }}. {{ c.horarioPresencial }}</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Qué no cubre esta política</h2>
+      <p>
+        Por razones de seguridad sanitaria, no aceptamos devoluciones de medicamentos ni de productos de salud por
+        motivos distintos a los indicados arriba una vez entregados (por ejemplo, un cambio de opinión). Esto no
+        afecta los derechos que te reconoce el Código de Protección y Defensa del Consumidor (Ley N.° 29571).
+      </p>
+    </section>
+
+    <footer class="terminos-footer">
+      <a routerLink="/" class="btn-volver-inicio">Volver al inicio</a>
+    </footer>
+
+  </article>
+</div>

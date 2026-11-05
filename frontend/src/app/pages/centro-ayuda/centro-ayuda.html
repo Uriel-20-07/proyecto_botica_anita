@@ -1,0 +1,129 @@
+<div class="terminos-page">
+  <article class="terminos-card">
+
+    <header class="terminos-header">
+      <h1>Centro de Ayuda</h1>
+      <p class="terminos-meta">Última actualización: {{ fechaActualizacion }}</p>
+      <p class="terminos-intro">
+        Encuentra respuestas rápidas a las dudas más comunes. Si no encuentras lo que buscas, escríbenos o
+        pregúntale a SofIA, nuestra asistente virtual.
+      </p>
+    </header>
+
+    <section>
+      <h2>Contáctanos</h2>
+      <div class="ayuda-contacto">
+        <div class="ayuda-contacto-item">
+          <strong>WhatsApp</strong>
+          <a [href]="c.whatsappHref" target="_blank" rel="noopener noreferrer">{{ c.whatsapp }}</a>
+        </div>
+        <div class="ayuda-contacto-item">
+          <strong>Teléfono</strong>
+          <a [href]="c.telefonoHref">{{ c.telefono }}</a>
+        </div>
+        <div class="ayuda-contacto-item">
+          <strong>Correo</strong>
+          <a [href]="'mailto:' + c.correo">{{ c.correo }}</a>
+        </div>
+        <div class="ayuda-contacto-item">
+          <strong>Tienda</strong>
+          {{ c.direccion }}
+          <small>{{ c.horarioPresencial }}</small>
+        </div>
+      </div>
+      <p style="margin-top: 14px;">
+        <strong>Pedidos por la página web (delivery):</strong> {{ c.horarioWeb }}
+      </p>
+    </section>
+
+    <section class="ayuda-faq">
+      <h2>Preguntas frecuentes</h2>
+
+      <details>
+        <summary>¿Cómo hago un pedido?</summary>
+        <div>
+          Inicia sesión o crea tu cuenta, busca tus productos en el catálogo (o pídeselos a SofIA), agrégalos al
+          carrito y completa el pago eligiendo recojo en tienda o delivery. Recibirás un correo de confirmación.
+        </div>
+      </details>
+
+      <details>
+        <summary>¿Qué métodos de pago aceptan?</summary>
+        <div>Tarjeta de crédito o débito (procesada por Stripe), Yape, Plin y SIP.</div>
+      </details>
+
+      <details>
+        <summary>¿Cuánto cuesta el envío y a qué zonas llegan?</summary>
+        <div>
+          El recojo en tienda es gratis y el delivery cuesta S/ 5.00 dentro del distrito de Independencia. Más
+          detalles en <a routerLink="/politicas-de-envio">Políticas de Envío</a>.
+        </div>
+      </details>
+
+      <details>
+        <summary>¿Cómo sigo mi pedido?</summary>
+        <div>
+          Entra a <a routerLink="/perfil" [queryParams]="{ seccion: 'pedidos' }">Mis pedidos</a> para ver su estado
+          y, cuando va en camino, el recorrido del repartidor en el mapa.
+        </div>
+      </details>
+
+      <details>
+        <summary>¿Necesito receta para comprar un medicamento?</summary>
+        <div>
+          Algunos medicamentos solo se venden con receta médica. En ese caso, la receta se presenta de forma
+          presencial: al repartidor en el momento de la entrega o directamente en la tienda.
+        </div>
+      </details>
+
+      <details>
+        <summary>¿Cuántas unidades puedo agregar al carrito?</summary>
+        <div>Hasta 10 unidades de un mismo producto, siempre que haya stock disponible.</div>
+      </details>
+
+      <details>
+        <summary>¿Dónde descargo mi comprobante?</summary>
+        <div>En tu cuenta, dentro del historial de pedidos, puedes descargar el comprobante de cada compra.</div>
+      </details>
+
+      <details>
+        <summary>Olvidé mi contraseña, ¿qué hago?</summary>
+        <div>
+          Puedes restablecerla desde <a routerLink="/recuperar-contrasena">Recuperar contraseña</a>. Te enviaremos un
+          enlace al correo de tu cuenta.
+        </div>
+      </details>
+
+      <details>
+        <summary>Mi producto llegó dañado, equivocado o vencido</summary>
+        <div>
+          Lamentamos el inconveniente. Revisa la <a routerLink="/devoluciones">política de devoluciones</a> y
+          escríbenos por WhatsApp con tu número de pedido.
+        </div>
+      </details>
+
+      <details>
+        <summary>¿SofIA puede recetarme algo?</summary>
+        <div>
+          No. SofIA brinda orientación informativa y te ayuda a encontrar productos, pero no reemplaza la consulta
+          con un médico ni la orientación de un químico farmacéutico.
+        </div>
+      </details>
+    </section>
+
+    <section>
+      <h2>Más información</h2>
+      <ul>
+        <li><a routerLink="/politicas-de-envio">Políticas de Envío</a></li>
+        <li><a routerLink="/devoluciones">Devoluciones</a></li>
+        <li><a routerLink="/politica-de-privacidad">Política de Privacidad</a></li>
+        <li><a routerLink="/terminos-y-condiciones">Términos y Condiciones</a></li>
+      </ul>
+    </section>
+
+    <footer class="terminos-footer">
+      <a routerLink="/" class="btn-volver-inicio">Volver al inicio</a>
+    </footer>
+
+  </article>
+</div>
