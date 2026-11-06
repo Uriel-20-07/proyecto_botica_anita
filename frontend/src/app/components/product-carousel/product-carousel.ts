@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CatalogoService, ProductoApi, CategoriaApi } from '../../services/catalogo.service';
 import { CartService } from '../../services/cart.service';
+import { ToastService } from '../../services/toast.service';
 import { environment } from '../../../environments/environment';
 
 interface ProductoVista {
@@ -48,6 +49,7 @@ export class ProductCarouselComponent implements OnInit {
   constructor(
     private readonly catalogoService: CatalogoService,
     private readonly cartService: CartService,
+    private readonly toastService: ToastService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
@@ -117,7 +119,9 @@ export class ProductCarouselComponent implements OnInit {
       precioVenta: producto.precioOriginal,
       categoria: this.categorias.find((c) => c.nombre === producto.categoriaNombre) ?? null
     };
-    this.cartService.add(productoApi);
+    this.cartService.add(productoApi, () => {
+      this.toastService.mostrar('Producto agregado correctamente');
+    });
   }
 
   /** Extrae la fecha de caducidad del producto (idéntico al catálogo). */

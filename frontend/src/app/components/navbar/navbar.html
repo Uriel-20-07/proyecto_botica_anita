@@ -96,7 +96,7 @@
                 <button class="tool-btn" routerLink="/carrito">
                     <i class="bi bi-bag" style="font-size:19px"></i>
                     <span class="tool-label">Carrito</span>
-                    <span class="cart-badge">{{ getCartCount((cartCount$ | async) ?? []) }}</span>
+                    <span class="cart-badge" data-cart-badge>{{ getCartCount((cartCount$ | async) ?? []) }}</span>
                 </button>
             </div>
 

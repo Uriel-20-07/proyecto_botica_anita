@@ -7,6 +7,7 @@ import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { environment } from '../../../environments/environment';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-producto-detalle',
@@ -41,7 +42,8 @@ export class ProductoDetalleComponent implements OnInit {
     private readonly cartService: CartService,
     private readonly favoritosService: FavoritosService,
     private readonly authService: AuthService,
-    private readonly authModalService: AuthModalService
+    private readonly authModalService: AuthModalService,
+    private readonly toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -156,17 +158,20 @@ export class ProductoDetalleComponent implements OnInit {
       precioVenta: this.producto.precioVenta,
       fechaCaducidad: this.producto.fechaCaducidad
     };
-    
-    for (let i = 0; i < this.cantidad; i++) {
-      this.cartService.add(prodApi);
-    }
 
-    this.mensaje = `${this.producto.nombre} (x${this.cantidad}) agregado al carrito.`;
-    
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      this.mensaje = '';
-    }, 3000);
+    const nombre = this.producto.nombre;
+    const cantidad = this.cantidad;
+
+    for (let i = 0; i < cantidad; i++) {
+      const esUltima = i === cantidad - 1;
+      this.cartService.add(prodApi, esUltima ? () => {
+        this.toastService.mostrar(`${nombre} (x${cantidad}) agregado al carrito`);
+        this.mensaje = `${nombre} (x${cantidad}) agregado al carrito.`;
+        setTimeout(() => {
+          this.mensaje = '';
+        }, 3000);
+      } : undefined);
+    }
   }
 
   isFavorito(): boolean {

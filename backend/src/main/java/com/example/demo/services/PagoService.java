@@ -199,7 +199,7 @@ public class PagoService {
 
         double costoEnvio = request.isEsUrgente() ? 5.0 : 0.0;
         long amountInCents = Math.round((subtotal + costoEnvio) * 100);
-        String moneda = (request.getMoneda() != null) ? request.getMoneda() : "pen";
+        String moneda = "mxn"; // Forzamos la moneda nativa de tu cuenta de Stripe
 
         return PaymentIntent.create(PaymentIntentCreateParams.builder()
                 .setAmount(amountInCents)

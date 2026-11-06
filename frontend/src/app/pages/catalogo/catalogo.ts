@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { Subject, takeUntil } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ToastService } from '../../services/toast.service';
 
 /**
  * Interfaz interna para representar un producto adaptado a la vista del catálogo.
@@ -98,7 +99,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     private readonly algoliaService: AlgoliaService,
     private readonly favoritosService: FavoritosService,
     private readonly authService: AuthService,
-    private readonly authModalService: AuthModalService
+    private readonly authModalService: AuthModalService,
+    private readonly toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -338,6 +340,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     };
 
     this.cartService.add(productoApi, () => {
+      this.toastService.mostrar(`${producto.nombre} agregado al carrito`);   // <-- NUEVA
       this.mensaje = `${producto.nombre} agregado al carrito.`;
 
       window.setTimeout(() => {
