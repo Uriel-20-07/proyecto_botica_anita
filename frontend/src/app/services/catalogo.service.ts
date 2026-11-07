@@ -39,6 +39,8 @@ export interface ProductoApi {
   fecha_caducidad?: any;
   precioConDescuento?: number;
   descuentoPorcentaje?: number;
+  agotado?: boolean;         // true si no hay stock o el producto está vencido
+  stock?: number;
 }
 
 /**

@@ -23,6 +23,7 @@ interface ProductoVista {
     message: string;
     isExpired: boolean;
   };
+  agotado?: boolean;
 }
 
 @Component({
@@ -104,6 +105,9 @@ export class FavoritosComponent implements OnInit {
   }
 
   agregarProducto(producto: ProductoVista): void {
+    if (producto.agotado) {
+      return;
+    }
     const productoApi: ProductoApi = {
       idProducto: producto.id,
       nombre: producto.nombre,
@@ -149,7 +153,8 @@ export class FavoritosComponent implements OnInit {
       etiquetaPromo: descuento.message || this.obtenerPromo(producto.nombre, categoriaNombre),
       colorPromo: descuento.message ? 'red' : (categoriaNombre === 'MEDICAMENTOS' ? 'red' : 'orange'),
       fechaCaducidad: fechaCad,
-      descuentoInfo: descuento
+      descuentoInfo: descuento,
+      agotado: this.cartService.estaAgotado(producto)
     };
   }
 

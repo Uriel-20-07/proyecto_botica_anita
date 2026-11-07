@@ -104,4 +104,11 @@ public class Producto {
     public void setFechaCaducidad(java.time.LocalDate fechaCaducidad) {
         this.fechaCaducidad = fechaCaducidad;
     }
+
+    /** Agotado = sin stock O vencido. Jackson lo expone en el JSON como "agotado". */
+    public boolean isAgotado() {
+        boolean sinStock = getStock() == null || getStock() <= 0;
+        boolean vencido = getFechaCaducidad() != null && getFechaCaducidad().isBefore(java.time.LocalDate.now());
+        return sinStock || vencido;
+    }
 }

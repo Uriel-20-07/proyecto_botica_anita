@@ -15,6 +15,7 @@ interface ProductoVista {
   categoriaNombre: string;
   imagen: string;
   requiereReceta?: boolean;
+  agotado?: boolean;
 }
 
 @Component({
@@ -112,6 +113,9 @@ export class ProductCarouselComponent implements OnInit {
   // ── Productos ────────────────────────────────────────────────────────────────
 
   agregarProducto(producto: ProductoVista): void {
+    if (producto.agotado) {
+      return;
+    }
     const productoApi: ProductoApi = {
       idProducto: producto.id,
       nombre: producto.nombre,
@@ -154,7 +158,8 @@ export class ProductCarouselComponent implements OnInit {
       descuentoPct,
       categoriaNombre,
       imagen,
-      requiereReceta: this.requiereRecetaMedica(producto.nombre)
+      requiereReceta: this.requiereRecetaMedica(producto.nombre),
+      agotado: this.cartService.estaAgotado(producto)
     };
   }
 

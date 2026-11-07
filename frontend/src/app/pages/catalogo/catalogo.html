@@ -108,11 +108,14 @@
                     </div>
                 } @else {
                     <div class="productos-grid">
-                        <div class="producto-card" *ngFor="let producto of productosFiltrados; trackBy: trackByProductoId">
+                        <div class="producto-card" [class.producto-agotado]="producto.agotado" *ngFor="let producto of productosFiltrados; trackBy: trackByProductoId">
                             <a [routerLink]="['/catalogo/producto']" [queryParams]="{ producto: producto.id }" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; flex-grow: 1; cursor: pointer;">
                                 <div class="producto-imagen-container">
                                     <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img">
-                                    @if (producto.etiquetaPromo) {
+                                    @if (producto.agotado) {
+                                        <span class="badge-agotado">Agotado</span>
+                                    }
+                                    @if (producto.etiquetaPromo && !producto.agotado) {
                                         <span class="promo-badge" [class.bg-red]="producto.colorPromo === 'red'"
                                             [class.bg-orange]="producto.colorPromo === 'orange'">
                                             {{ producto.etiquetaPromo }}
@@ -151,9 +154,15 @@
                                     </div>
                                 </div>
                             </a>
-                            <button type="button" class="btn-agregar" (click)="agregarProducto(producto)">
-                                <span>Agregar</span>
-                                <i class="bi bi-plus-lg" style="font-size:18px"></i>
+                            @if (producto.agotado) {
+                                <span class="msg-agotado" style="padding: 0 16px;">Estamos trabajando para reabastecerlo</span>
+                            }
+                            <button type="button" class="btn-agregar" [class.btn-agotado]="producto.agotado"
+                                [disabled]="producto.agotado" (click)="agregarProducto(producto)">
+                                <span>{{ producto.agotado ? 'Agotado' : 'Agregar' }}</span>
+                                @if (!producto.agotado) {
+                                    <i class="bi bi-plus-lg" style="font-size:18px"></i>
+                                }
                             </button>
                         </div>
                     </div>

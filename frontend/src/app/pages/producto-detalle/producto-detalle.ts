@@ -24,6 +24,7 @@ export class ProductoDetalleComponent implements OnInit {
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
   cantidad = 1;
   descuentoInfo: any = null;
+  agotado = false;
 
   private readonly imagenPorCategoria: Record<string, string> = {
     medicamentos: 'assets/img/producto1.png',
@@ -96,6 +97,7 @@ export class ProductoDetalleComponent implements OnInit {
           const imagen = found.imgUrl || this.imagenPorCategoria[catKey] || 'assets/img/placeholder-pill.png';
           const fechaCad = this.getFecha(found);
           this.descuentoInfo = this.cartService.getDiscountInfo(found);
+          this.agotado = this.cartService.estaAgotado(found);
 
           this.producto = {
             id: found.idProducto,
@@ -150,7 +152,7 @@ export class ProductoDetalleComponent implements OnInit {
   }
 
   agregarAlCarrito(): void {
-    if (!this.producto) return;
+    if (!this.producto || this.agotado) return;
     const prodApi: ProductoApi = {
       idProducto: this.producto.id,
       nombre: this.producto.nombre,
@@ -158,10 +160,9 @@ export class ProductoDetalleComponent implements OnInit {
       precioVenta: this.producto.precioVenta,
       fechaCaducidad: this.producto.fechaCaducidad
     };
-
+    
     const nombre = this.producto.nombre;
     const cantidad = this.cantidad;
-
     for (let i = 0; i < cantidad; i++) {
       const esUltima = i === cantidad - 1;
       this.cartService.add(prodApi, esUltima ? () => {

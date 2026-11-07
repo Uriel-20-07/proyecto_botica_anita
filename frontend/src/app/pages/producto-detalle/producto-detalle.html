@@ -23,10 +23,11 @@
   <div *ngIf="!cargando && producto" class="detalle-grid">
     <!-- COLUMNA IZQUIERDA: IMAGEN -->
     <div class="imagen-column">
-      <div class="card-imagen">
-        <span *ngIf="descuentoInfo && descuentoInfo.percentage > 0" class="promo-badge">
+      <div class="card-imagen" [class.producto-agotado]="agotado">
+        <span *ngIf="descuentoInfo && descuentoInfo.percentage > 0 && !agotado" class="promo-badge">
           {{ descuentoInfo.message }}
         </span>
+        <span *ngIf="agotado" class="badge-agotado">Agotado</span>
         <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img" />
       </div>
     </div>
@@ -99,6 +100,7 @@
       <div class="divider"></div>
 
       <!-- ACCIONES -->
+      <p *ngIf="agotado" class="msg-agotado">Estamos trabajando para reabastecer este producto.</p>
       <div class="actions-section">
         <!-- Selector de Cantidad -->
         <div class="qty-selector">
@@ -108,8 +110,8 @@
         </div>
 
         <!-- Botón Agregar -->
-        <button (click)="agregarAlCarrito()" class="btn-add-to-cart">
-          Agregar al carrito
+        <button (click)="agregarAlCarrito()" class="btn-add-to-cart" [class.btn-agotado]="agotado" [disabled]="agotado">
+          {{ agotado ? 'Agotado' : 'Agregar al carrito' }}
         </button>
 
         <!-- Botón Favoritos -->

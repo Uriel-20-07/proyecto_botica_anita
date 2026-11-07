@@ -18,6 +18,7 @@ export interface AlgoliaProducto {
   categoriaNombre?: string;
   imgUrl?: string;
   stock?: number;
+  agotado?: boolean;
   fechaCaducidad?: any;
   fecha_caducidad?: any;
 }

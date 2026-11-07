@@ -308,7 +308,7 @@ export class CartService {
 
     let message = '';
     if (isExpired) {
-      message = 'PRODUCTO VENCIDO';
+      message = 'AGOTADO';
     } else if (percentage === 0.30) {
       message = 'Liquidación 30% dscto.';
     } else if (percentage === 0.10) {
@@ -320,6 +320,14 @@ export class CartService {
     }
 
     return { percentage, message, isExpired };
+  }
+
+  /** Agotado = sin stock o vencido (el backend lo envía como "agotado"; respaldo por stock/fecha). */
+  estaAgotado(producto: any): boolean {
+    if (!producto) return false;
+    if (producto.agotado === true) return true;
+    if (producto.stock != null && Number(producto.stock) <= 0) return true;
+    return this.getDiscountInfo(producto).isExpired;
   }
 
   getFinalPrice(producto: any): number {

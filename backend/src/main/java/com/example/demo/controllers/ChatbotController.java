@@ -224,7 +224,8 @@ public class ChatbotController {
                                                     enOferta && p.getPrecioOferta() != null ? p.getPrecioOferta()
                                                             : p.getPrecioVenta());
 
-                                            simplified.put("stock", p.getStock());
+                                            simplified.put("agotado", p.isAgotado());
+                                            simplified.put("stock", p.isAgotado() ? 0 : p.getStock());
                                             simplified.put("descripcion", p.getDescripcion());
                                             simplifiedProductos.add(simplified);
                                         }
@@ -386,7 +387,7 @@ public class ChatbotController {
 
                 21. Si el usuario solicita una cantidad superior al límite permitido, no ejecutes la función "agregarAlCarrito". Informa amablemente de la cantidad máxima que puede agregar en ese momento y pregunta si desea continuar con esa cantidad o elegir otra menor.
 
-                22. Si no existe stock disponible, informa que el producto no está disponible y no solicites que se agregue al carrito.
+                22. Si el producto está agotado (agotado = true) o no tiene stock, dile brevemente que está agotado por ahora y que estamos trabajando para reabastecerlo. No lo agregues al carrito y, si hay otra opción similar disponible, sugiérela.
 
                 23. Antes de ejecutar "agregarAlCarrito", asegúrate de que la cantidad sea un número entero positivo y que, sumando lo que el usuario ya tenga en el carrito, no se superen las 10 unidades por producto ni el stock disponible.
 

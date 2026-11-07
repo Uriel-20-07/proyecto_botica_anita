@@ -88,6 +88,11 @@ public class CarritoService {
         Producto producto = productoRepository.findById(idProducto)
                 .orElseThrow(() -> new CarritoException("Producto no encontrado.", 0));
 
+        // Productos agotados (sin stock o vencidos): no se pueden agregar.
+        if (producto.isAgotado()) {
+            throw new CarritoException("Este producto está agotado por ahora. Estamos trabajando para reabastecerlo.", 0);
+        }
+
         // Stock disponible (protegido contra valores null en BD).
         int stockDisponible = (producto.getStock() != null) ? producto.getStock() : 0;
 

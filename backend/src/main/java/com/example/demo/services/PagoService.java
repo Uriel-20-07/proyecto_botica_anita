@@ -223,6 +223,14 @@ public class PagoService {
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
 
+        // Los productos agotados (sin stock o vencidos) no se pueden comprar
+        for (DetalleCarrito d : carrito.getDetalles()) {
+            if (d.getProducto().isAgotado()) {
+                throw new RuntimeException("El producto \"" + d.getProducto().getNombre()
+                        + "\" está agotado por ahora. Elimínalo del carrito para continuar.");
+            }
+        }
+
         // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
         // El recojo en tienda es gratis y no tiene radio de entrega.
         if (request.isEsUrgente()) {

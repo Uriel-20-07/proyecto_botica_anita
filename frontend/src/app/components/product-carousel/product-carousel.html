@@ -31,10 +31,10 @@
                     <div class="carousel-slide" *ngFor="let chunk of chunkedProducts">
                         <div class="row g-3">
                             <div class="col-6 col-md-3" *ngFor="let producto of chunk">
-                                <div class="producto-card h-100 d-flex flex-column position-relative">
+                                <div class="producto-card h-100 d-flex flex-column position-relative" [class.producto-agotado]="producto.agotado">
 
                                     <!-- Badge de descuento -->
-                                    <div class="descuento-badge">-{{ producto.descuentoPct }}%</div>
+                                    <div class="descuento-badge" *ngIf="!producto.agotado">-{{ producto.descuentoPct }}%</div>
 
                                     <!-- Badge de receta -->
                                     <div *ngIf="mostrarRecetas && producto.requiereReceta" class="descuento-badge" style="background: #8b5cf6 !important; left: auto; right: 8px; box-shadow: 0 3px 8px rgba(139, 92, 246, 0.4);">
@@ -43,6 +43,7 @@
 
                                     <div class="producto-imagen-container">
                                         <img [src]="producto.imagen" [alt]="producto.nombre" class="producto-img">
+                                        <span *ngIf="producto.agotado" class="badge-agotado">Agotado</span>
                                     </div>
 
                                     <div class="producto-info d-flex flex-column flex-grow-1">
@@ -56,9 +57,10 @@
                                             <span class="precio-regular">Precio regular: S/ {{ producto.precioOriginal |
                                                 number:'1.2-2' }}</span>
                                         </div>
-                                        <button type="button" class="btn-agregar w-100"
-                                            (click)="agregarProducto(producto)">
-                                            Agregar
+                                        <span *ngIf="producto.agotado" class="msg-agotado">Estamos trabajando para reabastecerlo</span>
+                                        <button type="button" class="btn-agregar w-100" [class.btn-agotado]="producto.agotado"
+                                            [disabled]="producto.agotado" (click)="agregarProducto(producto)">
+                                            {{ producto.agotado ? 'Agotado' : 'Agregar' }}
                                         </button>
                                     </div>
 

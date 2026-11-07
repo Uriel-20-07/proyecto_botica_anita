@@ -54,7 +54,7 @@
                     <div class="navbar-autocomplete-item" (click)="seleccionarSugerencia(sug)">
                         <div class="navbar-sug-thumb">
                             @if (sug.imgUrl) {
-                            <img [src]="sug.imgUrl" [alt]="sug.nombre" loading="lazy" />
+                            <img [src]="sug.imgUrl" [alt]="sug.nombre" loading="lazy" [style.filter]="estaAgotado(sug) ? 'grayscale(100%)' : null" />
                             } @else {
                             <i class="bi bi-image" style="font-size:18px;color:#8fa8c8"></i>
                             }
@@ -62,6 +62,9 @@
                         <div class="navbar-sug-info">
                             <span class="navbar-sug-nombre">{{ sug.nombre }}</span>
                             <span class="navbar-sug-categoria">{{ sug.categoriaNombre }}</span>
+                            @if (estaAgotado(sug)) {
+                            <span class="msg-agotado">Agotado por ahora</span>
+                            }
                         </div>
                         <div class="navbar-sug-precio-container"
                             style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 70px;">
@@ -75,8 +78,8 @@
                             <span class="navbar-sug-precio">S/ {{ sug.precioVenta | number:'1.2-2' }}</span>
                             }
                         </div>
-                        <button type="button" class="navbar-sug-add-btn" title="Agregar al carrito"
-                            (click)="agregarDesdeSugerencia(sug, $event)">
+                        <button type="button" class="navbar-sug-add-btn" title="Agregar al carrito" [class.btn-agotado]="estaAgotado(sug)"
+                            [disabled]="estaAgotado(sug)" (click)="agregarDesdeSugerencia(sug, $event)">
                             <i class="bi bi-plus-lg" style="font-size:14px"></i>
                         </button>
                     </div>

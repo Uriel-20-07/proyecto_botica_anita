@@ -32,6 +32,7 @@ interface ProductoVista {
     isExpired: boolean;
   };
   requiereReceta?: boolean;
+  agotado?: boolean;
 }
 
 /**
@@ -328,6 +329,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   }
 
   agregarProducto(producto: ProductoVista): void {
+    if (producto.agotado) {
+      return;
+    }
     const productoApi: ProductoApi = {
       idProducto: producto.id,
       nombre: producto.nombre,
@@ -377,7 +381,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       colorPromo: descuento.message ? 'red' : (categoriaNombre === 'MEDICAMENTOS' ? 'red' : 'orange'),
       fechaCaducidad: fechaCad,
       descuentoInfo: descuento,
-      requiereReceta: this.requiereRecetaMedica(producto.nombre)
+      requiereReceta: this.requiereRecetaMedica(producto.nombre),
+      agotado: this.cartService.estaAgotado(producto)
     };
   }
 
@@ -400,7 +405,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       colorPromo: descuento.message ? 'red' : ((hit.categoriaNombre ?? '').toUpperCase() === 'MEDICAMENTOS' ? 'red' : 'orange'),
       fechaCaducidad: fechaCad,
       descuentoInfo: descuento,
-      requiereReceta: this.requiereRecetaMedica(hit.nombre)
+      requiereReceta: this.requiereRecetaMedica(hit.nombre),
+      agotado: this.cartService.estaAgotado(hit)
     };
   }
 

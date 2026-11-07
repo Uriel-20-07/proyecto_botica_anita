@@ -184,6 +184,10 @@ export class NavbarComponent implements OnDestroy {
         : null
     };
 
+    if (this.estaAgotado(sugerencia)) {
+      return;
+    }
+
     this.cartService.add(productoApi);
 
     // Cerrar el dropdown tras agregar
@@ -213,8 +217,12 @@ export class NavbarComponent implements OnDestroy {
     return this.cartService.getTotal().toFixed(2);
   }
 
+  estaAgotado(sug: AlgoliaProducto): boolean {
+    return this.cartService.estaAgotado(sug);
+  }
+
   hasDiscount(sug: AlgoliaProducto): boolean {
-    return this.cartService.getDiscountInfo(sug).percentage > 0;
+    return !this.estaAgotado(sug) && this.cartService.getDiscountInfo(sug).percentage > 0;
   }
 
   getFinalPrice(sug: AlgoliaProducto): number {
