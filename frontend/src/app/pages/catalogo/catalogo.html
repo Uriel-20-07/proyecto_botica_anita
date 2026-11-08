@@ -27,12 +27,27 @@
                         (click)="seleccionarCategoria(null)">
                         Todas
                     </button>
-                    <button type="button" class="categoria-item-sidebar"
-                        *ngFor="let categoria of categorias"
-                        [class.active]="categoriaSeleccionadaId === categoria.idCategoria"
-                        (click)="seleccionarCategoria(categoria.idCategoria)">
-                        {{ categoria.nombre }}
-                    </button>
+                    <ng-container *ngFor="let categoria of categorias">
+                        <button type="button" class="categoria-item-sidebar"
+                            [class.active]="categoriaSeleccionadaId === categoria.idCategoria"
+                            (click)="seleccionarCategoria(categoria.idCategoria)">
+                            {{ categoria.nombre }}
+                        </button>
+                        <div class="subcategorias-sidebar"
+                            *ngIf="categoriaSeleccionadaId === categoria.idCategoria && categoria.subcategorias?.length">
+                            <button type="button" class="subcategoria-item-sidebar"
+                                [class.active]="subcategoriaSeleccionadaId === null"
+                                (click)="seleccionarSubcategoria(null)">
+                                Todas
+                            </button>
+                            <button type="button" class="subcategoria-item-sidebar"
+                                *ngFor="let sub of categoria.subcategorias"
+                                [class.active]="subcategoriaSeleccionadaId === sub.idSubcategoria"
+                                (click)="seleccionarSubcategoria(sub.idSubcategoria)">
+                                {{ sub.nombre }}
+                            </button>
+                        </div>
+                    </ng-container>
                 </div>
             </div>
 

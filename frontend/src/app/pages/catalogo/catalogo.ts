@@ -22,6 +22,7 @@ interface ProductoVista {
   precio: number;
   precioOriginal: number;
   categoriaNombre: string;
+  subcategoriaId?: number | null;
   imagen: string;
   etiquetaPromo?: string;
   colorPromo?: 'orange' | 'red';
@@ -61,6 +62,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   productos: ProductoVista[] = [];
   productosFiltrados: ProductoVista[] = [];
   categoriaSeleccionadaId: number | null = null;
+  subcategoriaSeleccionadaId: number | null = null;
   busqueda = '';
   cargando = true;
   mensaje = '';
@@ -170,7 +172,11 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       next: (resultados) => {
         // Convertir AlgoliaProducto → ProductoVista
         const productosAlgolia = resultados.map((hit) => this.mapAlgoliaHit(hit));
-        let filtrados = this.filtrarPorPrecio(productosAlgolia);
+        let filtrados = this.filtrarPorPrecio(
+          productosAlgolia.filter(
+            (p) => this.subcategoriaSeleccionadaId === null || p.subcategoriaId === this.subcategoriaSeleccionadaId
+          )
+        );
         if (this.soloOfertas) {
           filtrados = filtrados.filter(p => p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
         }
@@ -190,7 +196,18 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
   seleccionarCategoria(idCategoria: number | null): void {
     this.categoriaSeleccionadaId = idCategoria;
+    this.subcategoriaSeleccionadaId = null;
     // Si hay texto buscado, relanzar búsqueda con filtro de categoría
+    if (this.busqueda.trim()) {
+      this.buscar();
+    } else {
+      this.aplicarFiltros();
+    }
+  }
+
+  /** Filtra por subcategoría dentro de la categoría elegida (null = todas). */
+  seleccionarSubcategoria(id: number | null): void {
+    this.subcategoriaSeleccionadaId = id;
     if (this.busqueda.trim()) {
       this.buscar();
     } else {
@@ -214,6 +231,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   verOfertas(): void {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
+    this.subcategoriaSeleccionadaId = null;
     this.queryBusqueda = '';
     this.queryCategoria = '';
     this.soloOfertas = true;
@@ -224,6 +242,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   limpiarFiltros(): void {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
+    this.subcategoriaSeleccionadaId = null;
     this.queryBusqueda = '';
     this.queryCategoria = '';
     this.ordenamiento = 'relevancia';
@@ -236,6 +255,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     return !!(
       this.busqueda ||
       this.categoriaSeleccionadaId !== null ||
+      this.subcategoriaSeleccionadaId !== null ||
       this.precioMaximo < this.precioMaximoTotal ||
       this.ordenamiento !== 'relevancia' ||
       this.soloOfertas
@@ -264,7 +284,10 @@ export class CatalogoComponent implements OnInit, OnDestroy {
         !this.soloOfertas ||
         (p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
 
-      return coincideCategoria && coincideBusqueda && coincideOferta;
+      const coincideSubcategoria =
+        this.subcategoriaSeleccionadaId === null || p.subcategoriaId === this.subcategoriaSeleccionadaId;
+
+      return coincideCategoria && coincideSubcategoria && coincideBusqueda && coincideOferta;
     });
 
     filtrados = this.filtrarPorPrecio(filtrados);
@@ -376,6 +399,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       precio: producto.precioConDescuento != null ? Number(producto.precioConDescuento) : Number(producto.precioVenta),
       precioOriginal: Number(producto.precioVenta),
       categoriaNombre,
+      subcategoriaId: producto.subcategoria?.idSubcategoria ?? null,
       imagen,
       etiquetaPromo: descuento.message || this.obtenerPromo(producto.nombre, categoriaNombre),
       colorPromo: descuento.message ? 'red' : (categoriaNombre === 'MEDICAMENTOS' ? 'red' : 'orange'),
@@ -400,6 +424,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       precio: hit.precioConDescuento != null ? Number(hit.precioConDescuento) : Number(hit.precioVenta),
       precioOriginal: Number(hit.precioVenta),
       categoriaNombre: hit.categoriaNombre ?? 'General',
+      subcategoriaId: hit.subcategoriaId ?? null,
       imagen,
       etiquetaPromo: descuento.message || this.obtenerPromo(hit.nombre, hit.categoriaNombre ?? ''),
       colorPromo: descuento.message ? 'red' : ((hit.categoriaNombre ?? '').toUpperCase() === 'MEDICAMENTOS' ? 'red' : 'orange'),
@@ -433,6 +458,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   private aplicarFiltrosDesdeUrl(): void {
 
   this.busqueda = this.queryBusqueda;
+  this.subcategoriaSeleccionadaId = null;
 
   if (this.queryCategoria) {
 

@@ -824,3 +824,26 @@ mark {
     border-color: rgba(232, 93, 4, 0.1);
     background: #fff3e6;
 }
+
+/* ── Subcategorías (debajo de la categoría elegida) ── */
+.subcategorias-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: -2px 0 8px 14px;
+    padding-left: 12px;
+    border-left: 2px solid #e2e8f0;
+}
+.subcategoria-item-sidebar {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.subcategoria-item-sidebar:hover { background: #f1f5f9; }
+.subcategoria-item-sidebar.active { background: #dbeafe; color: #1e40af; }

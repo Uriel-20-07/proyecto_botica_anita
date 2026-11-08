@@ -17,9 +17,16 @@ export interface MarcaApi {
  * Interfaz que representa una categoría de productos en la API.
  * Ejemplo: "Analgésicos", "Antibióticos", "Vitaminas", etc.
  */
+export interface SubcategoriaApi {
+  idSubcategoria: number;
+  nombre: string;
+  orden?: number;
+}
+
 export interface CategoriaApi {
   idCategoria: number;
   nombre: string;
+  subcategorias?: SubcategoriaApi[]; // Subcategorías de la categoría (ordenadas)
 }
 
 /**
@@ -34,6 +41,7 @@ export interface ProductoApi {
   precioOferta?: number;     // Precio de oferta (menor al regular), null si no aplica
   enOferta?: boolean;        // true si el producto está en oferta actualmente
   categoria?: CategoriaApi | null; // Categoría del producto (null si no tiene)
+  subcategoria?: SubcategoriaApi | null; // Subcategoría del producto (null si no tiene)
   imgUrl?: string;           // URL de la imagen del producto (opcional)
   fechaCaducidad?: any;
   fecha_caducidad?: any;

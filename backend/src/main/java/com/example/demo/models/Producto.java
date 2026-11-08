@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Formula;
 import java.math.BigDecimal;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Entidad JPA que representa un producto del catálogo de la farmacia.
@@ -47,7 +48,12 @@ public class Producto {
      */
     @ManyToOne
     @JoinColumn(name = "id_categoria")
+    @JsonIgnoreProperties("subcategorias")
     private Categoria categoria;
+
+    @ManyToOne
+    @JoinColumn(name = "id_subcategoria")
+    private Subcategoria subcategoria;
 
     /** URL de la imagen del producto (puede ser externa o ruta local). */
     @Column(name = "img_url", length = 500)

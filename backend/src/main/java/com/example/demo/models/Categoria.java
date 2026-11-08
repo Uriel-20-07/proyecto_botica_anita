@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 @Entity
 @Table(name = "categorias")
 @Data
@@ -20,4 +22,11 @@ public class Categoria {
     @OneToMany(mappedBy = "categoria")
     @JsonIgnore
     private List<Producto> productos;
+
+    // Subcategorías de esta categoría (se envían en GET /api/categorias), ordenadas por "orden"
+    @OneToMany(mappedBy = "categoria", fetch = FetchType.EAGER)
+    @OrderBy("orden ASC")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<Subcategoria> subcategorias;
 }

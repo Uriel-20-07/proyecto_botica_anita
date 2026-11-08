@@ -16,6 +16,8 @@ export interface AlgoliaProducto {
   descuentoPorcentaje?: number;
   categoriaId?: number;
   categoriaNombre?: string;
+  subcategoriaId?: number;
+  subcategoriaNombre?: string;
   imgUrl?: string;
   stock?: number;
   agotado?: boolean;
