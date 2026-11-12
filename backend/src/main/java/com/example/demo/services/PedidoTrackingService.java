@@ -13,6 +13,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -43,6 +44,8 @@ public class PedidoTrackingService {
     private static final Map<Integer, Long> ULTIMO_INTENTO = new ConcurrentHashMap<>();
     /** Pedidos bloqueados por respuesta 429 de Nominatim. */
     private static final Map<Integer, Long> BLOQUEADOS = new ConcurrentHashMap<>();
+    /** Pedidos a los que ya se envió el email "en camino" (evita duplicados). */
+    private static final Set<Integer> EMAIL_EN_CAMINO_ENVIADO = ConcurrentHashMap.newKeySet();
 
     private final PedidoRepository pedidoRepository;
     private final GeocodificacionService geocodificacion;
@@ -98,27 +101,21 @@ public class PedidoTrackingService {
             pedido.setEstado(nuevoEstado);
             cambio = true;
             // Enviar email "en camino" solo para delivery y una sola vez.
-            if (urgente && emailService != null) {
+            if (urgente && emailService != null && pedido.getIdPedido() != null
+                    && EMAIL_EN_CAMINO_ENVIADO.add(pedido.getIdPedido())) {
                 try {
                     User u = pedido.getUsuario();
                     if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
-                        String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
+                        String nro = String.format("%06d", pedido.getIdPedido());
                         emailService.sendEnCaminoEmail(u.getEmail(), u.getNombre(), pedido, nro);
                     }
                 } catch (Exception ignored) {
                 }
             }
         }
-        if ("EN_CAMINO".equalsIgnoreCase(pedido.getEstado())
-                && segundos >= MIN_PREVIOS * 60 + tripMinSeg + 10) {
-            pedido.setEstado("COMPLETADO");
-            cambio = true;
-        }
-        if ("LISTO_RECOJO".equalsIgnoreCase(pedido.getEstado()) && segundos >= MIN_PREVIOS * 60 + 3600) {
-            // Recojo sin reclamo en 1 hora: se cierra solo.
-            pedido.setEstado("COMPLETADO");
-            cambio = true;
-        }
+        // NOTA: La transicion a COMPLETADO ya NO es automatica.
+        // El asistente de tienda debe marcar el pedido como "Entregado"
+        // manualmente desde el modulo de pedidos.
         if (cambio || guardoCoordenadas) {
             return pedidoRepository.save(pedido);
         }

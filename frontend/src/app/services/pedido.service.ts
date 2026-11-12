@@ -41,4 +41,17 @@ export class PedidoService {
     });
     return this.http.get<any[]>(this.apiUrl, { headers });
   }
+
+  /**
+   * Actualiza las coordenadas de entrega del pedido (cuando el usuario
+   * ajusta manualmente el marcador en el mapa). Persiste en el backend
+   * para que el email "en camino" use la ubicación corregida.
+   */
+  actualizarUbicacion(idPedido: number, lat: number, lng: number): Observable<any> {
+    const token = this.authService.getToken();
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+    return this.http.put<any>(`${this.apiUrl}/${idPedido}/ubicacion`, { latitud: lat, longitud: lng }, { headers });
+  }
 }

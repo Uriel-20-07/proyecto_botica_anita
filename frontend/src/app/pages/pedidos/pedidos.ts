@@ -119,10 +119,10 @@ export class PedidosComponent implements OnInit {
   }
 
   /**
-   * Costo de envío: recojo en tienda siempre gratis, urgente S/ 10.00.
+   * Costo de envío: recojo en tienda siempre gratis, urgente S/ 5.00.
    */
   calcularEnvio(pedido: any): number {
-    if (pedido.esUrgente) return 10;
+    if (pedido.esUrgente) return 5;
     return 0;
   }
 

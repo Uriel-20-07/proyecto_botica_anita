@@ -101,6 +101,11 @@ export class AdminService {
     return user && user.rol === 'vendedor';
   }
 
+  isAsistente(): boolean {
+    const user = this.adminUserSubject.value;
+    return user && user.rol === 'asistente';
+  }
+
   isAuthenticated(): boolean {
     return !!(
       this.adminTokenSubject.value ||

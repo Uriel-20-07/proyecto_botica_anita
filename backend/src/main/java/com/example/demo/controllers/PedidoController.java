@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -130,4 +132,29 @@ public class PedidoController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Actualiza las coordenadas de entrega del pedido (cuando el usuario
+     * ajusta manualmente el marcador en el mapa). Ruta: PUT /api/pedidos/{id}/ubicacion
+     */
+    @PutMapping("/{id}/ubicacion")
+    public ResponseEntity<?> actualizarUbicacion(@PathVariable("id") Integer id, @RequestBody Map<String, Object> body) {
+        Optional<Pedido> pedidoOpt = pedidoRepository.findById(id);
+        if (pedidoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Pedido no encontrado"));
+        }
+        Pedido pedido = pedidoOpt.get();
+        try {
+            if (body.get("latitud") != null) {
+                pedido.setLatitudEntrega(new java.math.BigDecimal(String.valueOf(body.get("latitud"))));
+            }
+            if (body.get("longitud") != null) {
+                pedido.setLongitudEntrega(new java.math.BigDecimal(String.valueOf(body.get("longitud"))));
+            }
+            pedidoRepository.save(pedido);
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
+}

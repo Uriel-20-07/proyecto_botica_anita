@@ -1,0 +1,232 @@
+<div class="asistente-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img class="brand-icon" src="/favicon.ico" alt="Botica Anita" />
+      <div>
+        <h2>BoticaAnita</h2>
+        <p>Panel Asistente</p>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="tabActiva() === 'venta'" (click)="cambiarTab('venta')">
+        Venta (POS)
+      </button>
+      <button class="nav-item" [class.active]="tabActiva() === 'pedidos'" (click)="cambiarTab('pedidos')">
+        Pedidos
+      </button>
+      <button class="nav-item" [class.active]="tabActiva() === 'historial'" (click)="cambiarTab('historial')">
+        Historial
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- VENTA (POS) -->
+    @if (tabActiva() === 'venta') {
+      <div class="pos-layout">
+        <!-- Product search + list -->
+        <section class="pos-products">
+          <div class="pos-header">
+            <h1>Punto de Venta</h1>
+            <input type="text" class="search-input" placeholder="Buscar producto por nombre..." [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" />
+          </div>
+          <div class="product-grid">
+            @for (p of productosFiltrados(); track p.idProducto) {
+              <div class="product-card" (click)="agregarAlCarrito(p)">
+                <div class="product-img">
+                  @if (p.imgUrl) {
+                    <img [src]="p.imgUrl" [alt]="p.nombre" />
+                  } @else {
+                    <img class="product-placeholder-img" src="/favicon.ico" alt="" />
+                  }
+                </div>
+                <div class="product-info">
+                  <span class="product-name">{{ p.nombre }}</span>
+                  <span class="product-price">S/ {{ p.precioVenta.toFixed(2) }}</span>
+                  <span class="product-stock">Stock: {{ p.stock }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- Cart -->
+        <section class="pos-cart">
+          <h2>Carrito</h2>
+          @if (carrito().length === 0) {
+            <p class="cart-empty">Agrega productos al carrito</p>
+          } @else {
+            <div class="cart-items">
+              @for (item of carrito(); track item.producto.idProducto) {
+                <div class="cart-item">
+                  <div class="cart-item-info">
+                    <span class="cart-item-name">{{ item.producto.nombre }}</span>
+                    <span class="cart-item-price">S/ {{ (item.producto.precioVenta * item.cantidad).toFixed(2) }}</span>
+                  </div>
+                  <div class="cart-item-qty">
+                    <button (click)="cambiarCantidad(item.producto.idProducto, -1)">−</button>
+                    <span>{{ item.cantidad }}</span>
+                    <button (click)="cambiarCantidad(item.producto.idProducto, 1)">+</button>
+                    <button class="btn-remove" (click)="quitarDelCarrito(item.producto.idProducto)">✕</button>
+                  </div>
+                </div>
+              }
+            </div>
+            <div class="cart-total">
+              <span>Total:</span>
+              <span class="total-amount">S/ {{ totalCarrito().toFixed(2) }}</span>
+            </div>
+            <div class="cart-payment">
+              <label>Método de pago</label>
+              <select [(ngModel)]="metodoPago" class="payment-select">
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TARJETA">Tarjeta</option>
+                <option value="YAPE">Yape</option>
+                <option value="PLIN">Plin</option>
+              </select>
+            </div>
+            <div class="cart-cliente">
+              <input type="text" placeholder="Nombre del cliente (opcional)" [value]="nombreCliente()" (input)="nombreCliente.set($any($event.target).value)" />
+              <input type="email" placeholder="Email del cliente (para boleta)" [value]="emailCliente()" (input)="emailCliente.set($any($event.target).value)" />
+            </div>
+            <button class="btn-confirmar" (click)="confirmarVenta()" [disabled]="procesandoVenta() || carrito().length === 0">
+              {{ procesandoVenta() ? 'Procesando...' : 'Confirmar Venta' }}
+            </button>
+          }
+        </section>
+      </div>
+    }
+
+    <!-- PEDIDOS -->
+    @if (tabActiva() === 'pedidos') {
+      <div class="pedidos-section">
+        <div class="pedidos-header">
+          <h1>Pedidos</h1>
+          <div class="sub-tabs">
+            <button class="sub-tab" [class.active]="subTabPedidos() === 'pendientes'" (click)="cambiarSubTabPedidos('pendientes')">Pendientes</button>
+            <button class="sub-tab" [class.active]="subTabPedidos() === 'entregados'" (click)="cambiarSubTabPedidos('entregados')">Entregados</button>
+          </div>
+          <button class="btn-refresh" (click)="subTabPedidos() === 'pendientes' ? cargarPedidos() : cargarPedidosEntregados()">Actualizar</button>
+        </div>
+
+        @if (pedidosVisibles().length === 0) {
+          <p class="empty-state">No hay pedidos en esta categoría.</p>
+        } @else {
+          <div class="pedidos-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Cliente</th>
+                  <th>Estado</th>
+                  <th>Método</th>
+                  <th>Total</th>
+                  <th>Fecha</th>
+                  <th>Dirección</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of pedidosVisibles(); track p.idPedido) {
+                  <tr (click)="verDetalle(p)" class="clickable-row">
+                    <td class="td-id">#{{ p.idPedido }}</td>
+                    <td>{{ p.usuario?.nombre || 'Cliente' }}</td>
+                    <td>
+                      <span class="estado-badge" [class.entregado]="estadoLegible(p.estado) === 'Entregado'"
+                            [class.encamino]="estadoLegible(p.estado) === 'En camino'"
+                            [class.pendiente]="estadoLegible(p.estado) === 'Pendiente'">
+                        {{ estadoLegible(p.estado) }}
+                      </span>
+                    </td>
+                    <td>{{ p.metodoPago }}</td>
+                    <td class="td-total">S/ {{ p.total }}</td>
+                    <td class="td-fecha">{{ formatFecha(p.fecha) }}</td>
+                    <td class="td-dir">{{ p.direccionEnvio }} ({{ p.distrito }})</td>
+                    <td>
+                      @if (subTabPedidos() === 'pendientes') {
+                        <button class="btn-entregar" (click)="marcarEntregado(p.idPedido); $event.stopPropagation()">Entregado</button>
+                      } @else {
+                        <button class="btn-ver" (click)="verDetalle(p); $event.stopPropagation()">Ver boleta</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- Modal de detalle -->
+        @if (pedidoDetalle()) {
+          <div class="modal-overlay" (click)="cerrarDetalle()">
+            <div class="modal-card" (click)="$event.stopPropagation()">
+              <div class="modal-header">
+                <h3>Pedido #{{ pedidoDetalle()!.idPedido }}</h3>
+                <button class="modal-close" (click)="cerrarDetalle()">✕</button>
+              </div>
+              <div class="modal-body">
+                <div class="detalle-row"><span class="label">Cliente:</span><span>{{ pedidoDetalle()!.usuario?.nombre || 'Cliente en tienda' }}</span></div>
+                <div class="detalle-row"><span class="label">Estado:</span><span>{{ estadoLegible(pedidoDetalle()!.estado) }}</span></div>
+                <div class="detalle-row"><span class="label">Método de pago:</span><span>{{ pedidoDetalle()!.metodoPago }}</span></div>
+                <div class="detalle-row"><span class="label">Dirección:</span><span>{{ pedidoDetalle()!.direccionEnvio }} ({{ pedidoDetalle()!.distrito }})</span></div>
+                <div class="detalle-row"><span class="label">Total:</span><span class="total">S/ {{ pedidoDetalle()!.total }}</span></div>
+                <div class="detalle-row"><span class="label">Fecha:</span><span>{{ formatFecha(pedidoDetalle()!.fecha) }}</span></div>
+              </div>
+              <div class="modal-footer">
+                <button class="btn-cerrar" (click)="cerrarDetalle()">Cerrar</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- HISTORIAL -->
+    @if (tabActiva() === 'historial') {
+      <div class="historial-section">
+        <h1>Ventas de Hoy</h1>
+        <div class="historial-summary">
+          <div class="summary-card">
+            <span class="summary-label">Total ventas</span>
+            <span class="summary-value">{{ ventasHoy().length }}</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Monto total</span>
+            <span class="summary-value">S/ {{ totalVentasHoy().toFixed(2) }}</span>
+          </div>
+        </div>
+        @if (ventasHoy().length === 0) {
+          <p class="empty-state">No hay ventas registradas hoy.</p>
+        } @else {
+          <div class="pedidos-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Hora</th>
+                  <th>Método</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (v of ventasHoy(); track v.idPedido) {
+                  <tr>
+                    <td>#{{ v.idPedido }}</td>
+                    <td>{{ formatFecha(v.fecha) }}</td>
+                    <td>{{ v.metodoPago }}</td>
+                    <td>S/ {{ v.total }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+  </main>
+</div>
