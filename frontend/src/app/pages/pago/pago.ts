@@ -745,12 +745,12 @@ this.descuento = subtotalElegible * (valor / 100);
           next: () => {
               this.folioGenerado = `FC-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
               this.direccionFinal = `${this.formPago.direccionDetalle}, ${this.formPago.distrito}, Lima`;
-              this.pagoPendienteVerificacion = this.metodoSeleccionado === 'PLIN';
+              this.pagoPendienteVerificacion = this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP';
               this.pagoExitoso = true;
               this.procesandoPago = false;
 
               this.cartService.clear();
-              // Con Plin llevamos al cliente a sus pedidos para que vea el estado de la verificación
+              // Con Plin y SIP llevamos al cliente a sus pedidos para que vea el estado de la verificación
               setTimeout(() => {
                 if (this.pagoPendienteVerificacion) {
                   this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });

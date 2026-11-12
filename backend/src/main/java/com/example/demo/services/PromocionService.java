@@ -133,7 +133,55 @@ public class PromocionService {
                     "pantene-2", "Shampoo Pantene Pro-V", "Cuidado capilar",
                     "Lleva 2 shampoos Pantene y ahorra 15%.",
                     0, 15,
-                    List.of(Regla.de("pantene", 2))));
+                    List.of(Regla.de("pantene", 2))),
+
+            // Alivio de la gripe: Panadol Antigripal + Jarabe Vick con 10% menos.
+            new Definicion(
+                    "alivio-gripe", "Alivio de la gripe", "Resfríos",
+                    "Panadol Antigripal + Jarabe Vick con 10% de descuento.",
+                    0, 10,
+                    List.of(
+                            Regla.de("panadol", 1),
+                            Regla.de("jarabe.*vick|vick.*jarabe", 1))),
+
+            // Frescura total: desodorante Axe + desodorante Rexona con 12% menos.
+            new Definicion(
+                    "frescura-total", "Frescura total", "Cuidado personal",
+                    "Desodorante Axe + desodorante Rexona con 12% de descuento.",
+                    0, 12,
+                    List.of(
+                            Regla.de("desodorante.*\\baxe\\b", 1),
+                            Regla.de("desodorante.*rexona|rexona.*desodorante", 1))),
+
+            // Rutina facial: crema antiarrugas L'Oréal + removedor de maquillaje Neutrogena con 10% menos.
+            new Definicion(
+                    "rutina-facial", "Rutina facial completa", "Belleza",
+                    "Crema antiarrugas L'Oréal + removedor Neutrogena con 10% de descuento.",
+                    0, 10,
+                    List.of(
+                            Regla.de("revitalift|antiarrugas", 1),
+                            Regla.de("removedor.*neutrogena|neutrogena.*removedor", 1))),
+
+            // Leche infantil Nestlé NAN 1: 8% menos al llevar 2.
+            new Definicion(
+                    "nan-2", "Leche infantil NAN 1", "Nutrición infantil",
+                    "Lleva 2 latas de Nestlé NAN 1 y ahorra 8%.",
+                    0, 8,
+                    List.of(Regla.de("\\bnan\\b", 2))),
+
+            // Loratadina: lleva 3, paga 2.
+            new Definicion(
+                    "loratadina-3x2", "Antialérgico Loratadina 3x2", "Alergias",
+                    "Lleva 3 cajas y paga solo 2.",
+                    1, 0,
+                    List.of(Regla.de("loratadina", 3))),
+
+            // Toallas higiénicas Nosotras: 10% menos al llevar 2.
+            new Definicion(
+                    "nosotras-2", "Toallas higiénicas Nosotras", "Cuidado íntimo",
+                    "Lleva 2 paquetes y ahorra 10%.",
+                    0, 10,
+                    List.of(Regla.de("nosotras", 2))));
 
     // ───────────────────────── Catálogo de promociones ─────────────────────────
 

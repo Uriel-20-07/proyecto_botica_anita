@@ -19,7 +19,7 @@
       </div>
     </div>
     <p class="exito-sub" *ngIf="!pagoPendienteVerificacion">Te enviaremos la confirmación a tu correo. Redirigiendo al catálogo...</p>
-    <p class="exito-sub" *ngIf="pagoPendienteVerificacion">Estamos verificando tu pago Plin. Te enviaremos la confirmación a tu correo apenas lo validemos. Redirigiendo a tus pedidos...</p>
+    <p class="exito-sub" *ngIf="pagoPendienteVerificacion">Registramos tu pago por {{ metodoSeleccionado === 'SIP' ? 'SIP' : 'Plin' }}. Te enviamos un correo con la verificación de tu compra. Redirigiendo a tus pedidos...</p>
     <div class="exito-barra-wrap">
       <div class="exito-barra"></div>
     </div>
