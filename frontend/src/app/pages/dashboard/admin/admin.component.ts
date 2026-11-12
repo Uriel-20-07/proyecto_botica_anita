@@ -55,8 +55,6 @@ export class AdminDashboardComponent implements OnInit {
   totalPedidos = 0;
   bajoStockCount = 0;
 
-  
-
   // ── Métodos de pago (gráfico de dona) ────────────────────────────────
   metodoPagoModo: 'monto' | 'cantidad' = 'monto';
   metodosPago: Array<{ clave: string; etiqueta: string; color: string; cantidad: number; monto: number; pctCantidad: number; pctMonto: number }> = [];
@@ -98,13 +96,6 @@ export class AdminDashboardComponent implements OnInit {
   mostrarDescuentoCollapse: boolean = false;
 
   // Nuevas Predicciones
-  // Variable para controlar si el bloque se muestra u oculta
-mostrarDemandaEstacional: boolean = true;
-
-// Método para ocultar la sección
-ocultarDemandaEstacional(): void {
-  this.mostrarDemandaEstacional = false;
-}
   prediccionQuiebreStock: any[] = [];
   prediccionDemandaEstacional: any[] = [];
   prediccionDemandaLocalizada: any[] = [];
@@ -1685,7 +1676,4 @@ ocultarDemandaEstacional(): void {
   fechaVenta(venta: any): Date | null {
     return fechaComoDate(venta?.fecha);
   }
-
-  
 }
-

@@ -325,19 +325,17 @@
         </div>
       </div>
     </div>
-            <div *ngIf="activeTab === 'inventario'" class="tab-pane animated-fade">
-              <div class="card table-card">
-              <div class="table-actions">
-          <div class="filter-group">
+
+    <div *ngIf="activeTab === 'inventario'" class="tab-pane animated-fade">
+      <div class="card table-card">
+        <div class="table-actions">
+          <div class="search-box">
             <select [(ngModel)]="categoriaFiltro" class="categoria-select">
-              <option value="">Todas las categorías</option>
-              <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
+                <option value="">Todas las categorías</option>
+                <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
             </select>
-            
-            <div class="search-box">
-              <i class="bi bi-search search-icon"></i>
-              <input type="text" [(ngModel)]="searchProducto" placeholder="Buscar producto o descripción..." />
-            </div>
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" [(ngModel)]="searchProducto" placeholder="Buscar por producto o descripción..." />
           </div>
         </div>
         <div class="table-responsive">
@@ -508,7 +506,7 @@
 
 <div class="reportes-vertical">
 
- <!-- Top 10 Clientes -->
+  <!-- Top 10 Clientes -->
   <div class="card" style="min-width:0;">
     <div class="card-header"
       style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
@@ -570,112 +568,121 @@
         </div>
     </div>  
   </div>
-
-  <!-- Top 10 Productos con Calendario Integrado en Header -->
-  <div class="card" style="min-width:0;">
-    <div class="card-header"
-      style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
-      <div>
-        <h2 style="margin:0;">Top 10 Productos</h2>
-        <span class="card-subtitle">{{ fechaFiltroLabel }}</span>
-      </div>
-
-      <!-- Controles de calendario alineados en la cabecera -->
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <label style="font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">Mes</label>
-          <input type="month" [(ngModel)]="filtroMes" (change)="onFiltroFechaChange()"
-            style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;color:#2d3436;outline:none;cursor:pointer;background:#fff;" />
-        </div>
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <label style="font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">Día específico</label>
-          <input type="date" [(ngModel)]="filtroDia" (change)="onFiltroFechaChange()"
-            [min]="filtroMes ? filtroMes + '-01' : ''"
-            style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;color:#2d3436;outline:none;cursor:pointer;background:#fff;" />
-        </div>
-        <button *ngIf="filtroMes || filtroDia" (click)="limpiarFiltroFecha()"
-          style="align-self:flex-end;padding:6px 12px;border:1px solid #e63946;color:#e63946;background:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">
-          ✕ Limpiar
-        </button>
-
-        <button (click)="descargarReporteTopProductos()" class="btn-action"
-          style="display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;align-self:flex-end;">
-          <i class="bi bi-download" style="font-size:13px"></i>
-          PDF
-        </button>
-      </div>
-    </div>
-
-    <div *ngIf="cargandoTopFiltrado" style="padding:30px;text-align:center;color:#718096;">
-      <i class="bi bi-arrow-repeat" style="font-size:18px;color:#ea580c;animation:spin 0.8s linear infinite;display:inline-block"></i>
-    </div>
-
-    <div *ngIf="!cargandoTopFiltrado && topProductosFiltrados !== null && topProductosFiltrados.length === 0"
-      style="padding:40px 16px;text-align:center;">
-      <i class="bi bi-calendar3" style="font-size:36px;color:#d1d5db;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto"></i>
-      <p style="color:#718096;font-size:14px;font-weight:600;margin:0;">Ese día no se realizaron ventas.</p>
-    </div>
-
-    <div class="table-responsive"
-      *ngIf="!cargandoTopFiltrado && topProductosFiltrados !== null && topProductosFiltrados.length > 0">
-      <table class="dashboard-table">
-        <thead>
-          <tr>
-            <th style="width:40px;">#</th>
-            <th>Producto</th>
-            <th style="text-align:center;">Unidades</th>
-            <th style="text-align:right;">Ingresos</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let item of topProductosFiltrados; let i = index">
-            <td><span style="font-weight:700;color:#ea580c;font-size:15px;">{{ i + 1 }}</span></td>
-            <td><span class="bold-text" style="font-size:13px;">{{ item.nombre }}</span></td>
-            <td style="text-align:center;">
-              <span class="status-badge"
-                style="background:rgba(234,88,12,0.1);color:#ea580c;border:1px solid rgba(234,88,12,0.2);">
-                {{ item.cantidadVendida }} u.
-              </span>
-            </td>
-            <td style="text-align:right;">
-              <span class="bold-text" style="color:#ea580c;">S/ {{ item.ingresoGenerado | number:'1.2-2' }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div *ngIf="!cargandoTopFiltrado && topProductosFiltrados === null">
-      <div class="empty-message" *ngIf="!reporteData.topProductos?.length">Sin datos de ventas en los últimos 30 días.</div>
-      <div class="table-responsive" *ngIf="reporteData.topProductos?.length">
-        <table class="dashboard-table">
-          <thead>
-            <tr>
-              <th style="width:40px;">#</th>
-              <th>Producto</th>
-              <th style="text-align:center;">Unidades</th>
-              <th style="text-align:right;">Ingresos</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of reporteData.topProductos; let i = index">
-              <td><span style="font-weight:700;color:#ea580c;font-size:15px;">{{ i + 1 }}</span></td>
-              <td><span class="bold-text" style="font-size:13px;">{{ item.nombre }}</span></td>
-              <td style="text-align:center;">
-                <span class="status-badge"
-                  style="background:rgba(234,88,12,0.1);color:#ea580c;border:1px solid rgba(234,88,12,0.2);">
-                  {{ item.cantidadVendida }} u.
+  <div class="card" style="min-width:0;">    
+          <!-- ════════════════════════════════════════════════════ -->
+          <!-- REPORTE 2 — Top 10 Productos con Calendario         -->
+          <!-- ════════════════════════════════════════════════════ -->
+          <div class="card">
+              <div class="card-header"
+              style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+              <div>
+                <h2 style="margin:0;">Top 10 Productos</h2>
+                <span class="card-subtitle">
+                  {{ fechaFiltroLabel }}
                 </span>
-              </td>
-              <td style="text-align:right;">
-                <span class="bold-text" style="color:#ea580c;">S/ {{ item.ingresoGenerado | number:'1.2-2' }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+              </div>
+              <button (click)="descargarReporteTopProductos()" class="btn-action"
+                style="display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;">
+                <i class="bi bi-download" style="font-size:13px"></i>
+                PDF
+              </button>
+            </div>
   </div>
+            <!-- Controles de calendario -->
+            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label
+                  style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">Mes</label>
+                <input type="month" [(ngModel)]="filtroMes" (change)="onFiltroFechaChange()"
+                  style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;color:#2d3436;outline:none;cursor:pointer;background:#fff;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label
+                  style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;">Día
+                  específico</label>
+                <input type="date" [(ngModel)]="filtroDia" (change)="onFiltroFechaChange()"
+                  [min]="filtroMes ? filtroMes + '-01' : ''"
+                  style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;color:#2d3436;outline:none;cursor:pointer;background:#fff;" />
+              </div>
+              <button *ngIf="filtroMes || filtroDia" (click)="limpiarFiltroFecha()"
+                style="align-self:flex-end;padding:7px 14px;border:1px solid #e63946;color:#e63946;background:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">
+                ✕ Limpiar
+              </button>
+            </div>
+
+            <div *ngIf="cargandoTopFiltrado" style="padding:30px;text-align:center;color:#718096;">
+              <i class="bi bi-arrow-repeat" style="font-size:18px;color:#ea580c;animation:spin 0.8s linear infinite;display:inline-block"></i>
+            </div>
+
+            <div *ngIf="!cargandoTopFiltrado && topProductosFiltrados !== null && topProductosFiltrados.length === 0"
+              style="padding:40px 16px;text-align:center;">
+              <i class="bi bi-calendar3" style="font-size:36px;color:#d1d5db;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto"></i>
+              <p style="color:#718096;font-size:14px;font-weight:600;margin:0;">Ese día no se realizaron ventas.</p>
+            </div>
+
+            <div class="table-responsive"
+              *ngIf="!cargandoTopFiltrado && topProductosFiltrados !== null && topProductosFiltrados.length > 0">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th style="width:40px;">#</th>
+                    <th>Producto</th>
+                    <th style="text-align:center;">Unidades</th>
+                    <th style="text-align:right;">Ingresos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of topProductosFiltrados; let i = index">
+                    <td><span style="font-weight:700;color:#ea580c;font-size:15px;">{{ i + 1 }}</span></td>
+                    <td><span class="bold-text" style="font-size:13px;">{{ item.nombre }}</span></td>
+                    <td style="text-align:center;">
+                      <span class="status-badge"
+                        style="background:rgba(234,88,12,0.1);color:#ea580c;border:1px solid rgba(234,88,12,0.2);">
+                        {{ item.cantidadVendida }} u.
+                      </span>
+                    </td>
+                    <td style="text-align:right;">
+                      <span class="bold-text" style="color:#ea580c;">S/ {{ item.ingresoGenerado | number:'1.2-2'
+                        }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div *ngIf="!cargandoTopFiltrado && topProductosFiltrados === null">
+              <div class="empty-message" *ngIf="!reporteData.topProductos?.length">Sin datos de ventas en los últimos 30
+                días.</div>
+              <div class="table-responsive" *ngIf="reporteData.topProductos?.length">
+                <table class="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40px;">#</th>
+                      <th>Producto</th>
+                      <th style="text-align:center;">Unidades</th>
+                      <th style="text-align:right;">Ingresos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of reporteData.topProductos; let i = index">
+                      <td><span style="font-weight:700;color:#ea580c;font-size:15px;">{{ i + 1 }}</span></td>
+                      <td><span class="bold-text" style="font-size:13px;">{{ item.nombre }}</span></td>
+                      <td style="text-align:center;">
+                        <span class="status-badge"
+                          style="background:rgba(234,88,12,0.1);color:#ea580c;border:1px solid rgba(234,88,12,0.2);">
+                          {{ item.cantidadVendida }} u.
+                        </span>
+                      </td>
+                      <td style="text-align:right;">
+                        <span class="bold-text" style="color:#ea580c;">S/ {{ item.ingresoGenerado | number:'1.2-2'
+                          }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
           <div class="card" style="display:flex;flex-direction:column;">
             <div class="card-header"
@@ -829,58 +836,96 @@
             </table>
           </div>
         </div>
-      <!-- Demanda Estacional Proyectada (Ancho Completo y Ocultable) -->
-<div class="card animated-fade" *ngIf="mostrarDemandaEstacional" style="width: 100%; grid-column: 1 / -1;">
-  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <div>
-      <h2 style="margin: 0;">2. Demanda Estacional Proyectada</h2>
-      <span class="card-subtitle">Alertas climáticas estacionales y proyecciones de volumen</span>
-    </div>
-    
-    
-  </div>
-
-  <!-- Grid horizontal para aprovechar el ancho completo si hay varias alertas -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
-    <div *ngFor="let est of prediccionDemandaEstacional"
-      style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: #f8fafc; position: relative; transition: border-color 0.2s; display: flex; flex-direction: column; justify-content: space-between;"
-      onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
-      <div>
-        <span class="status-badge"
-          style="position: absolute; top: 16px; right: 16px; background: rgba(234,88,12,0.1); color: #ea580c; border: 1px solid rgba(234,88,12,0.25); font-weight: 700; font-size: 11px;">
-          +{{ est.incremento }}% Demanda
-        </span>
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-          <img *ngIf="est.producto.imgUrl" [src]="est.producto.imgUrl" class="prod-thumbnail" />
-          <div class="prod-title-desc">
-            <h4 style="margin: 0; font-size: 14.5px; color: #111d2e; font-weight: 700;">{{ est.producto.nombre }}</h4>
-            <span style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 3px; margin-top: 2px;">
-              <i class="bi bi-calendar-event" style="font-size: 10px"></i>
-              Periodo: {{ est.estacion }}
-            </span>
+        <div class="card" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.transform='translateY(0)'">
+          <div class="card-header"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+              <h2 style="margin:0;">2. Demanda Estacional Proyectada</h2>
+              <span class="card-subtitle">Alertas climáticas estacionales y proyecciones de volumen</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div *ngFor="let est of prediccionDemandaEstacional"
+              style="border:1px solid #e2e8f0; border-radius:12px; padding:16px; background:#f8fafc; position:relative; transition: border-color 0.2s; display:flex; flex-direction:column; justify-content:space-between;"
+              onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
+              <div>
+                <span class="status-badge"
+                  style="position:absolute; top:16px; right:16px; background:rgba(234,88,12,0.1); color:#ea580c; border:1px solid rgba(234,88,12,0.25); font-weight:700; font-size:11px;">
+                  +{{ est.incremento }}% Demanda
+                </span>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                  <img *ngIf="est.producto.imgUrl" [src]="est.producto.imgUrl" class="prod-thumbnail" />
+                  <div class="prod-title-desc">
+                    <h4 style="margin:0; font-size:14.5px; color:#111d2e; font-weight:700;">{{ est.producto.nombre }}
+                    </h4>
+                    <span
+                      style="font-size:11px; color:#718096; text-transform:uppercase; font-weight:700; display:flex; align-items:center; gap:3px; margin-top:2px;">
+                      <i class="bi bi-currency-dollar" style="font-size:10px"></i>
+                      Periodo: {{ est.estacion }}
+                    </span>
+                  </div>
+                </div>
+                <p style="font-size:12.5px; color:#475569; margin:0 0 14px 0; line-height:1.4;">
+                  {{ est.recomendacion }}
+                </p>
+              </div>
+              <div
+                style="border-top: 1px dashed #cbd5e1; padding-top:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:12px; color:#1e293b; font-weight:600;">
+                  Proyección I.A.: <span style="color:#ea580c; font-weight:800;">{{ est.sugerenciaStock }} u.</span>
+                </div>
+                <button (click)="openLotesModal(est.producto)" class="btn-action edit-btn">
+                  Ajustar Lote
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <p style="font-size: 12.5px; color: #475569; margin: 0 0 14px 0; line-height: 1.4;">
-          {{ est.recomendacion }}
-        </p>
-      </div>
-      <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 12px; color: #1e293b; font-weight: 600;">
-          Proyección I.A.: <span style="color: #ea580c; font-weight: 800;">{{ est.sugerenciaStock }} u.</span>
+        <div class="card" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.transform='translateY(0)'">
+          <div class="card-header"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+              <h2 style="margin:0;">3. Demanda por Distrito (Lima)</h2>
+              <span class="card-subtitle">Análisis geolocalizado de ventas y rotación regional</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div *ngFor="let loc of prediccionDemandaLocalizada"
+              style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:12px; transition: background 0.15s; padding: 6px 12px; border-radius: 8px;"
+              onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+              <div>
+                <h4 style="margin:0; font-size:14.5px; color:#111d2e; font-weight:700;">{{ loc.distrito }}</h4>
+                <span style="font-size:12px; color:#64748b; display:flex; align-items:center; gap:5px; margin-top:3px;">
+                  Líder: <strong style="color:#ea580c; font-weight:700;">{{ loc.productoEstrella.nombre }}</strong>
+                </span>
+              </div>
+              <div style="display:flex; align-items:center; gap:16px;">
+                <div style="text-align:right;">
+                  <div style="font-size:13.5px; font-weight:700; color:#111d2e;">{{ loc.ventasTotales }} pedidos</div>
+                  <span class="status-badge"
+                    [style.background]="loc.colorNivel === '#ef4444' ? 'rgba(239,68,68,0.1)' : 'rgba(234,88,12,0.1)'"
+                    [style.color]="loc.colorNivel" [style.border]="'1px solid ' + loc.colorNivel"
+                    style="font-size:10px; padding:2px 8px; margin-top:3px; display:inline-block; font-weight:700;">
+                    DEMANDA {{ loc.nivelDemanda }}
+                  </span>
+                </div>
+                <button (click)="mostrarNotificacion('Filtrando envíos a ' + loc.distrito + ' (Demostración)')"
+                  style="background: none; border: none; color: #64748b; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; outline: none; transition: color 0.15s;"
+                  onmouseover="this.style.color='#ea580c'" onmouseout="this.style.color='#64748b'">
+                  <i class="bi bi-eye" style="font-size:18px"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <button (click)="openLotesModal(est.producto)" class="btn-action edit-btn">
-          Ajustar Lote
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
         <div class="card" style="grid-column: 1 / -1; margin-bottom: 24px; transition: transform 0.2s;"
           onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
           <div class="card-header"
             style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <div>
-              <h2 style="margin:0;">3. Venta Cruzada Recomendada</h2>
+              <h2 style="margin:0;">4. Venta Cruzada Recomendada</h2>
               <span class="card-subtitle">Asociación analítica de productos comprados juntos con alta
                 probabilidad</span>
             </div>
@@ -955,10 +1000,10 @@
   onmouseover="this.style.transform='translateY(-2px)'"
   onmouseout="this.style.transform='translateY(0)'">
 
- <div class="card-header"
+  <div class="card-header"
     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <div>
-      <h2 style="margin:0;">4. Sugerencias de Descuentos (FEFO / Baja Rotación)</h2>
+      <h2 style="margin:0;">5. Sugerencias de Descuentos (FEFO / Baja Rotación)</h2>
       <span class="card-subtitle">Productos próximos a vencer o con baja rotación con descuentos recomendados</span>
     </div>
 
@@ -1086,19 +1131,27 @@
       </tbody>
     </table>
 
-    <!-- Paginación Descuentos -->
-    <div *ngIf="totalDescuentosPages > 1" class="pagination">
-      <button (click)="prevDescuentosPage()" [disabled]="descuentosPage === 1">« Anterior</button>
-      <span>Página {{ descuentosPage }} de {{ totalDescuentosPages }}</span>
-      <button (click)="nextDescuentosPage()" [disabled]="descuentosPage === totalDescuentosPages">Siguiente »</button>
-    </div>
+    <!-- Botón para mostrar más o menos productos -->
+    <div
+      *ngIf="sugerenciasDescuento.length > 10"
+      style="display:flex; justify-content:center; margin-top:16px;">
 
-  </div>
+      <button
+        (click)="mostrarTodosDescuentos = !mostrarTodosDescuentos"
+        class="btn-action"
+        style="padding:8px 18px; background:#f8fafc; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-weight:600;">
+
+        {{ mostrarTodosDescuentos
+          ? 'Mostrar menos ▲'
+          : 'Ver todos los productos (' + sugerenciasDescuento.length + ') ▼' }}
+
+      </button>
+    </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-    
-  
+
     <div *ngIf="mostrarRecetas && activeTab === 'recetas'" class="tab-pane animated-fade">
       <div class="card table-card">
         <div class="table-actions" style="display:flex; justify-content:space-between; align-items:center;">

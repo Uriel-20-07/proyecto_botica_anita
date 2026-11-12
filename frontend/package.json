@@ -37,7 +37,7 @@
     "express": "^5.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
-    "maplibre-gl": "^6.17.0",
+    "maplibre-gl": "^6.16.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
