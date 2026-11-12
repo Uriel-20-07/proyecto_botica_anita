@@ -117,6 +117,17 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("DataSeeder: Vendedor Principal creado.");
         }
 
+        // 1c. Crear asistente de tienda si no existe
+        if (administradorRepository.findByCorreoCorp("asistente@correo_corp.com").isEmpty()) {
+            Administrador asistente = new Administrador();
+            asistente.setNombre("Asistente de Tienda");
+            asistente.setCorreoCorp("asistente@correo_corp.com");
+            asistente.setPassword(passwordEncoder.encode("asistente123"));
+            asistente.setRol("asistente");
+            administradorRepository.save(asistente);
+            System.out.println("DataSeeder: Asistente de tienda creado.");
+        }
+
         // 2. Crear cliente de prueba si no existen usuarios
         User cliente = null;
         if (userRepository.count() == 0) {

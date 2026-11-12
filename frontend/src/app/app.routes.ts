@@ -15,6 +15,7 @@ import { PerfilComponent } from './pages/perfil/perfil';
 import { PagoComponent } from './pages/pago/pago';
 import { AdminDashboardComponent } from './pages/dashboard/admin/admin.component';
 import { VendedorDashboardComponent } from './pages/dashboard/vendedor/vendedor.component';
+import { AsistenteDashboardComponent } from './pages/dashboard/asistente/asistente.component';
 import { RecuperarContraseñaComponent } from './components/recuperar-contrasena/recuperar-contrasena.component';
 import { ProductoDetalleComponent } from './pages/producto-detalle/producto-detalle';
 import { FavoritosComponent } from './pages/favoritos/favoritos';
@@ -54,6 +55,7 @@ export const routes: Routes = [
   { path: 'dashboard/admin', redirectTo: 'dashboard/admin/resumen', pathMatch: 'full' },
   { path: 'dashboard/admin/:tab', component: AdminDashboardComponent },
   { path: 'dashboard/vendedor', component: VendedorDashboardComponent },
+  { path: 'dashboard/asistente', component: AsistenteDashboardComponent },
 
   // Página principal
   { path: '', component: InicioComponent, pathMatch: 'full' },

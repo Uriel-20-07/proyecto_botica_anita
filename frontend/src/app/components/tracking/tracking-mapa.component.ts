@@ -17,6 +17,7 @@ import * as maplibregl from 'maplibre-gl';
 // así que se fija explícitamente a la versión instalada.
 maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
 import { TrackingService, TrackingResponseDTO } from '../../services/tracking.service';
+import { PedidoService } from '../../services/pedido.service';
 import {
   MapaRutaService,
   BOTICA_ANITA,
@@ -538,7 +539,8 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     private trackingService: TrackingService,
-    private mapaService: MapaRutaService
+    private mapaService: MapaRutaService,
+    private pedidoService: PedidoService
   ) {}
 
   /** Señales derivadas para el template. */
@@ -657,7 +659,10 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     else if (est.includes('PAGAD') || est.includes('CONFIRMAD')) backendPaso = 1;
 
     const padre = (this.estadoActualMapa != null && this.estadoActualMapa > 0) ? this.estadoActualMapa : 0;
-    return Math.max(padre, backendPaso);
+    let paso = Math.max(padre, backendPaso);
+    // No mostrar "Entregado" (paso 4) a menos que el backend lo confirme.
+    if (backendPaso < 4 && paso >= 4) paso = 3;
+    return paso;
   });
 
   pasoActual = computed(() => this.pasoEfectivo());
@@ -893,6 +898,13 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
         if (ped) {
           (ped as any).latitudEntrega = ll.lat;
           (ped as any).longitudEntrega = ll.lng;
+        }
+        // Persistir en el backend para que el email "en camino" use la ubicación corregida.
+        if (this.idPedido) {
+          this.pedidoService.actualizarUbicacion(this.idPedido, ll.lat, ll.lng).subscribe({
+            next: () => { /* ok */ },
+            error: (e) => { console.error('No se pudo guardar la ubicación corregida:', e); },
+          });
         }
         // Recalcular ruta y cámara
         this.mapaService.obtenerRutaPorCalles(BOTICA_ANITA.lng, BOTICA_ANITA.lat, ll.lng, ll.lat).then((ruta) => {

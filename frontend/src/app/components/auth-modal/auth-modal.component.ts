@@ -300,6 +300,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
               this.router.navigate(['/dashboard/admin']);
             } else if (user && user.rol === 'vendedor') {
               this.router.navigate(['/dashboard/vendedor']);
+            } else if (user && user.rol === 'asistente') {
+              this.router.navigate(['/dashboard/asistente']);
             }
           }, 800);
         },
