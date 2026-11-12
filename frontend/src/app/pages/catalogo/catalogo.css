@@ -882,3 +882,23 @@ mark {
     font-weight: 600;
     cursor: pointer;
 }
+
+/* ── Filtro de marcas ── */
+.marcas-buscador-sidebar {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #334155;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    outline: none;
+}
+.marcas-buscador-sidebar:focus { border-color: #93c5fd; }
+.marcas-lista-sidebar {
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 4px;
+}

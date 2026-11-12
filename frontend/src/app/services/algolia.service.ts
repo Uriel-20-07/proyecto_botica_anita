@@ -18,6 +18,8 @@ export interface AlgoliaProducto {
   categoriaNombre?: string;
   subcategoriaId?: number;
   subcategoriaNombre?: string;
+  marcaId?: number;
+  marcaNombre?: string;
   imgUrl?: string;
   stock?: number;
   agotado?: boolean;

@@ -1,5 +1,4 @@
 /* You can add global styles to this file, and also import other style files */
-/* You can add global styles to this file, and also import other style files */
 
 /* ── Productos agotados (sin stock o vencidos) ── */
 .producto-agotado .producto-imagen-container { position: relative; }
@@ -18,3 +17,4 @@
   background: #cbd5e1 !important; color: #64748b !important;
   cursor: not-allowed !important; box-shadow: none !important;
 }
+.qty-selector.qty-agotado { opacity: 0.5; pointer-events: none; }

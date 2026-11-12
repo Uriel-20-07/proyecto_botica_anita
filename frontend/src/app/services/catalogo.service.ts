@@ -42,6 +42,7 @@ export interface ProductoApi {
   enOferta?: boolean;        // true si el producto está en oferta actualmente
   categoria?: CategoriaApi | null; // Categoría del producto (null si no tiene)
   subcategoria?: SubcategoriaApi | null; // Subcategoría del producto (null si no tiene)
+  marca?: MarcaApi | null; // Marca del producto (null si no tiene)
   imgUrl?: string;           // URL de la imagen del producto (opcional)
   fechaCaducidad?: any;
   fecha_caducidad?: any;

@@ -2,6 +2,7 @@
 <app-promo-carousel></app-promo-carousel>
 
 <div class="catalogo-container fade-in">
+
     <!-- DISPOSICIÓN DE DOS COLUMNAS -->
     <div class="catalogo-layout">
         <!-- COLUMNA IZQUIERDA: FILTROS LATERALES -->
@@ -57,6 +58,27 @@
                         Solo en Oferta %
                     </button>
                 </div>
+            </div>
+
+            <!-- Filtro de Marcas -->
+            <div class="filtro-grupo-sidebar" *ngIf="marcasDisponibles.length > 0 || busquedaMarca || marcasSeleccionadas.length > 0">
+                <h4 class="filtro-titulo-sidebar">Marcas</h4>
+                <input type="text" class="marcas-buscador-sidebar" placeholder="Buscar marca"
+                    [(ngModel)]="busquedaMarca">
+                <div class="marcas-lista-sidebar">
+                    <label class="subcategoria-check" *ngFor="let m of marcasDisponibles; trackBy: trackByMarca">
+                        <input type="checkbox"
+                            [checked]="estaMarcaSeleccionada(m.id)"
+                            (change)="toggleMarca(m.id)">
+                        <span class="subcategoria-nombre">{{ m.nombre }}</span>
+                        <span class="subcategoria-count">{{ m.cantidad }}</span>
+                    </label>
+                </div>
+                <button type="button" class="subcategoria-limpiar"
+                    *ngIf="marcasSeleccionadas.length > 0"
+                    (click)="limpiarMarcas()">
+                    Limpiar marcas
+                </button>
             </div>
 
             <!-- Filtro de Ordenamiento -->

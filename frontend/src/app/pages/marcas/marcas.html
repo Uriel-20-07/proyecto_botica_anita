@@ -54,6 +54,10 @@
 
             <h3>{{ marca.nombre }}</h3>
 
+            <p class="brand-count" *ngIf="conteoPorMarca[marca.idMarca]">
+                {{ conteoPorMarca[marca.idMarca] }} {{ conteoPorMarca[marca.idMarca] === 1 ? 'producto' : 'productos' }}
+            </p>
+
             <button (click)="filtrarPorMarca(marca.idMarca)">Ver productos</button>
 
         </div>

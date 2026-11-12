@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { CatalogoService, MarcaApi } from '../../services/catalogo.service';
 
 // Mapa de categorías por nombre de marca
@@ -81,6 +83,11 @@ export class MarcasComponent implements OnInit {
   marcas: MarcaApi[] = [];
   marcasFiltradas: MarcaApi[] = [];
 
+  /** Cantidad de productos por marca (id de marca → cantidad). */
+  conteoPorMarca: Record<number, number> = {};
+  /** Chip de categoría deducido de los productos (para marcas que no están en CATEGORIA_MAP). */
+  private categoriaDerivada: Record<number, string> = {};
+
   categorias: string[] = [
     'Todas',
     'Vitaminas',
@@ -98,15 +105,47 @@ export class MarcasComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.catalogoService.getMarcas().subscribe({
-      next: (data) => {
-        this.marcas = data;
-        this.marcasFiltradas = data; // por defecto muestra todas
+    forkJoin({
+      marcas: this.catalogoService.getMarcas(),
+      productos: this.catalogoService.getProductos().pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ marcas, productos }) => {
+        for (const p of productos ?? []) {
+          const id = p.marca?.idMarca;
+          if (id == null) continue;
+          this.conteoPorMarca[id] = (this.conteoPorMarca[id] ?? 0) + 1;
+          if (!this.categoriaDerivada[id]) {
+            this.categoriaDerivada[id] = this.chipDeCategoria(p.categoria?.nombre);
+          }
+        }
+        // Solo se muestran las marcas que tienen productos (si aún no llega la marca en los productos, se muestran todas)
+        const hayConteo = Object.keys(this.conteoPorMarca).length > 0;
+        this.marcas = hayConteo ? marcas.filter((m) => (this.conteoPorMarca[m.idMarca] ?? 0) > 0) : marcas;
+        this.marcasFiltradas = this.marcas; // por defecto muestra todas
       },
       error: (err) => {
         console.error('Error al obtener marcas:', err);
       }
     });
+  }
+
+  /** Traduce la categoría de la base de datos al chip de esta página. */
+  private chipDeCategoria(nombre?: string): string {
+    switch ((nombre ?? '').toUpperCase()) {
+      case 'MEDICAMENTOS':
+      case 'EQUIPOS MÉDICOS':
+        return 'Medicamentos';
+      case 'CUIDADO PERSONAL':
+        return 'Cuidado personal';
+      case 'BELLEZA':
+        return 'Dermocosmética';
+      case 'BEBÉ':
+        return 'Bebés';
+      case 'VITAMINAS / SUPLEMENTOS':
+        return 'Vitaminas';
+      default:
+        return '';
+    }
   }
 
   filtrarPorCategoria(categoria: string): void {
@@ -116,7 +155,7 @@ export class MarcasComponent implements OnInit {
       this.marcasFiltradas = this.marcas;
     } else {
       this.marcasFiltradas = this.marcas.filter(marca => {
-        const cat = CATEGORIA_MAP[marca.nombre];
+        const cat = CATEGORIA_MAP[marca.nombre] ?? this.categoriaDerivada[marca.idMarca];
         return cat === categoria;
       });
     }

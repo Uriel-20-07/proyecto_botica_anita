@@ -69,6 +69,10 @@ public class AlgoliaService {
             record.put("subcategoriaId", producto.getSubcategoria().getIdSubcategoria());
             record.put("subcategoriaNombre", producto.getSubcategoria().getNombre());
         }
+        if (producto.getMarca() != null) {
+            record.put("marcaId", producto.getMarca().getIdMarca());
+            record.put("marcaNombre", producto.getMarca().getNombre());
+        }
 
         if (producto.getCategoria() != null) {
             record.put("categoriaId", producto.getCategoria().getIdCategoria());

@@ -24,6 +24,8 @@ interface ProductoVista {
   precioOriginal: number;
   categoriaNombre: string;
   subcategoriaId?: number | null;
+  marcaId?: number | null;
+  marcaNombre?: string | null;
   imagen: string;
   etiquetaPromo?: string;
   colorPromo?: 'orange' | 'red';
@@ -65,6 +67,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   categoriaSeleccionadaId: number | null = null;
   /** Subcategorías marcadas con casilla (vacío = se muestran todas las de la categoría). */
   subcategoriasSeleccionadas: number[] = [];
+  /** Marcas marcadas con casilla (vacío = todas). */
+  marcasSeleccionadas: number[] = [];
+  busquedaMarca = '';
   busqueda = '';
   cargando = true;
   mensaje = '';
@@ -78,6 +83,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   // ─── Internos ─────────────────────────────────────────────────────────────
   private queryBusqueda = '';
   private queryCategoria = '';
+  private queryMarca = '';
   private destroy$ = new Subject<void>();
 
   private normalizarTexto(texto: string): string {
@@ -113,6 +119,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       this.queryBusqueda = params.get('q') ?? '';
       this.queryCategoria = params.get('categoria') ?? '';
+      this.queryMarca = params.get('marca') ?? '';
       this.cargarDatos();
     });
   }
@@ -174,7 +181,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       next: (resultados) => {
         // Convertir AlgoliaProducto → ProductoVista
         const productosAlgolia = resultados.map((hit) => this.mapAlgoliaHit(hit));
-        let filtrados = this.filtrarPorPrecio(productosAlgolia.filter((p) => this.coincideSubcategoria(p)));
+        let filtrados = this.filtrarPorPrecio(productosAlgolia.filter((p) => this.coincideSubcategoria(p) && this.coincideMarca(p)));
         if (this.soloOfertas) {
           filtrados = filtrados.filter(p => p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
         }
@@ -195,6 +202,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   seleccionarCategoria(idCategoria: number | null): void {
     this.categoriaSeleccionadaId = idCategoria;
     this.subcategoriasSeleccionadas = [];
+    this.marcasSeleccionadas = [];
     // Si hay texto buscado, relanzar búsqueda con filtro de categoría
     if (this.busqueda.trim()) {
       this.buscar();
@@ -226,6 +234,58 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   /** Cantidad de productos de una subcategoría (para mostrar junto a la casilla). */
   contarPorSubcategoria(id: number): number {
     return this.productos.filter((p) => p.subcategoriaId === id).length;
+  }
+
+  // ─── Filtro por marca ─────────────────────────────────────────────────────
+
+  /** Marcas con productos en la categoría elegida (o en todo el catálogo), con su cantidad. */
+  get marcasDisponibles(): { id: number; nombre: string; cantidad: number }[] {
+    const categoriaNombre =
+      this.categoriaSeleccionadaId === null
+        ? null
+        : (this.categorias.find((c) => c.idCategoria === this.categoriaSeleccionadaId)?.nombre ?? null);
+    const mapa = new Map<number, { id: number; nombre: string; cantidad: number }>();
+    for (const p of this.productos) {
+      if (p.marcaId == null || !p.marcaNombre) continue;
+      if (categoriaNombre !== null && p.categoriaNombre !== categoriaNombre) continue;
+      const actual = mapa.get(p.marcaId);
+      if (actual) {
+        actual.cantidad++;
+      } else {
+        mapa.set(p.marcaId, { id: p.marcaId, nombre: p.marcaNombre, cantidad: 1 });
+      }
+    }
+    const termino = this.normalizarTexto(this.busquedaMarca);
+    return [...mapa.values()]
+      .filter((m) => !termino || this.normalizarTexto(m.nombre).includes(termino))
+      .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre));
+  }
+
+  trackByMarca(_: number, m: { id: number }): number {
+    return m.id;
+  }
+
+  /** Marca o desmarca una marca (casilla) y vuelve a filtrar. */
+  toggleMarca(id: number): void {
+    this.marcasSeleccionadas = this.marcasSeleccionadas.includes(id)
+      ? this.marcasSeleccionadas.filter((m) => m !== id)
+      : [...this.marcasSeleccionadas, id];
+    this.refiltrar();
+  }
+
+  limpiarMarcas(): void {
+    this.marcasSeleccionadas = [];
+    this.refiltrar();
+  }
+
+  estaMarcaSeleccionada(id: number): boolean {
+    return this.marcasSeleccionadas.includes(id);
+  }
+
+  private coincideMarca(p: ProductoVista): boolean {
+    return (
+      this.marcasSeleccionadas.length === 0 || (p.marcaId != null && this.marcasSeleccionadas.includes(p.marcaId))
+    );
   }
 
   private coincideSubcategoria(p: ProductoVista): boolean {
@@ -260,8 +320,10 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
     this.subcategoriasSeleccionadas = [];
+    this.marcasSeleccionadas = [];
     this.queryBusqueda = '';
     this.queryCategoria = '';
+    this.queryMarca = '';
     this.soloOfertas = true;
     this.precioMaximo = this.precioMaximoTotal;
     this.aplicarFiltros();
@@ -271,8 +333,11 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
     this.subcategoriasSeleccionadas = [];
+    this.marcasSeleccionadas = [];
+    this.busquedaMarca = '';
     this.queryBusqueda = '';
     this.queryCategoria = '';
+    this.queryMarca = '';
     this.ordenamiento = 'relevancia';
     this.precioMaximo = this.precioMaximoTotal;
     this.soloOfertas = false;
@@ -284,6 +349,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       this.busqueda ||
       this.categoriaSeleccionadaId !== null ||
       this.subcategoriasSeleccionadas.length > 0 ||
+      this.marcasSeleccionadas.length > 0 ||
       this.precioMaximo < this.precioMaximoTotal ||
       this.ordenamiento !== 'relevancia' ||
       this.soloOfertas
@@ -313,8 +379,9 @@ export class CatalogoComponent implements OnInit, OnDestroy {
         (p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
 
       const coincideSubcategoria = this.coincideSubcategoria(p);
+      const coincideMarca = this.coincideMarca(p);
 
-      return coincideCategoria && coincideSubcategoria && coincideBusqueda && coincideOferta;
+      return coincideCategoria && coincideSubcategoria && coincideMarca && coincideBusqueda && coincideOferta;
     });
 
     filtrados = this.filtrarPorPrecio(filtrados);
@@ -427,6 +494,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       precioOriginal: Number(producto.precioVenta),
       categoriaNombre,
       subcategoriaId: producto.subcategoria?.idSubcategoria ?? null,
+      marcaId: producto.marca?.idMarca ?? null,
+      marcaNombre: producto.marca?.nombre ?? null,
       imagen,
       etiquetaPromo: descuento.message || this.obtenerPromo(producto.nombre, categoriaNombre),
       colorPromo: descuento.message ? 'red' : (categoriaNombre === 'MEDICAMENTOS' ? 'red' : 'orange'),
@@ -452,6 +521,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       precioOriginal: Number(hit.precioVenta),
       categoriaNombre: hit.categoriaNombre ?? 'General',
       subcategoriaId: hit.subcategoriaId ?? null,
+      marcaId: hit.marcaId ?? null,
+      marcaNombre: hit.marcaNombre ?? null,
       imagen,
       etiquetaPromo: descuento.message || this.obtenerPromo(hit.nombre, hit.categoriaNombre ?? ''),
       colorPromo: descuento.message ? 'red' : ((hit.categoriaNombre ?? '').toUpperCase() === 'MEDICAMENTOS' ? 'red' : 'orange'),
@@ -486,6 +557,10 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
   this.busqueda = this.queryBusqueda;
   this.subcategoriasSeleccionadas = [];
+
+  // Marca que llega desde la página de Marcas (?marca=ID)
+  const idMarca = Number(this.queryMarca);
+  this.marcasSeleccionadas = this.queryMarca && !isNaN(idMarca) ? [idMarca] : [];
 
   if (this.queryCategoria) {
 

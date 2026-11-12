@@ -142,10 +142,12 @@ export class ProductoDetalleComponent implements OnInit {
   }
 
   incrementar(): void {
+    if (this.agotado) return;
     this.cantidad++;
   }
 
   decrementar(): void {
+    if (this.agotado) return;
     if (this.cantidad > 1) {
       this.cantidad--;
     }

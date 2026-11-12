@@ -55,6 +55,10 @@ public class Producto {
     @JoinColumn(name = "id_subcategoria")
     private Subcategoria subcategoria;
 
+    @ManyToOne
+    @JoinColumn(name = "id_marca")
+    private Marca marca;
+
     /** URL de la imagen del producto (puede ser externa o ruta local). */
     @Column(name = "img_url", length = 500)
     private String imgUrl;

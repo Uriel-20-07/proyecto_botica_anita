@@ -103,10 +103,10 @@
       <p *ngIf="agotado" class="msg-agotado">Estamos trabajando para reabastecer este producto.</p>
       <div class="actions-section">
         <!-- Selector de Cantidad -->
-        <div class="qty-selector">
-          <button (click)="decrementar()" class="qty-btn">-</button>
-          <span class="qty-value">{{ cantidad }}</span>
-          <button (click)="incrementar()" class="qty-btn">+</button>
+        <div class="qty-selector" [class.qty-agotado]="agotado">
+          <button (click)="decrementar()" class="qty-btn" [disabled]="agotado">-</button>
+          <span class="qty-value">{{ agotado ? 0 : cantidad }}</span>
+          <button (click)="incrementar()" class="qty-btn" [disabled]="agotado">+</button>
         </div>
 
         <!-- Botón Agregar -->
