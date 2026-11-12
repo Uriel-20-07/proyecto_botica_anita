@@ -63,7 +63,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   productos: ProductoVista[] = [];
   productosFiltrados: ProductoVista[] = [];
   categoriaSeleccionadaId: number | null = null;
-  subcategoriaSeleccionadaId: number | null = null;
+  /** Subcategorías marcadas con casilla (vacío = se muestran todas las de la categoría). */
+  subcategoriasSeleccionadas: number[] = [];
   busqueda = '';
   cargando = true;
   mensaje = '';
@@ -173,11 +174,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       next: (resultados) => {
         // Convertir AlgoliaProducto → ProductoVista
         const productosAlgolia = resultados.map((hit) => this.mapAlgoliaHit(hit));
-        let filtrados = this.filtrarPorPrecio(
-          productosAlgolia.filter(
-            (p) => this.subcategoriaSeleccionadaId === null || p.subcategoriaId === this.subcategoriaSeleccionadaId
-          )
-        );
+        let filtrados = this.filtrarPorPrecio(productosAlgolia.filter((p) => this.coincideSubcategoria(p)));
         if (this.soloOfertas) {
           filtrados = filtrados.filter(p => p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
         }
@@ -197,7 +194,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
   seleccionarCategoria(idCategoria: number | null): void {
     this.categoriaSeleccionadaId = idCategoria;
-    this.subcategoriaSeleccionadaId = null;
+    this.subcategoriasSeleccionadas = [];
     // Si hay texto buscado, relanzar búsqueda con filtro de categoría
     if (this.busqueda.trim()) {
       this.buscar();
@@ -206,9 +203,39 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Filtra por subcategoría dentro de la categoría elegida (null = todas). */
-  seleccionarSubcategoria(id: number | null): void {
-    this.subcategoriaSeleccionadaId = id;
+  /** Marca o desmarca una subcategoría (casilla) y vuelve a filtrar. */
+  toggleSubcategoria(id: number): void {
+    const i = this.subcategoriasSeleccionadas.indexOf(id);
+    if (i >= 0) {
+      this.subcategoriasSeleccionadas = this.subcategoriasSeleccionadas.filter((s) => s !== id);
+    } else {
+      this.subcategoriasSeleccionadas = [...this.subcategoriasSeleccionadas, id];
+    }
+    this.refiltrar();
+  }
+
+  limpiarSubcategorias(): void {
+    this.subcategoriasSeleccionadas = [];
+    this.refiltrar();
+  }
+
+  estaSubcategoriaSeleccionada(id: number): boolean {
+    return this.subcategoriasSeleccionadas.includes(id);
+  }
+
+  /** Cantidad de productos de una subcategoría (para mostrar junto a la casilla). */
+  contarPorSubcategoria(id: number): number {
+    return this.productos.filter((p) => p.subcategoriaId === id).length;
+  }
+
+  private coincideSubcategoria(p: ProductoVista): boolean {
+    return (
+      this.subcategoriasSeleccionadas.length === 0 ||
+      (p.subcategoriaId != null && this.subcategoriasSeleccionadas.includes(p.subcategoriaId))
+    );
+  }
+
+  private refiltrar(): void {
     if (this.busqueda.trim()) {
       this.buscar();
     } else {
@@ -232,7 +259,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   verOfertas(): void {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
-    this.subcategoriaSeleccionadaId = null;
+    this.subcategoriasSeleccionadas = [];
     this.queryBusqueda = '';
     this.queryCategoria = '';
     this.soloOfertas = true;
@@ -243,7 +270,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   limpiarFiltros(): void {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
-    this.subcategoriaSeleccionadaId = null;
+    this.subcategoriasSeleccionadas = [];
     this.queryBusqueda = '';
     this.queryCategoria = '';
     this.ordenamiento = 'relevancia';
@@ -256,7 +283,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     return !!(
       this.busqueda ||
       this.categoriaSeleccionadaId !== null ||
-      this.subcategoriaSeleccionadaId !== null ||
+      this.subcategoriasSeleccionadas.length > 0 ||
       this.precioMaximo < this.precioMaximoTotal ||
       this.ordenamiento !== 'relevancia' ||
       this.soloOfertas
@@ -285,8 +312,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
         !this.soloOfertas ||
         (p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
 
-      const coincideSubcategoria =
-        this.subcategoriaSeleccionadaId === null || p.subcategoriaId === this.subcategoriaSeleccionadaId;
+      const coincideSubcategoria = this.coincideSubcategoria(p);
 
       return coincideCategoria && coincideSubcategoria && coincideBusqueda && coincideOferta;
     });
@@ -459,7 +485,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   private aplicarFiltrosDesdeUrl(): void {
 
   this.busqueda = this.queryBusqueda;
-  this.subcategoriaSeleccionadaId = null;
+  this.subcategoriasSeleccionadas = [];
 
   if (this.queryCategoria) {
 
