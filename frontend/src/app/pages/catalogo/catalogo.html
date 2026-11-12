@@ -35,16 +35,17 @@
                         </button>
                         <div class="subcategorias-sidebar"
                             *ngIf="categoriaSeleccionadaId === categoria.idCategoria && categoria.subcategorias?.length">
-                            <button type="button" class="subcategoria-item-sidebar"
-                                [class.active]="subcategoriaSeleccionadaId === null"
-                                (click)="seleccionarSubcategoria(null)">
-                                Todas
-                            </button>
-                            <button type="button" class="subcategoria-item-sidebar"
-                                *ngFor="let sub of categoria.subcategorias"
-                                [class.active]="subcategoriaSeleccionadaId === sub.idSubcategoria"
-                                (click)="seleccionarSubcategoria(sub.idSubcategoria)">
-                                {{ sub.nombre }}
+                            <label class="subcategoria-check" *ngFor="let sub of categoria.subcategorias">
+                                <input type="checkbox"
+                                    [checked]="estaSubcategoriaSeleccionada(sub.idSubcategoria)"
+                                    (change)="toggleSubcategoria(sub.idSubcategoria)">
+                                <span class="subcategoria-nombre">{{ sub.nombre }}</span>
+                                <span class="subcategoria-count">{{ contarPorSubcategoria(sub.idSubcategoria) }}</span>
+                            </label>
+                            <button type="button" class="subcategoria-limpiar"
+                                *ngIf="subcategoriasSeleccionadas.length > 0"
+                                (click)="limpiarSubcategorias()">
+                                Limpiar selección
                             </button>
                         </div>
                     </ng-container>
