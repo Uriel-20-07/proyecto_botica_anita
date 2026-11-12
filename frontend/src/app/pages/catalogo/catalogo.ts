@@ -11,6 +11,7 @@ import { AuthModalService } from '../../services/auth-modal.service';
 import { Subject, takeUntil } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ToastService } from '../../services/toast.service';
+import { PromoCarouselComponent } from '../../components/promo-carousel/promo-carousel';
 
 /**
  * Interfaz interna para representar un producto adaptado a la vista del catálogo.
@@ -50,7 +51,7 @@ interface ProductoVista {
 @Component({
   selector: 'app-catalogo',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, PromoCarouselComponent],
   templateUrl: './catalogo.html',
   styleUrls: ['./catalogo.css']
 })

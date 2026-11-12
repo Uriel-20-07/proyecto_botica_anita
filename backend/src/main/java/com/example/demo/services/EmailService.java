@@ -1,6 +1,10 @@
 package com.example.demo.services;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -208,6 +212,11 @@ public class EmailService {
      * @param codigoCupon  código de cupón usado (opcional).
      */
     public void sendOrderConfirmationEmail(String destinatario, String nombre, Pedido pedido, List<DetallePedido> detalles, String codigoCupon, String nroBoleta) {
+        // Plin y SIP (transferencias) reciben un correo propio de verificación de la compra
+        if (esTransferencia(pedido.getMetodoPago())) {
+            sendTransferPurchaseVerificationEmail(destinatario, nombre, pedido, detalles, codigoCupon, nroBoleta);
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom("noreply@boticaanita.com");
@@ -220,7 +229,7 @@ public class EmailService {
                     .append("Detalles de tu pedido:\n")
                     .append("--------------------------------------------------\n")
                     .append("Código de pedido: #").append(nroBoleta).append("\n")
-                    .append("Fecha de compra: ").append(pedido.getFecha().toString()).append("\n");
+                    .append("Fecha de compra: ").append(formatearFecha(pedido)).append("\n");
 
             if (pedido.getDireccionEnvio() != null && !pedido.getDireccionEnvio().trim().isEmpty()) {
                 if (pedido.isEsUrgente()) {
@@ -230,30 +239,7 @@ public class EmailService {
                 }
             }
 
-            contenido.append("\nProductos:\n");
-
-            double subtotalProductos = 0.0;
-            for (DetallePedido det : detalles) {
-                BigDecimal subtotalProducto = det.getPrecioHistorico().multiply(BigDecimal.valueOf(det.getCantidad()));
-                subtotalProductos += subtotalProducto.doubleValue();
-                contenido.append("- ")
-                        .append(det.getProducto().getNombre())
-                        .append(" x")
-                        .append(det.getCantidad())
-                        .append(" : S/ ")
-                        .append(subtotalProducto)
-                        .append("\n");
-            }
-
-            double costoEnvio = pedido.isEsUrgente() ? 10.0 : ((subtotalProductos > 50.0) ? 0.0 : 5.0);
-
-            contenido.append("\n");
-            contenido.append("Costo de envío: ").append(costoEnvio == 10.0 ? "S/ 10.00 (Urgente)" : (costoEnvio == 0.0 ? "Gratis" : "S/ 5.00")).append("\n");
-            if (codigoCupon != null && !codigoCupon.trim().isEmpty()) {
-                contenido.append("Cupón aplicado: ").append(codigoCupon.toUpperCase()).append("\n");
-            }
-            contenido.append("Total pagado: S/ ").append(pedido.getTotal()).append("\n")
-                    .append("--------------------------------------------------\n\n");
+            agregarResumenPedido(contenido, pedido, detalles, codigoCupon);
 
             if (pedido.getDireccionEnvio() != null && !pedido.getDireccionEnvio().trim().isEmpty()) {
                 if (pedido.isEsUrgente()) {
@@ -273,6 +259,124 @@ public class EmailService {
         } catch (Exception e) {
             System.out.println("Error enviando email de confirmación de pedido: " + e.getMessage());
         }
+    }
+
+    // ───────────────────────── Verificación de compra: Plin y SIP ─────────────────────────
+
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    /** Costo del delivery; el recojo en tienda es gratis (mismo valor que usa PagoService). */
+    private static final BigDecimal COSTO_DELIVERY = new BigDecimal("5.00");
+
+    private boolean esTransferencia(String metodoPago) {
+        return "PLIN".equalsIgnoreCase(metodoPago) || "SIP".equalsIgnoreCase(metodoPago);
+    }
+
+    /**
+     * Correo de verificación de la compra para pagos por Plin o SIP.
+     * Resume el pago (método, número de operación y monto) y el pedido, para que el cliente
+     * lo guarde como comprobante y lo compare con la constancia de su transferencia.
+     */
+    public void sendTransferPurchaseVerificationEmail(String destinatario, String nombre, Pedido pedido,
+            List<DetallePedido> detalles, String codigoCupon, String nroBoleta) {
+        try {
+            String metodo = "SIP".equalsIgnoreCase(pedido.getMetodoPago()) ? "SIP" : "Plin";
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("noreply@boticaanita.com");
+            message.setTo(destinatario);
+            message.setSubject("Verificación de tu compra #" + nroBoleta + " - BoticaAnita");
+
+            StringBuilder contenido = new StringBuilder();
+            contenido.append("Hola ").append(nombre).append(",\n\n")
+                    .append("Recibimos tu pago por ").append(metodo)
+                    .append(" y registramos tu compra. Este correo es la verificación de tu compra.\n\n")
+                    .append("Datos del pago:\n")
+                    .append("--------------------------------------------------\n")
+                    .append("Método de pago: ").append(metodo).append("\n")
+                    .append("Número de operación: ")
+                    .append(pedido.getNumeroOperacion() == null ? "-" : pedido.getNumeroOperacion()).append("\n")
+                    .append("Monto: ").append(soles(pedido.getTotal())).append("\n")
+                    .append("Fecha: ").append(formatearFecha(pedido)).append("\n")
+                    .append("Código de pedido: #").append(nroBoleta).append("\n");
+
+            if (pedido.getDireccionEnvio() != null && !pedido.getDireccionEnvio().trim().isEmpty()) {
+                contenido.append(pedido.isEsUrgente() ? "Dirección de envío a domicilio: " : "Establecimiento de recojo: ")
+                        .append(pedido.getDireccionEnvio()).append("\n");
+            }
+
+            agregarResumenPedido(contenido, pedido, detalles, codigoCupon);
+
+            if ("EN_ESPERA".equals(pedido.getEstado())) {
+                contenido.append("Tu pedido contiene productos que requieren receta médica, por lo que quedará en espera ")
+                        .append("hasta validar tu receta.\n\n");
+            } else if (pedido.isEsUrgente()) {
+                contenido.append("Tu pedido está siendo preparado para enviarse a tu domicilio.\n\n");
+            } else {
+                contenido.append("Tu pedido está siendo preparado para que lo recojas en la tienda seleccionada.\n\n");
+            }
+
+            contenido.append("Guarda este correo y tu número de operación como comprobante. ")
+                    .append("Si algún dato no coincide con la constancia de tu transferencia, ")
+                    .append("responde a este correo o escribe a soporte@boticaanita.com indicando tu número de operación.\n\n")
+                    .append("Saludos,\nEquipo BoticaAnita");
+
+            message.setText(contenido.toString());
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.out.println("Error enviando email de verificación de compra (Plin/SIP): " + e.getMessage());
+        }
+    }
+
+    /**
+     * Productos, envío, descuentos y total del pedido (compartido por los correos de compra).
+     * Los descuentos (promociones y cupón) se calculan como la diferencia entre lo que suman
+     * los productos más el envío y el total realmente cobrado.
+     */
+    private void agregarResumenPedido(StringBuilder contenido, Pedido pedido, List<DetallePedido> detalles,
+            String codigoCupon) {
+        contenido.append("\nProductos:\n");
+
+        BigDecimal subtotalProductos = BigDecimal.ZERO;
+        for (DetallePedido det : detalles) {
+            BigDecimal subtotalProducto = det.getPrecioHistorico().multiply(BigDecimal.valueOf(det.getCantidad()));
+            subtotalProductos = subtotalProductos.add(subtotalProducto);
+            contenido.append("- ")
+                    .append(det.getProducto().getNombre())
+                    .append(" x")
+                    .append(det.getCantidad())
+                    .append(" : ")
+                    .append(soles(subtotalProducto))
+                    .append("\n");
+        }
+
+        BigDecimal envio = pedido.isEsUrgente() ? COSTO_DELIVERY : BigDecimal.ZERO;
+        BigDecimal descuentos = subtotalProductos.add(envio).subtract(pedido.getTotal());
+
+        contenido.append("\n")
+                .append("Costo de envío: ")
+                .append(pedido.isEsUrgente() ? soles(envio) + " (delivery)" : "Gratis (recojo en tienda)")
+                .append("\n");
+        if (descuentos.compareTo(new BigDecimal("0.01")) >= 0) {
+            contenido.append("Descuentos aplicados (promociones y cupón): -").append(soles(descuentos)).append("\n");
+        }
+        if (codigoCupon != null && !codigoCupon.trim().isEmpty()) {
+            contenido.append("Cupón aplicado: ").append(codigoCupon.toUpperCase()).append("\n");
+        }
+        contenido.append("Total pagado: ").append(soles(pedido.getTotal())).append("\n")
+                .append("--------------------------------------------------\n\n");
+    }
+
+    private String soles(BigDecimal monto) {
+        return "S/ " + (monto == null ? BigDecimal.ZERO : monto).setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    /** La fecha del pedido se guarda en UTC; en el correo se muestra en hora de Lima. */
+    private String formatearFecha(Pedido pedido) {
+        if (pedido.getFecha() == null) {
+            return "-";
+        }
+        return pedido.getFecha().atOffset(ZoneOffset.UTC).atZoneSameInstant(ZONA_LIMA).format(FORMATO_FECHA);
     }
 
     /**
