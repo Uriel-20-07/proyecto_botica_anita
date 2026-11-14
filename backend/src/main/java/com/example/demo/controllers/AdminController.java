@@ -223,20 +223,24 @@ public class AdminController {
             map.put("numeroOperacion", pedido.getNumeroOperacion() != null ? pedido.getNumeroOperacion() : "");
             map.put("direccionEnvio", pedido.getDireccionEnvio());
             map.put("distrito", pedido.getDistrito());
-            map.put("usuario", Map.of(
-                    "nombre", pedido.getUsuario().getNombre(),
-                    "apellido", pedido.getUsuario().getApellido(),
-                    "email", pedido.getUsuario().getEmail()));
+            // Las ventas presenciales (asistente) no tienen cliente: se muestran como "Cliente en tienda"
+            User u = pedido.getUsuario();
+            Map<String, Object> usuarioMap = new HashMap<>();
+            usuarioMap.put("nombre", u != null && u.getNombre() != null ? u.getNombre() : "Cliente en tienda");
+            usuarioMap.put("apellido", u != null && u.getApellido() != null ? u.getApellido() : "");
+            usuarioMap.put("email", u != null && u.getEmail() != null ? u.getEmail() : "");
+            map.put("usuario", usuarioMap);
 
             List<DetallePedido> detalles = detallesPorPedido.getOrDefault(pedido.getIdPedido(), new ArrayList<>());
 
             List<Map<String, Object>> detallesMap = detalles.stream().map(d -> {
                 Map<String, Object> dm = new HashMap<>();
                 dm.put("idDetallePedido", d.getIdDetallePedido());
-                dm.put("producto", Map.of(
-                        "idProducto", d.getProducto().getIdProducto(),
-                        "nombre", d.getProducto().getNombre(),
-                        "precioVenta", d.getProducto().getPrecioVenta()));
+                Map<String, Object> prodMap = new HashMap<>();
+                prodMap.put("idProducto", d.getProducto().getIdProducto());
+                prodMap.put("nombre", d.getProducto().getNombre());
+                prodMap.put("precioVenta", d.getProducto().getPrecioVenta());
+                dm.put("producto", prodMap);
                 dm.put("cantidad", d.getCantidad());
                 dm.put("precioHistorico", d.getPrecioHistorico());
                 return dm;
