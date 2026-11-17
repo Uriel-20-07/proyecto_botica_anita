@@ -241,9 +241,13 @@ public class PagoService {
             validarCobertura(request.getDireccionEnvio(), request.getDistrito(), request.getLatitudEntrega(), request.getLongitudEntrega());
         }
 
-        // --- Validación de pagos por transferencia: Plin y SIP (antes de consumir cupones o stock) ---
+        // --- Validación de pagos por transferencia: Plin, SIP y Yape con QR (antes de consumir cupones o stock) ---
+        // Yape con QR se distingue del flujo con código de aprobación porque envía número de operación.
+        boolean esYapeQr = "YAPE".equalsIgnoreCase(request.getMetodoPago())
+                && request.getNumeroOperacion() != null && !request.getNumeroOperacion().trim().isEmpty();
         boolean esTransferencia = "PLIN".equalsIgnoreCase(request.getMetodoPago())
-                || "SIP".equalsIgnoreCase(request.getMetodoPago());
+                || "SIP".equalsIgnoreCase(request.getMetodoPago())
+                || esYapeQr;
         String numeroOperacion = null;
         if (esTransferencia) {
             numeroOperacion = request.getNumeroOperacion() == null ? "" : request.getNumeroOperacion().trim();

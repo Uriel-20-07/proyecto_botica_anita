@@ -1,6 +1,9 @@
 package com.example.demo.services;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -117,27 +120,39 @@ public class EmailService {
 
     public void sendOrderConfirmationEmail(String destinatario, String nombre, Pedido pedido, List<DetallePedido> detalles, String codigoCupon, String nroBoleta) {
         try {
+            // Plin, SIP y Yape con QR: correo de verificacion de la compra (con numero de operacion)
+            boolean transferencia = esTransferencia(pedido);
+            String metodo = nombreMetodo(pedido.getMetodoPago());
+
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom("noreply@boticaanita.com");
             helper.setTo(destinatario);
-            helper.setSubject("Confirmacion de tu compra #" + nroBoleta + " - BoticaAnita");
+            helper.setSubject((transferencia ? "Verificacion de tu compra #" : "Confirmacion de tu compra #") + nroBoleta + " - BoticaAnita");
 
             StringBuilder html = new StringBuilder();
             html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='font-family:Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:0;background:#f4f6f9;'>");
             html.append("<div style='max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);'>");
             html.append("<div style='background:linear-gradient(135deg,#1a2e4a,#2d4a7a);padding:24px;text-align:center;'>");
             html.append("<h1 style='color:#fff;margin:0;font-size:1.6rem;'>BoticaAnita</h1>");
-            html.append("<p style='color:#cbd5e1;margin:4px 0 0;font-size:0.9rem;'>Confirmacion de Compra</p>");
+            html.append("<p style='color:#cbd5e1;margin:4px 0 0;font-size:0.9rem;'>" + (transferencia ? "Verificacion de Compra" : "Confirmacion de Compra") + "</p>");
             html.append("</div>");
             html.append("<div style='padding:24px;'>");
             html.append("<p style='color:#334155;font-size:1rem;'>Hola <strong>").append(nombre).append("</strong>,</p>");
-            html.append("<p style='color:#64748b;font-size:0.95rem;'>Muchas gracias por tu compra. Tu pago ha sido procesado con exito.</p>");
+            if (transferencia) {
+                html.append("<p style='color:#64748b;font-size:0.95rem;'>Recibimos tu pago por <strong>").append(metodo).append("</strong> y registramos tu compra. Este correo es la verificacion de tu compra.</p>");
+            } else {
+                html.append("<p style='color:#64748b;font-size:0.95rem;'>Muchas gracias por tu compra. Tu pago ha sido procesado con exito.</p>");
+            }
 
             html.append("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;'>");
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.9rem;color:#334155;'>");
             html.append("<tr><td style='padding:4px 0;font-weight:600;'>Codigo de pedido:</td><td style='padding:4px 0;text-align:right;'>#").append(nroBoleta).append("</td></tr>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(pedido.getFecha() != null ? pedido.getFecha().toString() : "-").append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(formatearFecha(pedido)).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Metodo de pago:</td><td style='padding:4px 0;text-align:right;'>").append(metodo).append("</td></tr>");
+            if (transferencia) {
+                html.append("<tr><td style='padding:4px 0;font-weight:600;'>Numero de operacion:</td><td style='padding:4px 0;text-align:right;'>").append(pedido.getNumeroOperacion() == null ? "-" : pedido.getNumeroOperacion()).append("</td></tr>");
+            }
             if (pedido.getDireccionEnvio() != null && !pedido.getDireccionEnvio().trim().isEmpty()) {
                 if (pedido.isEsUrgente()) {
                     html.append("<tr><td style='padding:4px 0;font-weight:600;'>Direccion de envio:</td><td style='padding:4px 0;text-align:right;'>").append(pedido.getDireccionEnvio()).append("</td></tr>");
@@ -175,6 +190,11 @@ public class EmailService {
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.95rem;'>");
             html.append("<tr><td style='padding:4px 0;color:#64748b;'>Subtotal productos:</td><td style='padding:4px 0;text-align:right;color:#334155;'>S/ ").append(String.format("%.2f", subtotalProductos)).append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;color:#64748b;'>Costo de envio:</td><td style='padding:4px 0;text-align:right;color:#334155;'>").append(costoEnvio == 0.0 ? "Gratis" : "S/ 5.00").append("</td></tr>");
+            // Descuentos (promociones y cupon): lo que suman productos + envio menos lo realmente cobrado
+            double descuentos = subtotalProductos + costoEnvio - (pedido.getTotal() == null ? 0.0 : pedido.getTotal().doubleValue());
+            if (descuentos >= 0.01) {
+                html.append("<tr><td style='padding:4px 0;color:#64748b;'>Descuentos (promociones y cupon):</td><td style='padding:4px 0;text-align:right;color:#16a34a;'>- S/ ").append(String.format(java.util.Locale.US, "%.2f", descuentos)).append("</td></tr>");
+            }
             if (codigoCupon != null && !codigoCupon.trim().isEmpty()) {
                 html.append("<tr><td style='padding:4px 0;color:#64748b;'>Cupon aplicado:</td><td style='padding:4px 0;text-align:right;color:#334155;'>").append(codigoCupon.toUpperCase()).append("</td></tr>");
             }
@@ -189,6 +209,13 @@ public class EmailService {
                 }
             }
 
+            if (transferencia) {
+                if ("EN_ESPERA".equals(pedido.getEstado())) {
+                    html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Tu pedido contiene productos que requieren receta medica, por lo que quedara en espera hasta validar tu receta.</p>");
+                }
+                html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Guarda este correo y tu numero de operacion como comprobante. Si algun dato no coincide con la constancia de tu transferencia, responde a este correo indicando tu numero de operacion.</p>");
+            }
+
             html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Si tienes alguna duda, responde a este correo o escribe a soporte@boticaanita.com.</p>");
             html.append("<p style='color:#64748b;font-size:0.85rem;'>Saludos,<br><strong>Equipo BoticaAnita</strong></p>");
             html.append("</div>");
@@ -201,6 +228,43 @@ public class EmailService {
         } catch (Exception e) {
             System.out.println("Error enviando email de confirmacion de pedido: " + e.getMessage());
         }
+    }
+
+    // ----- Apoyo para el correo de verificacion (Plin, SIP y Yape con QR) -----
+
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    /** Plin y SIP siempre; Yape solo cuando se pago con QR (tiene numero de operacion). */
+    private boolean esTransferencia(Pedido pedido) {
+        String metodo = pedido.getMetodoPago();
+        if ("PLIN".equalsIgnoreCase(metodo) || "SIP".equalsIgnoreCase(metodo)) {
+            return true;
+        }
+        return "YAPE".equalsIgnoreCase(metodo)
+                && pedido.getNumeroOperacion() != null && !pedido.getNumeroOperacion().trim().isEmpty();
+    }
+
+    private String nombreMetodo(String metodoPago) {
+        if (metodoPago == null) {
+            return "-";
+        }
+        switch (metodoPago.toUpperCase()) {
+            case "PLIN": return "Plin";
+            case "SIP": return "SIP";
+            case "YAPE": return "Yape";
+            case "TARJETA": return "Tarjeta";
+            case "EFECTIVO": return "Efectivo";
+            default: return metodoPago;
+        }
+    }
+
+    /** La fecha del pedido se guarda en UTC; en el correo se muestra en hora de Lima. */
+    private String formatearFecha(Pedido pedido) {
+        if (pedido.getFecha() == null) {
+            return "-";
+        }
+        return pedido.getFecha().atOffset(ZoneOffset.UTC).atZoneSameInstant(ZONA_LIMA).format(FORMATO_FECHA);
     }
 
     public void sendCampaignCouponEmail(String destinatario, String nombre, String codigoCupon, double descuento, String descripcion) {

@@ -82,6 +82,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   plinInfo: { numero: string; titular: string } | null = null;
   plinQrDisponible: boolean = true;
   plinCopiado: boolean = false;
+  montoCopiado: boolean = false;
   pagoPendienteVerificacion: boolean = false;
 
   // --- SIP (antes Ágora) ---
@@ -90,6 +91,9 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   sipCopiado: boolean = false;
 
   yapePaso: 1 | 2 = 1;
+  /** Yape se puede pagar con código de aprobación (celular + código) o escaneando el QR. */
+  yapeModo: 'CODIGO' | 'QR' = 'CODIGO';
+  yapeQrDisponible: boolean = true;
   codigoYapeGenerado: string = '';
   correoDestino: string = '';
 
@@ -344,6 +348,26 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     navigator.clipboard?.writeText(this.sipInfo.numero).then(() => {
       this.sipCopiado = true;
       setTimeout(() => (this.sipCopiado = false), 2000);
+    });
+  }
+
+  /** Plin, SIP y Yape con QR se registran con el número de operación de la transferencia. */
+  pagaConNumeroOperacion(): boolean {
+    return this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP'
+      || (this.metodoSeleccionado === 'YAPE' && this.yapeModo === 'QR');
+  }
+
+  cambiarModoYape(modo: 'CODIGO' | 'QR') {
+    this.yapeModo = modo;
+    this.mensajeError = '';
+    this.mensajeExito = '';
+  }
+
+  /** Copia el monto exacto del pedido (para pegarlo en Plin/SIP si el QR no lo trae). */
+  copiarMonto() {
+    navigator.clipboard?.writeText(Number(this.total).toFixed(2)).then(() => {
+      this.montoCopiado = true;
+      setTimeout(() => (this.montoCopiado = false), 2000);
     });
   }
 
@@ -716,6 +740,15 @@ this.descuento = subtotalElegible * (valor / 100);
         }
         this.procesandoPago = true;
         this.finalizarPedidoEnBackend();
+    } else if (this.yapeModo === 'QR') {
+        // Yape con QR: el cliente ya pagó desde su app; registramos el número de operación junto al pedido.
+        const operacion = (this.formPago.numeroOperacion || '').trim();
+        if (!/^\d{6,12}$/.test(operacion)) {
+            this.mensajeError = 'Ingresa el número de operación de tu pago Yape (6 a 12 dígitos).';
+            return;
+        }
+        this.procesandoPago = true;
+        this.finalizarPedidoEnBackend();
     } else {
         // Lógica de Yape intacta
         if (this.yapePaso === 1) { this.mensajeError = 'Verifica tu código Yape.'; return; }
@@ -738,14 +771,14 @@ this.descuento = subtotalElegible * (valor / 100);
             longitudEntrega: this.coordsSeleccionadas ? this.coordsSeleccionadas[1] : null,
             esUrgente: this.formPago.esUrgente,
             idReceta: this.recetaSubidaId,
-            numeroOperacion: (this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP') ? this.formPago.numeroOperacion.trim() : null
+            numeroOperacion: this.pagaConNumeroOperacion() ? this.formPago.numeroOperacion.trim() : null
         };
 
       this.pagoService.procesarPago(datosPago).subscribe({
           next: () => {
               this.folioGenerado = `FC-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
               this.direccionFinal = `${this.formPago.direccionDetalle}, ${this.formPago.distrito}, Lima`;
-              this.pagoPendienteVerificacion = this.metodoSeleccionado === 'PLIN' || this.metodoSeleccionado === 'SIP';
+              this.pagoPendienteVerificacion = this.pagaConNumeroOperacion();
               this.pagoExitoso = true;
               this.procesandoPago = false;
 

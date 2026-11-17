@@ -19,7 +19,7 @@
       </div>
     </div>
     <p class="exito-sub" *ngIf="!pagoPendienteVerificacion">Te enviaremos la confirmación a tu correo. Redirigiendo al catálogo...</p>
-    <p class="exito-sub" *ngIf="pagoPendienteVerificacion">Registramos tu pago por {{ metodoSeleccionado === 'SIP' ? 'SIP' : 'Plin' }}. Te enviamos un correo con la verificación de tu compra. Redirigiendo a tus pedidos...</p>
+    <p class="exito-sub" *ngIf="pagoPendienteVerificacion">Registramos tu pago por {{ metodoSeleccionado === 'SIP' ? 'SIP' : (metodoSeleccionado === 'YAPE' ? 'Yape' : 'Plin') }}. Te enviamos un correo con la verificación de tu compra. Redirigiendo a tus pedidos...</p>
     <div class="exito-barra-wrap">
       <div class="exito-barra"></div>
     </div>
@@ -237,7 +237,52 @@
 
         <div *ngIf="metodoSeleccionado === 'YAPE'" class="form-dinamico anim-fade yape-panel">
 
-          <div *ngIf="yapePaso === 1">
+          <div class="yape-modos">
+            <button type="button" [class.activo]="yapeModo === 'CODIGO'" (click)="cambiarModoYape('CODIGO')">Código de aprobación</button>
+            <button type="button" [class.activo]="yapeModo === 'QR'" (click)="cambiarModoYape('QR')">Pagar con QR</button>
+          </div>
+
+          <div *ngIf="yapeModo === 'QR'">
+            <div class="yape-header-info">
+              <div class="yape-badge-logo">Yape</div>
+              <p>Escanea el QR con tu app Yape, paga y registra tu número de operación.</p>
+            </div>
+
+            <ol class="plin-pasos">
+              <li>Abre <strong>Yape</strong> y escanea el QR de abajo.</li>
+              <li>Paga exactamente <strong>S/ {{ total | number:'1.2-2' }}</strong>.</li>
+              <li>Copia el <strong>número de operación</strong> y pégalo aquí.</li>
+            </ol>
+
+            <div class="monto-pagar">
+              <div>
+                <span class="plin-label">Monto exacto a pagar</span>
+                <strong class="monto-valor">S/ {{ total | number:'1.2-2' }}</strong>
+              </div>
+              <button type="button" class="btn-link" (click)="copiarMonto()">
+                {{ montoCopiado ? '✓ Copiado' : 'Copiar monto' }}
+              </button>
+            </div>
+
+            <div class="plin-cuenta yape-cuenta">
+              <figure class="qr-bloque" *ngIf="yapeQrDisponible">
+                <img src="yape-qr.png" alt="QR Yape" class="plin-qr" (error)="yapeQrDisponible = false" />
+                <figcaption>Escanéalo con tu app e ingresa <strong>S/ {{ total | number:'1.2-2' }}</strong></figcaption>
+              </figure>
+              <p class="field-hint" *ngIf="!yapeQrDisponible">
+                El QR de Yape no está disponible por ahora. Usa el código de aprobación.
+              </p>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+              <label>Número de operación <span class="req">*</span></label>
+              <input type="text" inputmode="numeric" [(ngModel)]="formPago.numeroOperacion" maxlength="12"
+                placeholder="Ej: 123456789" class="form-input font-mono" />
+              <span class="field-hint">Guardaremos este número de operación junto con tu pedido.</span>
+            </div>
+          </div>
+
+          <div *ngIf="yapeModo === 'CODIGO' && yapePaso === 1">
             <div class="yape-header-info">
               <div class="yape-badge-logo">Yape</div>
               <p>Te enviaremos un código de 6 dígitos a tu correo para confirmar el pago.</p>
@@ -263,7 +308,7 @@
             <div *ngIf="mensajeExito" class="feedback-exito">{{ mensajeExito }}</div>
           </div>
 
-          <div *ngIf="yapePaso === 2">
+          <div *ngIf="yapeModo === 'CODIGO' && yapePaso === 2">
             <div class="cuenta-verificada">
               <span class="badge-ok">✓ Código enviado a {{ correoDestino }}</span>
               <button class="btn-link" (click)="yapePaso = 1">Cambiar</button>
@@ -298,6 +343,16 @@
             <li>Copia el <strong>número de operación</strong> y pégalo aquí.</li>
           </ol>
 
+          <div class="monto-pagar">
+            <div>
+              <span class="plin-label">Monto exacto a pagar</span>
+              <strong class="monto-valor">S/ {{ total | number:'1.2-2' }}</strong>
+            </div>
+            <button type="button" class="btn-link" (click)="copiarMonto()">
+              {{ montoCopiado ? '✓ Copiado' : 'Copiar monto' }}
+            </button>
+          </div>
+
           <div class="plin-cuenta" *ngIf="plinInfo">
             <div class="plin-cuenta-datos">
               <span class="plin-label">Número Plin</span>
@@ -308,8 +363,10 @@
                 {{ plinCopiado ? '✓ Copiado' : 'Copiar número' }}
               </button>
             </div>
-            <img *ngIf="plinQrDisponible" src="plin-qr.png" alt="QR Plin" class="plin-qr"
-              (error)="plinQrDisponible = false" />
+            <figure class="qr-bloque" *ngIf="plinQrDisponible">
+              <img src="plin-qr.png" alt="QR Plin" class="plin-qr" (error)="plinQrDisponible = false" />
+              <figcaption>Escanéalo con tu app e ingresa <strong>S/ {{ total | number:'1.2-2' }}</strong></figcaption>
+            </figure>
           </div>
 
           <div class="form-group" style="margin-top: 20px;">
@@ -332,6 +389,16 @@
             <li>Copia el <strong>número de operación</strong> y pégalo aquí.</li>
           </ol>
 
+          <div class="monto-pagar">
+            <div>
+              <span class="plin-label">Monto exacto a pagar</span>
+              <strong class="monto-valor">S/ {{ total | number:'1.2-2' }}</strong>
+            </div>
+            <button type="button" class="btn-link" (click)="copiarMonto()">
+              {{ montoCopiado ? '✓ Copiado' : 'Copiar monto' }}
+            </button>
+          </div>
+
           <div class="plin-cuenta sip-cuenta" *ngIf="sipInfo">
             <div class="plin-cuenta-datos">
               <span class="plin-label">Número SIP</span>
@@ -342,8 +409,10 @@
                 {{ sipCopiado ? '✓ Copiado' : 'Copiar número' }}
               </button>
             </div>
-            <img *ngIf="sipQrDisponible" src="sip-qr.png" alt="QR SIP" class="plin-qr"
-              (error)="sipQrDisponible = false" />
+            <figure class="qr-bloque" *ngIf="sipQrDisponible">
+              <img src="sip-qr.png" alt="QR SIP" class="plin-qr" (error)="sipQrDisponible = false" />
+              <figcaption>Escanéalo con tu app e ingresa <strong>S/ {{ total | number:'1.2-2' }}</strong></figcaption>
+            </figure>
           </div>
 
           <div class="form-group" style="margin-top: 20px;">
@@ -422,7 +491,7 @@
         </div>
         <button class="btn-pagar-checkout" (click)="ejecutarPago()" [disabled]="procesandoPago || (requiereReceta && !recetaSubidaExito)"
           [style.opacity]="procesandoPago || (requiereReceta && !recetaSubidaExito) ? '0.5' : '1'">
-          <span *ngIf="!procesandoPago">{{ metodoSeleccionado === 'PLIN' ? 'Registrar pago Plin' : (metodoSeleccionado === 'SIP' ? 'Registrar pago SIP' : 'Procesar Pago Seguro') }}</span>
+          <span *ngIf="!procesandoPago">{{ metodoSeleccionado === 'PLIN' ? 'Registrar pago Plin' : (metodoSeleccionado === 'SIP' ? 'Registrar pago SIP' : (metodoSeleccionado === 'YAPE' && yapeModo === 'QR' ? 'Registrar pago Yape' : 'Procesar Pago Seguro')) }}</span>
           <span *ngIf="procesandoPago">Procesando...</span>
         </button>
         <p class="legal-text">Transacción cifrada bajo estándar PCI-DSS.</p>
