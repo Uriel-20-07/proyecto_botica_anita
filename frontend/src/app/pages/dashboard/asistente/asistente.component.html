@@ -1,101 +1,284 @@
 <div class="asistente-shell">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.open]="menuAbierto()">
     <div class="sidebar-brand">
-      <img class="brand-icon" src="/favicon.ico" alt="Botica Anita" />
-      <div>
+      <span class="brand-logo">
+        <img src="/favicon.ico" alt="Botica Anita" />
+      </span>
+      <div class="brand-text">
         <h2>BoticaAnita</h2>
         <p>Panel Asistente</p>
       </div>
+      <button class="sidebar-close" type="button" (click)="menuAbierto.set(false)" aria-label="Cerrar menú">
+        <i class="bi bi-x-lg"></i>
+      </button>
     </div>
+
     <nav class="sidebar-nav">
       <button class="nav-item" [class.active]="tabActiva() === 'venta'" (click)="cambiarTab('venta')">
-        Venta (POS)
+        <i class="bi bi-shop-window nav-icon"></i>
+        <span>Venta (POS)</span>
       </button>
       <button class="nav-item" [class.active]="tabActiva() === 'pedidos'" (click)="cambiarTab('pedidos')">
-        Pedidos
+        <i class="bi bi-receipt nav-icon"></i>
+        <span>Pedidos</span>
+        @if (pedidos().length > 0) {
+          <span class="nav-badge">{{ pedidos().length }}</span>
+        }
       </button>
       <button class="nav-item" [class.active]="tabActiva() === 'historial'" (click)="cambiarTab('historial')">
-        Historial
+        <i class="bi bi-clock-history nav-icon"></i>
+        <span>Historial</span>
       </button>
     </nav>
+
+    <div class="sidebar-tip">
+      <i class="bi bi-lightbulb"></i>
+      <p>Usa <kbd>Ctrl</kbd> + <kbd>K</kbd> para buscar productos rápido.</p>
+    </div>
+
     <div class="sidebar-footer">
-      <button class="btn-logout" (click)="logout()">Cerrar sesión</button>
+      <div class="user-profile">
+        <span class="user-avatar">{{ iniciales(usuario?.nombre) }}</span>
+        <div class="user-info">
+          <span class="user-name">{{ usuario?.nombre || 'Asistente' }}</span>
+          <span class="user-role">{{ usuario?.rol || 'asistente' }}</span>
+        </div>
+      </div>
+      <button class="btn-logout" (click)="logout()">
+        <i class="bi bi-box-arrow-right"></i>
+        Cerrar sesión
+      </button>
     </div>
   </aside>
 
+  @if (menuAbierto()) {
+    <div class="sidebar-backdrop" (click)="menuAbierto.set(false)"></div>
+  }
+
   <!-- Main content -->
   <main class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" type="button" (click)="menuAbierto.set(true)" aria-label="Abrir menú">
+          <i class="bi bi-list"></i>
+        </button>
+        <div class="topbar-title">
+          <p class="eyebrow">{{ subtituloSeccion() }}</p>
+          <h1>{{ tituloSeccion() }}</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-chip">
+          <i class="bi bi-calendar3"></i>
+          {{ fechaActual() }}
+        </span>
+        <span class="topbar-chip time">
+          <i class="bi bi-clock"></i>
+          {{ horaActual() }}
+        </span>
+        <button class="btn-icon" type="button" (click)="refrescar()" [class.spinning]="cargando()" title="Actualizar">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </header>
+
     <!-- VENTA (POS) -->
     @if (tabActiva() === 'venta') {
-      <div class="pos-layout">
+      <div class="pos-layout animated-fade">
         <!-- Product search + list -->
         <section class="pos-products">
           <div class="pos-header">
-            <h1>Punto de Venta</h1>
-            <input type="text" class="search-input" placeholder="Buscar producto por nombre..." [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" />
+            <div class="pos-header-text">
+              <h2>Productos</h2>
+              <p>{{ productosFiltrados().length }} disponibles</p>
+            </div>
+            <div class="search-box">
+              <i class="bi bi-search search-icon"></i>
+              <input
+                #inputBusqueda
+                type="text"
+                class="search-input"
+                placeholder="Buscar producto por nombre..."
+                [value]="busqueda()"
+                (input)="busqueda.set($any($event.target).value)"
+              />
+              @if (busqueda()) {
+                <button class="search-clear" type="button" (click)="busqueda.set('')" aria-label="Limpiar búsqueda">
+                  <i class="bi bi-x-circle-fill"></i>
+                </button>
+              }
+              <kbd class="search-kbd">Ctrl K</kbd>
+            </div>
           </div>
-          <div class="product-grid">
-            @for (p of productosFiltrados(); track p.idProducto) {
-              <div class="product-card" (click)="agregarAlCarrito(p)">
-                <div class="product-img">
-                  @if (p.imgUrl) {
-                    <img [src]="p.imgUrl" [alt]="p.nombre" />
-                  } @else {
-                    <img class="product-placeholder-img" src="/favicon.ico" alt="" />
-                  }
-                </div>
-                <div class="product-info">
-                  <span class="product-name">{{ p.nombre }}</span>
-                  <span class="product-price">S/ {{ p.precioVenta.toFixed(2) }}</span>
-                  <span class="product-stock">Stock: {{ p.stock }}</span>
-                </div>
-              </div>
-            }
-          </div>
+
+          @if (categorias().length > 1) {
+            <div class="category-chips">
+              @for (cat of categorias(); track cat) {
+                <button
+                  type="button"
+                  class="category-chip"
+                  [class.active]="categoriaActiva() === cat"
+                  (click)="categoriaActiva.set(cat)"
+                >
+                  {{ cat === 'todas' ? 'Todas' : cat }}
+                </button>
+              }
+            </div>
+          }
+
+          @if (cargando()) {
+            <div class="product-grid">
+              @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+                <div class="skeleton-card"></div>
+              }
+            </div>
+          } @else if (productosFiltrados().length === 0) {
+            <div class="empty-state">
+              <i class="bi bi-search"></i>
+              <p>No se encontraron productos con ese nombre.</p>
+              <button type="button" class="btn-secondary" (click)="busqueda.set(''); categoriaActiva.set('todas')">
+                Limpiar filtros
+              </button>
+            </div>
+          } @else {
+            <div class="product-grid">
+              @for (p of productosFiltrados(); track p.idProducto) {
+                <button class="product-card" type="button" (click)="agregarAlCarrito(p)" [attr.aria-label]="'Agregar ' + p.nombre">
+                  <span class="product-img">
+                    @if (p.imgUrl) {
+                      <img [src]="p.imgUrl" [alt]="p.nombre" loading="lazy" />
+                    } @else {
+                      <i class="bi bi-capsule"></i>
+                    }
+                  </span>
+                  <span class="product-info">
+                    <span class="product-name">{{ p.nombre }}</span>
+                    @if (p.categoria?.nombre) {
+                      <span class="product-cat">{{ p.categoria?.nombre }}</span>
+                    }
+                    <span class="product-bottom">
+                      <span class="product-price">S/ {{ p.precioVenta.toFixed(2) }}</span>
+                      <span class="stock-pill" [class.low]="p.stock <= 10">Stock {{ p.stock }}</span>
+                    </span>
+                  </span>
+                  <span class="product-add"><i class="bi bi-plus-lg"></i></span>
+                </button>
+              }
+            </div>
+          }
         </section>
 
         <!-- Cart -->
         <section class="pos-cart">
-          <h2>Carrito</h2>
+          <div class="cart-header">
+            <h2>
+              <i class="bi bi-cart3"></i>
+              Carrito
+              @if (cantidadCarrito() > 0) {
+                <span class="cart-count">{{ cantidadCarrito() }}</span>
+              }
+            </h2>
+            @if (carrito().length > 0) {
+              <button class="btn-link-danger" type="button" (click)="limpiarCarrito()">
+                <i class="bi bi-trash3"></i> Vaciar
+              </button>
+            }
+          </div>
+
           @if (carrito().length === 0) {
-            <p class="cart-empty">Agrega productos al carrito</p>
+            <div class="cart-empty">
+              <i class="bi bi-basket"></i>
+              <p>El carrito está vacío</p>
+              <span>Haz clic en un producto para agregarlo.</span>
+            </div>
           } @else {
             <div class="cart-items">
               @for (item of carrito(); track item.producto.idProducto) {
                 <div class="cart-item">
+                  <div class="cart-item-thumb">
+                    @if (item.producto.imgUrl) {
+                      <img [src]="item.producto.imgUrl" [alt]="item.producto.nombre" />
+                    } @else {
+                      <i class="bi bi-capsule"></i>
+                    }
+                  </div>
                   <div class="cart-item-info">
                     <span class="cart-item-name">{{ item.producto.nombre }}</span>
-                    <span class="cart-item-price">S/ {{ (item.producto.precioVenta * item.cantidad).toFixed(2) }}</span>
+                    <span class="cart-item-unit">S/ {{ item.producto.precioVenta.toFixed(2) }} c/u</span>
                   </div>
-                  <div class="cart-item-qty">
-                    <button (click)="cambiarCantidad(item.producto.idProducto, -1)">−</button>
-                    <span>{{ item.cantidad }}</span>
-                    <button (click)="cambiarCantidad(item.producto.idProducto, 1)">+</button>
-                    <button class="btn-remove" (click)="quitarDelCarrito(item.producto.idProducto)">✕</button>
+                  <div class="cart-item-actions">
+                    <div class="cart-item-qty">
+                      <button type="button" (click)="cambiarCantidad(item.producto.idProducto, -1)" aria-label="Quitar uno">−</button>
+                      <span>{{ item.cantidad }}</span>
+                      <button type="button" (click)="cambiarCantidad(item.producto.idProducto, 1)" aria-label="Agregar uno">+</button>
+                    </div>
+                    <span class="cart-item-price">S/ {{ (item.producto.precioVenta * item.cantidad).toFixed(2) }}</span>
+                    <button class="btn-remove" type="button" (click)="quitarDelCarrito(item.producto.idProducto)" aria-label="Eliminar">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
                   </div>
                 </div>
               }
             </div>
-            <div class="cart-total">
-              <span>Total:</span>
-              <span class="total-amount">S/ {{ totalCarrito().toFixed(2) }}</span>
+
+            <div class="cart-summary">
+              <div class="summary-line">
+                <span>Artículos</span>
+                <span>{{ cantidadCarrito() }}</span>
+              </div>
+              <div class="summary-line total">
+                <span>Total a cobrar</span>
+                <span class="total-amount">S/ {{ totalCarrito().toFixed(2) }}</span>
+              </div>
             </div>
+
             <div class="cart-payment">
               <label>Método de pago</label>
-              <select [(ngModel)]="metodoPago" class="payment-select">
-                <option value="EFECTIVO">Efectivo</option>
-                <option value="TARJETA">Tarjeta</option>
-                <option value="YAPE">Yape</option>
-                <option value="PLIN">Plin</option>
-              </select>
+              <div class="payment-options">
+                @for (m of metodosPago; track m.valor) {
+                  <button
+                    type="button"
+                    class="payment-option"
+                    [class.active]="metodoPago() === m.valor"
+                    (click)="metodoPago.set(m.valor)"
+                  >
+                    <i [class]="'bi ' + m.icono"></i>
+                    <span>{{ m.label }}</span>
+                  </button>
+                }
+              </div>
             </div>
+
             <div class="cart-cliente">
-              <input type="text" placeholder="Nombre del cliente (opcional)" [value]="nombreCliente()" (input)="nombreCliente.set($any($event.target).value)" />
-              <input type="email" placeholder="Email del cliente (para boleta)" [value]="emailCliente()" (input)="emailCliente.set($any($event.target).value)" />
+              <div class="input-icon">
+                <i class="bi bi-person"></i>
+                <input
+                  type="text"
+                  placeholder="Nombre del cliente (opcional)"
+                  [value]="nombreCliente()"
+                  (input)="nombreCliente.set($any($event.target).value)"
+                />
+              </div>
+              <div class="input-icon">
+                <i class="bi bi-envelope"></i>
+                <input
+                  type="email"
+                  placeholder="Email del cliente (para boleta)"
+                  [value]="emailCliente()"
+                  (input)="emailCliente.set($any($event.target).value)"
+                />
+              </div>
             </div>
+
             <button class="btn-confirmar" (click)="confirmarVenta()" [disabled]="procesandoVenta() || carrito().length === 0">
-              {{ procesandoVenta() ? 'Procesando...' : 'Confirmar Venta' }}
+              @if (procesandoVenta()) {
+                <span class="spinner"></span> Procesando...
+              } @else {
+                <i class="bi bi-check2-circle"></i>
+                Cobrar S/ {{ totalCarrito().toFixed(2) }}
+              }
             </button>
           }
         </section>
@@ -104,54 +287,135 @@
 
     <!-- PEDIDOS -->
     @if (tabActiva() === 'pedidos') {
-      <div class="pedidos-section">
-        <div class="pedidos-header">
-          <h1>Pedidos</h1>
-          <div class="sub-tabs">
-            <button class="sub-tab" [class.active]="subTabPedidos() === 'pendientes'" (click)="cambiarSubTabPedidos('pendientes')">Pendientes</button>
-            <button class="sub-tab" [class.active]="subTabPedidos() === 'entregados'" (click)="cambiarSubTabPedidos('entregados')">Entregados</button>
+      <div class="pedidos-section animated-fade">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-icon pendiente"><i class="bi bi-hourglass-split"></i></span>
+            <div>
+              <span class="stat-label">Pendientes</span>
+              <span class="stat-value">{{ pedidos().length }}</span>
+            </div>
           </div>
-          <button class="btn-refresh" (click)="subTabPedidos() === 'pendientes' ? cargarPedidos() : cargarPedidosEntregados()">Actualizar</button>
+          <div class="stat-card">
+            <span class="stat-icon encamino"><i class="bi bi-truck"></i></span>
+            <div>
+              <span class="stat-label">En camino / listos</span>
+              <span class="stat-value">{{ pedidosEnCamino() }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon entregado"><i class="bi bi-bag-check"></i></span>
+            <div>
+              <span class="stat-label">Entregados</span>
+              <span class="stat-value">{{ pedidosEntregados().length }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-header-text">
+            <h2>Gestión de pedidos</h2>
+            <p>Confirma entregas y revisa el detalle de cada pedido.</p>
+          </div>
+          <div class="section-actions">
+            <div class="search-box compact">
+              <i class="bi bi-search search-icon"></i>
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Buscar por cliente, #pedido o dirección..."
+                [value]="busquedaPedidos()"
+                (input)="busquedaPedidos.set($any($event.target).value)"
+              />
+            </div>
+            <button class="btn-secondary" type="button" (click)="refrescar()">
+              <i class="bi bi-arrow-clockwise"></i> Actualizar
+            </button>
+          </div>
+        </div>
+
+        <div class="sub-tabs">
+          <button class="sub-tab" [class.active]="subTabPedidos() === 'pendientes'" (click)="cambiarSubTabPedidos('pendientes')">
+            <i class="bi bi-hourglass-split"></i>
+            Pendientes
+            <span class="sub-tab-count">{{ pedidos().length }}</span>
+          </button>
+          <button class="sub-tab" [class.active]="subTabPedidos() === 'entregados'" (click)="cambiarSubTabPedidos('entregados')">
+            <i class="bi bi-bag-check"></i>
+            Entregados
+            <span class="sub-tab-count">{{ pedidosEntregados().length }}</span>
+          </button>
         </div>
 
         @if (pedidosVisibles().length === 0) {
-          <p class="empty-state">No hay pedidos en esta categoría.</p>
+          <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p>No hay pedidos en esta categoría.</p>
+            <span>Los nuevos pedidos aparecerán aquí automáticamente.</span>
+          </div>
+        } @else if (pedidosFiltrados().length === 0) {
+          <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <p>No hay resultados para tu búsqueda.</p>
+            <button class="btn-secondary" type="button" (click)="busquedaPedidos.set('')">Limpiar búsqueda</button>
+          </div>
         } @else {
-          <div class="pedidos-table">
-            <table>
+          <div class="table-card">
+            <table class="data-table">
               <thead>
                 <tr>
                   <th>Pedido</th>
                   <th>Cliente</th>
                   <th>Estado</th>
+                  <th>Entrega</th>
                   <th>Método</th>
-                  <th>Total</th>
+                  <th class="text-right">Total</th>
                   <th>Fecha</th>
-                  <th>Dirección</th>
-                  <th>Acción</th>
+                  <th class="text-right">Acción</th>
                 </tr>
               </thead>
               <tbody>
-                @for (p of pedidosVisibles(); track p.idPedido) {
+                @for (p of pedidosFiltrados(); track p.idPedido) {
                   <tr (click)="verDetalle(p)" class="clickable-row">
                     <td class="td-id">#{{ p.idPedido }}</td>
-                    <td>{{ p.usuario?.nombre || 'Cliente' }}</td>
                     <td>
-                      <span class="estado-badge" [class.entregado]="estadoLegible(p.estado) === 'Entregado'"
-                            [class.encamino]="estadoLegible(p.estado) === 'En camino'"
-                            [class.pendiente]="estadoLegible(p.estado) === 'Pendiente'">
+                      <div class="client-cell">
+                        <span class="client-avatar">{{ iniciales(p.usuario?.nombre) }}</span>
+                        <div class="client-info">
+                          <span class="client-name">{{ p.usuario?.nombre || 'Cliente en tienda' }}</span>
+                          <span class="client-email">{{ p.usuario?.correo || 'Sin correo registrado' }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span [class]="'estado-badge ' + estadoClase(p.estado)">
+                        <span class="dot"></span>
                         {{ estadoLegible(p.estado) }}
                       </span>
                     </td>
-                    <td>{{ p.metodoPago }}</td>
-                    <td class="td-total">S/ {{ p.total }}</td>
-                    <td class="td-fecha">{{ formatFecha(p.fecha) }}</td>
-                    <td class="td-dir">{{ p.direccionEnvio }} ({{ p.distrito }})</td>
                     <td>
+                      <span class="tipo-badge" [class.delivery]="p.esUrgente">
+                        <i [class]="p.esUrgente ? 'bi bi-truck' : 'bi bi-shop'"></i>
+                        {{ p.esUrgente ? 'Delivery' : 'Recojo' }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="metodo-pill">
+                        <i [class]="'bi ' + iconoMetodo(p.metodoPago)"></i>
+                        {{ p.metodoPago }}
+                      </span>
+                    </td>
+                    <td class="td-total text-right">S/ {{ p.total }}</td>
+                    <td class="td-fecha">{{ formatFecha(p.fecha) }}</td>
+                    <td class="text-right">
                       @if (subTabPedidos() === 'pendientes') {
-                        <button class="btn-entregar" (click)="marcarEntregado(p.idPedido); $event.stopPropagation()">Entregado</button>
+                        <button class="btn-entregar" (click)="solicitarEntregado(p); $event.stopPropagation()">
+                          <i class="bi bi-check2"></i> Entregado
+                        </button>
                       } @else {
-                        <button class="btn-ver" (click)="verDetalle(p); $event.stopPropagation()">Ver boleta</button>
+                        <button class="btn-ver" (click)="verDetalle(p); $event.stopPropagation()">
+                          <i class="bi bi-receipt"></i> Ver boleta
+                        </button>
                       }
                     </td>
                   </tr>
@@ -162,23 +426,92 @@
         }
 
         <!-- Modal de detalle -->
-        @if (pedidoDetalle()) {
+        @if (pedidoDetalle(); as pd) {
           <div class="modal-overlay" (click)="cerrarDetalle()">
-            <div class="modal-card" (click)="$event.stopPropagation()">
+            <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
               <div class="modal-header">
-                <h3>Pedido #{{ pedidoDetalle()!.idPedido }}</h3>
-                <button class="modal-close" (click)="cerrarDetalle()">✕</button>
+                <div class="modal-title">
+                  <span class="modal-icon"><i class="bi bi-receipt"></i></span>
+                  <div>
+                    <h3>Pedido #{{ pd.idPedido }}</h3>
+                    <span [class]="'estado-badge ' + estadoClase(pd.estado)">
+                      <span class="dot"></span>
+                      {{ estadoLegible(pd.estado) }}
+                    </span>
+                  </div>
+                </div>
+                <button class="modal-close" type="button" (click)="cerrarDetalle()" aria-label="Cerrar">
+                  <i class="bi bi-x-lg"></i>
+                </button>
               </div>
               <div class="modal-body">
-                <div class="detalle-row"><span class="label">Cliente:</span><span>{{ pedidoDetalle()!.usuario?.nombre || 'Cliente en tienda' }}</span></div>
-                <div class="detalle-row"><span class="label">Estado:</span><span>{{ estadoLegible(pedidoDetalle()!.estado) }}</span></div>
-                <div class="detalle-row"><span class="label">Método de pago:</span><span>{{ pedidoDetalle()!.metodoPago }}</span></div>
-                <div class="detalle-row"><span class="label">Dirección:</span><span>{{ pedidoDetalle()!.direccionEnvio }} ({{ pedidoDetalle()!.distrito }})</span></div>
-                <div class="detalle-row"><span class="label">Total:</span><span class="total">S/ {{ pedidoDetalle()!.total }}</span></div>
-                <div class="detalle-row"><span class="label">Fecha:</span><span>{{ formatFecha(pedidoDetalle()!.fecha) }}</span></div>
+                <div class="detalle-cliente">
+                  <span class="client-avatar lg">{{ iniciales(pd.usuario?.nombre) }}</span>
+                  <div>
+                    <span class="client-name">{{ pd.usuario?.nombre || 'Cliente en tienda' }}</span>
+                    <span class="client-email">{{ pd.usuario?.correo || 'Sin correo registrado' }}</span>
+                  </div>
+                </div>
+                <div class="detalle-grid">
+                  <div class="detalle-item">
+                    <span class="label">Método de pago</span>
+                    <span class="value">
+                      <i [class]="'bi ' + iconoMetodo(pd.metodoPago)"></i>
+                      {{ pd.metodoPago }}
+                    </span>
+                  </div>
+                  <div class="detalle-item">
+                    <span class="label">Tipo de entrega</span>
+                    <span class="value">{{ pd.esUrgente ? 'Delivery' : 'Recojo en tienda' }}</span>
+                  </div>
+                  <div class="detalle-item full">
+                    <span class="label">Dirección</span>
+                    <span class="value">{{ pd.direccionEnvio }} ({{ pd.distrito }})</span>
+                  </div>
+                  <div class="detalle-item">
+                    <span class="label">Fecha</span>
+                    <span class="value">{{ formatFecha(pd.fecha) }}</span>
+                  </div>
+                  <div class="detalle-item">
+                    <span class="label">Total</span>
+                    <span class="value total">S/ {{ pd.total }}</span>
+                  </div>
+                </div>
               </div>
               <div class="modal-footer">
-                <button class="btn-cerrar" (click)="cerrarDetalle()">Cerrar</button>
+                <button class="btn-secondary" type="button" (click)="cerrarDetalle()">Cerrar</button>
+                @if (puedeEntregar(pd)) {
+                  <button class="btn-entregar solid" type="button" (click)="solicitarEntregado(pd)">
+                    <i class="bi bi-check2-circle"></i> Marcar como entregado
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Confirmación de entrega -->
+        @if (pedidoAConfirmar(); as pc) {
+          <div class="modal-overlay" (click)="cancelarConfirmacion()">
+            <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+              <span class="confirm-icon"><i class="bi bi-check2-circle"></i></span>
+              <h3>¿Confirmar entrega?</h3>
+              <p>
+                El pedido <strong>#{{ pc.idPedido }}</strong> se marcará como entregado y se notificará al cliente por correo.
+              </p>
+              <div class="confirm-summary">
+                <span>{{ pc.usuario?.nombre || 'Cliente' }}</span>
+                <strong>S/ {{ pc.total }}</strong>
+              </div>
+              <div class="confirm-actions">
+                <button class="btn-secondary" type="button" (click)="cancelarConfirmacion()">Cancelar</button>
+                <button class="btn-success" type="button" (click)="confirmarEntrega()" [disabled]="procesandoEntrega()">
+                  @if (procesandoEntrega()) {
+                    <span class="spinner"></span> Procesando...
+                  } @else {
+                    <i class="bi bi-check2"></i> Sí, entregar
+                  }
+                </button>
               </div>
             </div>
           </div>
@@ -188,38 +521,97 @@
 
     <!-- HISTORIAL -->
     @if (tabActiva() === 'historial') {
-      <div class="historial-section">
-        <h1>Ventas de Hoy</h1>
-        <div class="historial-summary">
-          <div class="summary-card">
-            <span class="summary-label">Total ventas</span>
-            <span class="summary-value">{{ ventasHoy().length }}</span>
+      <div class="historial-section animated-fade">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-icon ventas"><i class="bi bi-receipt-cutoff"></i></span>
+            <div>
+              <span class="stat-label">Ventas de hoy</span>
+              <span class="stat-value">{{ ventasHoy().length }}</span>
+            </div>
           </div>
-          <div class="summary-card">
-            <span class="summary-label">Monto total</span>
-            <span class="summary-value">S/ {{ totalVentasHoy().toFixed(2) }}</span>
+          <div class="stat-card">
+            <span class="stat-icon monto"><i class="bi bi-cash-stack"></i></span>
+            <div>
+              <span class="stat-label">Monto total</span>
+              <span class="stat-value">S/ {{ totalVentasHoy().toFixed(2) }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon ticket"><i class="bi bi-graph-up-arrow"></i></span>
+            <div>
+              <span class="stat-label">Ticket promedio</span>
+              <span class="stat-value">S/ {{ ticketPromedio().toFixed(2) }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon metodo"><i class="bi bi-credit-card"></i></span>
+            <div>
+              <span class="stat-label">Método más usado</span>
+              <span class="stat-value small">{{ metodoMasUsado() }}</span>
+            </div>
           </div>
         </div>
+
+        <div class="section-header">
+          <div class="section-header-text">
+            <h2>Ventas de hoy</h2>
+            <p>Resumen de las ventas presenciales registradas en el día.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn-secondary" type="button" (click)="exportarHistorial()" [disabled]="ventasHoy().length === 0">
+              <i class="bi bi-download"></i> Exportar CSV
+            </button>
+            <button class="btn-secondary" type="button" (click)="cargarHistorial()">
+              <i class="bi bi-arrow-clockwise"></i> Actualizar
+            </button>
+          </div>
+        </div>
+
+        @if (ventasPorMetodo().length > 0) {
+          <div class="metodo-breakdown">
+            @for (m of ventasPorMetodo(); track m.metodo) {
+              <div class="metodo-card">
+                <span class="metodo-icon"><i [class]="'bi ' + iconoMetodo(m.metodo)"></i></span>
+                <div>
+                  <span class="metodo-name">{{ m.metodo }}</span>
+                  <span class="metodo-count">{{ m.cantidad }} venta{{ m.cantidad === 1 ? '' : 's' }}</span>
+                </div>
+                <span class="metodo-total">S/ {{ m.total.toFixed(2) }}</span>
+              </div>
+            }
+          </div>
+        }
+
         @if (ventasHoy().length === 0) {
-          <p class="empty-state">No hay ventas registradas hoy.</p>
+          <div class="empty-state">
+            <i class="bi bi-clock-history"></i>
+            <p>No hay ventas registradas hoy.</p>
+            <span>Cuando registres una venta aparecerá en este historial.</span>
+          </div>
         } @else {
-          <div class="pedidos-table">
-            <table>
+          <div class="table-card">
+            <table class="data-table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Hora</th>
+                  <th>Boleta</th>
+                  <th>Fecha y hora</th>
                   <th>Método</th>
-                  <th>Total</th>
+                  <th class="text-right">Total</th>
                 </tr>
               </thead>
               <tbody>
                 @for (v of ventasHoy(); track v.idPedido) {
                   <tr>
-                    <td>#{{ v.idPedido }}</td>
-                    <td>{{ formatFecha(v.fecha) }}</td>
-                    <td>{{ v.metodoPago }}</td>
-                    <td>S/ {{ v.total }}</td>
+                    <td class="td-id">#{{ v.idPedido }}</td>
+                    <td class="td-fecha">{{ formatFecha(v.fecha) }}</td>
+                    <td>
+                      <span class="metodo-pill">
+                        <i [class]="'bi ' + iconoMetodo(v.metodoPago)"></i>
+                        {{ v.metodoPago }}
+                      </span>
+                    </td>
+                    <td class="td-total text-right">S/ {{ v.total }}</td>
                   </tr>
                 }
               </tbody>
