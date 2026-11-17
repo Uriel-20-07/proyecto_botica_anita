@@ -1,7 +1,9 @@
 .perfil-container {
-  max-width: 1000px;
+  max-width: 1480px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 1rem 3rem;
+  padding: 0 1.5rem 3rem;
+  box-sizing: border-box;
 }
 
 .fade-in {
@@ -147,10 +149,13 @@
 
 .perfil-body {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 1.5rem;
 }
 
+.perfil-main {
+  min-width: 0;
+}
 /* SIDEBAR */
 
 .perfil-sidebar {
@@ -364,4 +369,16 @@
 .campo-error {
   font-size: 0.78rem;
   color: #e53e3e;
+}
+
+/* Los formularios no se estiran de lado a lado en pantallas anchas */
+.seccion form {
+  max-width: 880px;
+}
+
+/* Pantallas medianas: menú lateral un poco más angosto */
+@media (max-width: 1000px) {
+  .perfil-body {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
 }

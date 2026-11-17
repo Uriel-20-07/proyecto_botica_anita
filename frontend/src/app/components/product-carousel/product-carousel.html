@@ -33,6 +33,11 @@
                             <div class="col-6 col-md-3" *ngFor="let producto of chunk">
                                 <div class="producto-card h-100 d-flex flex-column position-relative" [class.producto-agotado]="producto.agotado">
 
+                                    <!-- Toda la tarjeta abre el detalle del producto (igual que en el catálogo) -->
+                                    <a class="producto-link-tarjeta" [routerLink]="['/catalogo/producto', producto.id]"
+                                        [attr.aria-label]="'Ver detalle de ' + producto.nombre"
+                                        style="position: absolute; inset: 0; z-index: 1; border-radius: inherit;"></a>
+
                                     <!-- Badge de descuento -->
                                     <div class="descuento-badge" *ngIf="!producto.agotado">-{{ producto.descuentoPct }}%</div>
 
@@ -59,6 +64,7 @@
                                         </div>
                                         <span *ngIf="producto.agotado" class="msg-agotado">Estamos trabajando para reabastecerlo</span>
                                         <button type="button" class="btn-agregar w-100" [class.btn-agotado]="producto.agotado"
+                                            style="position: relative; z-index: 2;"
                                             [disabled]="producto.agotado" (click)="agregarProducto(producto)">
                                             {{ producto.agotado ? 'Agotado' : 'Agregar' }}
                                         </button>

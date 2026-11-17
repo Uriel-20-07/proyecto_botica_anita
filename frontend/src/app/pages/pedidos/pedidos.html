@@ -108,11 +108,13 @@
 
 
             <div class="header-actions" (click)="$event.stopPropagation()">
-              <button type="button" class="btn-pdf-header" (click)="descargarPDF(pedido, idx)"
-                title="Descargar comprobante en PDF">
-                <i class="bi bi-download" style="font-size:16px"></i>
-                <span>PDF</span>
-              </button>
+                            @if (pedido.estado !== 'RECHAZADO') {
+              <a [routerLink]="['/pedidos/pedido', pedido.idPedido, 'seguimiento']" class="btn-seguimiento-header"
+                title="Ver el estado y el recorrido de tu pedido">
+                <i class="bi bi-geo-alt" style="font-size:16px"></i>
+                <span>Seguir pedido</span>
+              </a>
+              }
               <button type="button" class="btn-toggle-details" (click)="toggleExpansion(pedido.idPedido)"
                 [attr.aria-label]="isExpandido(pedido.idPedido) ? 'Colapsar detalles' : 'Expandir detalles'">
                 <i class="bi bi-chevron-down" style="font-size:18px"></i>

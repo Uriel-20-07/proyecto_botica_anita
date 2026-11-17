@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { CatalogoService, ProductoApi, CategoriaApi } from '../../services/catalogo.service';
 import { CartService } from '../../services/cart.service';
 import { ToastService } from '../../services/toast.service';
@@ -21,7 +22,7 @@ interface ProductoVista {
 @Component({
   selector: 'app-product-carousel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './product-carousel.html',
   styleUrls: ['../../pages/catalogo/catalogo.css', './product-carousel.css']
 })
