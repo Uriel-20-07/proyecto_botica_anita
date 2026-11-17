@@ -1,11 +1,22 @@
 <!-- Chatbot Floating Action Button -->
-<div class="chatbot-fab" (click)="toggleChat()" [class.active]="isOpen">
-  <i class="bi bi-chat-dots-fill" *ngIf="!isOpen" style="font-size:26px"></i>
-  <i class="bi bi-x-lg" *ngIf="isOpen" style="font-size:26px"></i>
+<div
+  class="chatbot-fab"
+  (click)="toggleChat()"
+  (keydown.enter)="toggleChat()"
+  [class.active]="isOpen"
+  role="button"
+  tabindex="0"
+  [attr.aria-label]="isOpen ? 'Cerrar el chat con SofIA' : 'Abrir el chat con SofIA'"
+  [attr.aria-expanded]="isOpen">
+  @if (!isOpen) {
+    <i class="bi bi-chat-dots-fill" style="font-size:26px" aria-hidden="true"></i>
+  } @else {
+    <i class="bi bi-x-lg" style="font-size:26px" aria-hidden="true"></i>
+  }
 </div>
 
 <!-- Chatbot Window -->
-<div class="chatbot-window" [class.open]="isOpen">
+<div class="chatbot-window" [class.open]="isOpen" role="dialog" aria-label="Chat con SofIA, asistente virtual de BoticaAnita">
   <!-- Header -->
   <div class="chatbot-header">
     <div class="chatbot-header-info">
@@ -17,54 +28,146 @@
         <span class="chatbot-status">Asistente virtual de BoticaAnita</span>
       </div>
     </div>
-    <button type="button" class="chatbot-close-btn" (click)="toggleChat()">✕</button>
+    <button type="button" class="chatbot-close-btn" (click)="toggleChat()" aria-label="Cerrar el chat">✕</button>
   </div>
 
   <!-- Messages List -->
-  <div class="chatbot-messages" #scrollContainer>
-    <div class="chatbot-message-wrapper" *ngFor="let msg of messages" [class.user]="msg.role === 'user'" [class.model]="msg.role === 'model'">
-      <div class="chatbot-avatar-msg" *ngIf="msg.role === 'model'">
-        <img src="logo-perfilchat.png" alt="FC" class="chatbot-avatar-img" />
-      </div>
-      <div class="chatbot-message-bubble">
-        <p class="chatbot-message-text" [innerHTML]="msg.content"></p>
+  <div class="chatbot-messages" #scrollContainer aria-live="polite">
+    @for (msg of messages; track $index) {
+      <div class="chatbot-message-wrapper" [class.user]="msg.role === 'user'" [class.model]="msg.role === 'model'">
+        @if (msg.role === 'model') {
+          <div class="chatbot-avatar-msg">
+            <img src="logo-perfilchat.png" alt="" class="chatbot-avatar-img" />
+          </div>
+        }
 
-        <!-- Acciones de confirmación (cantidad alternativa ofrecida por el backend) -->
-        <div class="chatbot-confirm-actions" *ngIf="msg.confirmacion">
-          <button
-            type="button"
-            class="chatbot-confirm-btn chatbot-confirm-yes"
-            (click)="confirmarCantidad(msg)">
-            Sí, agregar {{ msg.confirmacion.cantidad }}
-          </button>
-          <button
-            type="button"
-            class="chatbot-confirm-btn chatbot-confirm-no"
-            (click)="cancelarConfirmacion(msg)">
-            No, gracias
-          </button>
+        <div class="chatbot-message-body">
+          <div class="chatbot-message-bubble">
+            <p class="chatbot-message-text" [innerHTML]="renderContent(msg.content)"></p>
+
+            <!-- Acciones de confirmación (cantidad alternativa ofrecida por el backend) -->
+            @if (msg.confirmacion; as conf) {
+              <div class="chatbot-confirm-actions">
+                <button type="button" class="chatbot-confirm-btn chatbot-confirm-yes" (click)="confirmarCantidad(msg)">
+                  Sí, agregar {{ conf.cantidad }}
+                </button>
+                <button type="button" class="chatbot-confirm-btn chatbot-confirm-no" (click)="cancelarConfirmacion(msg)">
+                  No, gracias
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Opciones de la pregunta (categoría, subcategoría o marca) -->
+          @if (msg.opciones && msg.opciones.length > 0) {
+            <div class="chatbot-chips" role="group" aria-label="Opciones">
+              @for (op of msg.opciones; track op.id) {
+                <button type="button" class="chatbot-chip" (click)="elegirOpcion(msg, op)">
+                  {{ op.nombre }}
+                  @if (op.totalOfertas > 0) {
+                    <span class="chatbot-chip-oferta" title="Productos en oferta">🔥 {{ op.totalOfertas }}</span>
+                  }
+                </button>
+              }
+            </div>
+          }
+
+          <!-- Tarjetas de productos -->
+          @if (msg.productos && msg.productos.length > 0) {
+            <div class="chatbot-cards">
+              @for (p of msg.productos; track p.idProducto) {
+                <article class="chatbot-card" [class.agotado]="p.agotado">
+                  <div class="chatbot-card-img">
+                    @if (p.imgUrl) {
+                      <img [src]="p.imgUrl" [alt]="p.nombre" loading="lazy" />
+                    } @else {
+                      <i class="bi bi-box-seam" aria-hidden="true"></i>
+                    }
+                  </div>
+
+                  <div class="chatbot-card-info">
+                    <h5 class="chatbot-card-nombre">{{ p.nombre }}</h5>
+                    <div class="chatbot-card-precios">
+                      <span class="chatbot-precio">S/ {{ p.precioFinal | number:'1.2-2' }}</span>
+                      @if (p.enOferta) {
+                        <span class="chatbot-precio-anterior">S/ {{ p.precioRegular | number:'1.2-2' }}</span>
+                        <span class="chatbot-etiqueta-oferta">-{{ p.descuentoPorcentaje }}%</span>
+                      }
+                    </div>
+                  </div>
+
+                  @if (p.agotado) {
+                    <span class="chatbot-agotado">Agotado por ahora</span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="chatbot-card-btn"
+                      (click)="agregarProducto(p)"
+                      [disabled]="agregando.has(p.idProducto)"
+                      [attr.aria-label]="'Agregar ' + p.nombre + ' al carrito'">
+                      <i class="bi bi-cart-plus" aria-hidden="true"></i>
+                      {{ agregando.has(p.idProducto) ? 'Agregando…' : 'Agregar' }}
+                    </button>
+                  }
+                </article>
+              }
+            </div>
+          }
+
+          <!-- Botones secundarios -->
+          @if (msg.acciones && msg.acciones.length > 0) {
+            <div class="chatbot-chips chatbot-chips-secundarios" role="group" aria-label="Más opciones">
+              @for (acc of msg.acciones; track acc.id) {
+                <button type="button" class="chatbot-chip chatbot-chip-secundario" (click)="ejecutarAccion(acc)">
+                  {{ acc.etiqueta }}
+                </button>
+              }
+            </div>
+          }
         </div>
       </div>
-    </div>
+    }
 
     <!-- Typing Loader -->
-    <div class="chatbot-message-wrapper model" *ngIf="isLoading">
-      <div class="chatbot-avatar-msg">
-        <img src="logo-perfilchat.png" alt="FC" class="chatbot-avatar-img" />
+    @if (isLoading) {
+      <div class="chatbot-message-wrapper model">
+        <div class="chatbot-avatar-msg">
+          <img src="logo-perfilchat.png" alt="" class="chatbot-avatar-img" />
+        </div>
+        <div class="chatbot-message-bubble typing-bubble" aria-label="SofIA está escribiendo">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
       </div>
-      <div class="chatbot-message-bubble typing-bubble">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-      </div>
-    </div>
+    }
   </div>
+
+  <!-- Filtros elegidos: se pueden quitar para volver atrás -->
+  @if (chips.length > 0) {
+    <div class="chatbot-filtros" role="group" aria-label="Tu búsqueda">
+      <span class="chatbot-filtros-titulo">Tu búsqueda:</span>
+      @for (chip of chips; track chip.tipo) {
+        <button type="button" class="chatbot-filtro-chip" (click)="quitarFiltro(chip.tipo)" [attr.aria-label]="'Quitar ' + chip.etiqueta">
+          {{ chip.etiqueta }} <span aria-hidden="true">✕</span>
+        </button>
+      }
+    </div>
+  }
 
   <!-- Input Form -->
   <form class="chatbot-input-form" (submit)="sendMessage($event)">
-    <input type="text" name="userInput" [(ngModel)]="userInput" class="chatbot-input" placeholder="Pregunta sobre medicamentos..." autocomplete="off" />
-    <button type="submit" class="chatbot-send-btn" [disabled]="!userInput.trim() || isLoading">
-      <i class="bi bi-send-fill" style="font-size:18px"></i>
+    <input
+      #campoTexto
+      type="text"
+      name="userInput"
+      [(ngModel)]="userInput"
+      class="chatbot-input"
+      placeholder="Escríbeme lo que necesitas..."
+      autocomplete="off"
+      aria-label="Escribe tu mensaje para SofIA" />
+    <button type="submit" class="chatbot-send-btn" [disabled]="!userInput.trim() || isLoading" aria-label="Enviar mensaje">
+      <i class="bi bi-send-fill" style="font-size:18px" aria-hidden="true"></i>
     </button>
   </form>
 </div>

@@ -2,6 +2,10 @@
  * Datos de contacto de la botica, usados por las páginas de soporte
  * (Centro de Ayuda, Envíos, Devoluciones y Privacidad). Edítalos aquí y se
  * actualizan en todas las páginas.
+ *
+ * IMPORTANTE: SofIA (el chatbot) responde con una copia de esta información que vive en el backend:
+ * backend/src/main/resources/chatbot/faq.md. Si cambias horarios, teléfonos, costos de envío, métodos de
+ * pago o políticas, actualiza también ese archivo para que SofIA no responda datos desactualizados.
  */
 export const CONTACTO = {
   telefono: '(01) 5345874',
