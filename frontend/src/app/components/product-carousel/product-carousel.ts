@@ -32,8 +32,14 @@ export class ProductCarouselComponent implements OnInit {
   productos: ProductoVista[] = [];
   categorias: CategoriaApi[] = [];
 
+  /** Control de carga: true mientras el backend responde, false al finalizar (exitoso o error) */
+  cargando = true;
+
   /** Índice del slide activo (0-based) */
   slideActual = 0;
+
+  /** Número total de categorías para validación */
+  totalCategorias = 0;
 
   /** Si hay animación en curso, bloquea clicks rápidos */
   animando = false;
@@ -56,9 +62,11 @@ export class ProductCarouselComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.cargando = true;
     this.catalogoService.getCategorias().subscribe({
       next: (categorias) => {
         this.categorias = categorias;
+        this.totalCategorias = categorias.length;
         this.catalogoService.getProductos().subscribe({
           next: (productos) => {
             // Filtrar productos que tengan descuento activo por fecha de caducidad
@@ -72,10 +80,13 @@ export class ProductCarouselComponent implements OnInit {
               .map((p) => this.mapProducto(p));
 
             this.slideActual = 0;
+            this.cargando = false;
             this.cdr.detectChanges();
-          }
+          },
+          error: () => this.cargando = false
         });
-      }
+      },
+      error: () => this.cargando = false
     });
   }
 
