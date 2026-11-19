@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.models.DetallePedido;
 import com.example.demo.models.Pedido;
 import com.example.demo.models.User;
-import com.example.demo.repositories.DetallePedidoRepository;
 import com.example.demo.repositories.PedidoRepository;
 import com.example.demo.services.AuthService;
 
@@ -37,9 +36,6 @@ public class PedidoController {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private DetallePedidoRepository detallePedidoRepository;
-
-    @Autowired
     private AuthService authService;
 
     /**
@@ -52,9 +48,16 @@ public class PedidoController {
         }
         try {
             User usuario = authService.obtenerUsuarioPorEmail(principal.getName());
-            List<Pedido> pedidos = pedidoRepository.findByUsuarioOrderByFechaDesc(usuario);
+            // Una sola consulta con pedidos + detalles + productos (antes: N+1).
+            List<Pedido> pedidos = pedidoRepository.findHistorialByUsuario(usuario);
 
-            List<Map<String, Object>> response = pedidos.stream().map(pedido -> {
+            // Defensa ante posibles filas repetidas del join con la colección.
+            Map<Integer, Pedido> unicos = new java.util.LinkedHashMap<>();
+            for (Pedido pedido : pedidos) {
+                unicos.putIfAbsent(pedido.getIdPedido(), pedido);
+            }
+
+            List<Map<String, Object>> response = unicos.values().stream().map(pedido -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idPedido", pedido.getIdPedido());
                 map.put("fecha", pedido.getFecha());
@@ -64,8 +67,12 @@ public class PedidoController {
                 map.put("distrito", pedido.getDistrito());
                 map.put("metodoPago", pedido.getMetodoPago());
                 map.put("esUrgente", pedido.isEsUrgente());
+                // Coordenadas ya resueltas en el backend: permiten estimar el
+                // tiempo y dibujar el seguimiento sin geocodificar de nuevo.
+                map.put("latitudEntrega", pedido.getLatitudEntrega());
+                map.put("longitudEntrega", pedido.getLongitudEntrega());
 
-                List<DetallePedido> detalles = detallePedidoRepository.findByPedido_IdPedido(pedido.getIdPedido());
+                List<DetallePedido> detalles = pedido.getDetalles() != null ? pedido.getDetalles() : List.of();
 
                 List<Map<String, Object>> detallesMap = detalles.stream().map(d -> {
                     Map<String, Object> dm = new HashMap<>();

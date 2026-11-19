@@ -36,6 +36,9 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   /** Minutos estimados de viaje tienda -> entrega (se calcula al cargar el pedido). */
   tripMin = 20;
 
+  /** Evita recalcular la ruta real más de una vez para el mismo destino. */
+  private rutaRefinadaKey: string | null = null;
+
   constructor(
     private route: ActivatedRoute,
     private pedidoService: PedidoService,
@@ -68,36 +71,80 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   private cargarPedido(): void {
     const idPedido = this.idPedidoRuta;
 
+    // 1) Pintado inmediato con los datos ya cargados en memoria (al venir del
+    //    historial, el pedido suele estar en la caché compartida del servicio).
+    const cache = this.pedidoService.pedidosDesdeCache();
+    if (cache && cache.length > 0) {
+      this.renderPedido(cache, idPedido, false);
+    }
+
+    // 2) Confirmar/actualizar con el backend. La caché del servicio evita
+    //    repetir la consulta si los datos siguen vigentes.
     this.pedidoService.obtenerPedidos().subscribe({
-      next: async pedidos => {
-
-        const pedido = pedidos.find(
-          (p: any) => p.idPedido === idPedido
-        );
-
-        this.pedido.set(pedido);
-
-        if (!pedido) return;
-
-        const index = pedidos.findIndex(
-          (p: any) => p.idPedido === idPedido
-        );
-
-        const numeroVisible =
-          (pedidos.length - index)
-            .toString()
-            .padStart(6, '0');
-
-        this.numeroPedido.set(numeroVisible);
-
-        // Se resuelve el destino una sola vez (con caché del servicio de mapa).
-        const [la, ln] = await this.mapaService.resolverDestino(pedido);
-        const r = await this.mapaService.obtenerRutaPorCalles(BOTICA_ANITA.lng, BOTICA_ANITA.lat, ln, la);
-        this.tripMin = r.tripMin;
-        this.calcularEstado(pedido.fecha);
-        this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
-      }
+      next: pedidos => this.renderPedido(pedidos, idPedido, true)
     });
+  }
+
+  /**
+   * Vuelca el pedido en la vista y dibuja estado + timeline sin esperar a que
+   * se inicialice el mapa ni a que se calcule la ruta por calles.
+   */
+  private renderPedido(pedidos: any[], idPedido: number, resolverRuta: boolean): void {
+    const index = pedidos.findIndex((p: any) => p.idPedido === idPedido);
+    if (index < 0) {
+      if (!this.pedido()) this.pedido.set(null);
+      return;
+    }
+
+    const pedido = pedidos[index];
+    this.pedido.set(pedido);
+
+    const numeroVisible = (pedidos.length - index).toString().padStart(6, '0');
+    this.numeroPedido.set(numeroVisible);
+
+    // Estimación instantánea (Haversine) para no bloquear el timeline.
+    this.tripMin = this.estimarTripMin(pedido);
+    this.calcularEstado(pedido.fecha);
+    this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
+
+    // La ruta real se calcula después, sin bloquear el render.
+    if (resolverRuta) {
+      void this.refinarRuta(pedido);
+    }
+  }
+
+  /** Minutos de viaje aproximados usando distancia en línea recta. */
+  private estimarTripMin(pedido: any): number {
+    const lat = Number(pedido?.latitudEntrega) || 0;
+    const lng = Number(pedido?.longitudEntrega) || 0;
+    if (!lat || !lng) return this.tripMin || 20;
+    return this.mapaService.tripMin(
+      this.mapaService.distanciaM(BOTICA_ANITA.lat, BOTICA_ANITA.lng, lat, lng)
+    );
+  }
+
+  /** Refina la duración con la ruta real por calles (una sola vez por destino). */
+  private async refinarRuta(pedido: any): Promise<void> {
+    if (pedido?.esUrgente === false) return; // recojo: no hay viaje
+
+    const lat = Number(pedido?.latitudEntrega) || 0;
+    const lng = Number(pedido?.longitudEntrega) || 0;
+    const key = lat && lng ? `${lat.toFixed(5)},${lng.toFixed(5)}` : 'geocode';
+    if (this.rutaRefinadaKey === key) return;
+    this.rutaRefinadaKey = key;
+
+    try {
+      const [la, ln] = await this.mapaService.resolverDestino(pedido);
+      const r = await this.mapaService.obtenerRutaPorCalles(BOTICA_ANITA.lng, BOTICA_ANITA.lat, ln, la);
+      if (!r?.tripMin) return;
+      this.tripMin = r.tripMin;
+
+      const actual = this.pedido() ?? pedido;
+      this.generarFechasTimeline(actual.fecha, actual.direccionEnvio || 'Bodega seleccionada', actual.esUrgente);
+      this.calcularEstado(actual.fecha);
+    } catch {
+      // Se conserva la estimación Haversine.
+    }
   }
 
   /** Relee el pedido para actualizar el timeline sin recalcular la ruta. */
@@ -109,16 +156,23 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
       next: (info) => {
         if (!info) return;
         this.pedido.update(p => ({ ...(p || {}), estado: info.estado, direccionEnvio: info.direccionEnvio || p?.direccionEnvio, distrito: info.distrito || p?.distrito }));
-        this.calcularEstado(info.fecha || this.pedido()?.fecha);
+        const fecha = info.fecha || this.pedido()?.fecha;
+        this.calcularEstado(fecha);
+        // Refrescar también el timeline para que las horas mostradas no queden viejas.
+        const pedido = this.pedido();
+        if (pedido) {
+          this.generarFechasTimeline(fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
+        }
       },
       error: () => {
         // Si falla el tracking, se reintenta con el listado de pedidos.
-        this.pedidoService.obtenerPedidos().subscribe({
+        this.pedidoService.obtenerPedidos(true).subscribe({
           next: pedidos => {
             const pedido = pedidos.find((p: any) => p.idPedido === idPedido);
             if (!pedido) return;
             this.pedido.set(pedido);
             this.calcularEstado(pedido.fecha);
+            this.generarFechasTimeline(pedido.fecha, pedido.direccionEnvio || 'Bodega seleccionada', pedido.esUrgente);
           }
         });
       }

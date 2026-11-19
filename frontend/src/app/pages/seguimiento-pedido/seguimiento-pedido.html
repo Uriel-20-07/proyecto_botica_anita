@@ -2,7 +2,7 @@
 
     <div class="header-card">
 
-        <div>
+        <div class="header-main">
 
             <span class="pedido-label">
                 Pedido #{{ numeroPedido() }}
@@ -10,15 +10,23 @@
 
             <h2>Seguimiento del pedido</h2>
 
-            <p>
-                Realizado el
-                {{ fechaPedido() | date:'dd/MM/yyyy HH:mm' }}
+            <p class="header-meta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                </svg>
+                Realizado el {{ fechaPedido() | date:'dd/MM/yyyy HH:mm' }}
             </p>
 
         </div>
 
-        <div class="estado-badge">
-            {{ estadoTexto() }}
+        <div class="header-status">
+            <span class="header-status-label">Estado actual</span>
+            <span class="estado-badge">
+                <span class="badge-dot" aria-hidden="true"></span>
+                {{ estadoTexto() }}
+            </span>
         </div>
 
     </div>
@@ -26,9 +34,12 @@
     <!-- BOTÓN VOLVER -->
     <div class="acciones">
         <button class="btn-volver" routerLink="/perfil" [queryParams]="{ seccion: 'pedidos' }">
-
-            ← Volver a Mis Pedidos
-
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5"></path>
+                <path d="M12 19l-7-7 7-7"></path>
+            </svg>
+            Volver a Mis Pedidos
         </button>
     </div>
 
@@ -37,37 +48,54 @@
         <div class="timeline-header">
 
             <div>
+                <span class="section-kicker">Progreso del envío</span>
                 <h3>Estado del envío</h3>
                 <p class="timeline-subtitle">
                     Sigue el progreso de tu pedido en tiempo real.
                 </p>
             </div>
 
+            <span class="timeline-count">
+                Paso {{ estadoActual() + 1 }} de {{ pasos.length }}
+            </span>
+
         </div>
 
-        <div class="timeline-item" *ngFor="let paso of pasos; let i = index">
+        <div class="timeline-list">
 
-            <div class="circle" [class.completed]="i <= estadoActual()"
-                [class.current]="i === estadoActual() && estadoActual() < 4">
+            <div class="timeline-item" *ngFor="let paso of pasos; let i = index"
+                [class.is-completed]="i < estadoActual()"
+                [class.is-current]="i === estadoActual()">
 
-                <span *ngIf="i <= estadoActual()">✓</span>
+                <div class="circle" [class.completed]="i <= estadoActual()"
+                    [class.current]="i === estadoActual() && estadoActual() < 4">
 
-            </div>
+                    <svg *ngIf="i <= estadoActual()" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6L9 17l-5-5"></path>
+                    </svg>
+                    <span class="circle-index" *ngIf="i > estadoActual()">{{ i + 1 }}</span>
 
-            <div class="content">
+                </div>
 
-                <h4>{{ paso.titulo }}</h4>
+                <div class="content">
 
-                <p>{{ paso.descripcion }}</p>
+                    <h4>{{ paso.titulo }}</h4>
 
-                <span class="fecha" *ngIf="i < estadoActual() || i === 0 || (i === 4 && estadoActual() === 4)">
-                    {{ paso.fecha | date:'dd/MM/yyyy HH:mm' }}
-                </span>
+                    <p>{{ paso.descripcion }}</p>
+
+                    <span class="fecha" *ngIf="i < estadoActual() || i === 0 || (i === 4 && estadoActual() === 4)">
+                        {{ paso.fecha | date:'dd/MM/yyyy HH:mm' }}
+                    </span>
+
+                </div>
 
             </div>
 
         </div>
 
     </div>
-<app-tracking-mapa *ngIf="mapaVisible()" [idPedido]="idPedidoRuta" [fechaPedido]="pedido()?.fecha" [tipoEntrega]="tipoEntrega()" [estadoActualMapa]="estadoActual()"></app-tracking-mapa>
+
+    <app-tracking-mapa *ngIf="mapaVisible()" [idPedido]="idPedidoRuta" [fechaPedido]="pedido()?.fecha"
+        [tipoEntrega]="tipoEntrega()" [estadoActualMapa]="estadoActual()"></app-tracking-mapa>
 </div>

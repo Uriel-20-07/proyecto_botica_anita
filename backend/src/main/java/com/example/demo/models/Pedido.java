@@ -2,18 +2,26 @@ package com.example.demo.models;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 /**
  * Entidad JPA que representa un pedido (orden de compra) de un usuario.
@@ -112,7 +120,23 @@ public class Pedido {
     @Column(name = "ultima_actualizacion_ubicacion")
     private LocalDateTime ultimaActualizacionUbicacion;
 
-        /** Número de operación del pago por Plin (null para otros métodos). */
+    /** Número de operación del pago por Plin (null para otros métodos). */
     @Column(name = "numero_operacion", nullable = true, length = 20)
     private String numeroOperacion;
+
+    /**
+     * Detalles (productos) del pedido.
+     *
+     * Se deja en LAZY por defecto para no cargar la colección en consultas que
+     * no la necesitan (listados de administración, scheduler, etc.). El
+     * historial del cliente la carga explícitamente con @EntityGraph.
+     *
+     * @JsonIgnore evita recursión al serializar Pedido directamente en otros
+     * endpoints (DetallePedido apunta de vuelta a Pedido).
+     */
+    @OneToMany(mappedBy = "pedido", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<DetallePedido> detalles = new ArrayList<>();
 }

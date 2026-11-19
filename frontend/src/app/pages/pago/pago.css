@@ -49,6 +49,11 @@
     align-items: start;
 }
 
+.panel-formularios,
+.panel-boleta {
+    min-width: 0;
+}
+
 /* ── SECCIONES ── */
 .pago-seccion { margin-bottom: 40px; }
 .seccion-header {
@@ -120,6 +125,9 @@
 .field-hint { display: block; font-size: 12px; color: #94a3b8; margin-top: 5px; }
 
 .form-row-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── MAPA DE ENTREGA (Google Maps) ── */
+.mapa-entrega-wrap { margin-bottom: 18px; }
 
 /* ── PREVIEW DIRECCIÓN ── */
 .direccion-preview {
@@ -346,9 +354,15 @@
 .resumen-linea {
     display: flex;
     justify-content: space-between;
+    gap: 12px;
     font-size: 13px;
     margin-bottom: 10px;
     color: #334155;
+}
+.resumen-linea > span:last-child {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-align: right;
 }
 .resumen-linea.descuento { color: #b91c1c; font-weight: 500; }
 .envio-gratis { color: #16a34a; font-weight: 600; }
@@ -397,6 +411,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
     font-size: 13px;
     font-weight: 700;
@@ -578,11 +594,23 @@
     .pago-container {
         padding: 0 12px;
         margin: 20px auto;
+        width: 100%;
+        max-width: 100%;
     }
     .pago-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
+    }
+    .header-left h1 {
+        font-size: 22px;
+    }
+    .pago-grid {
+        gap: 24px;
+        min-width: 0;
+    }
+    .pago-seccion {
+        margin-bottom: 28px;
     }
     .form-row-doble {
         grid-template-columns: 1fr; /* Los campos dobles pasan a ser uno debajo del otro */
@@ -590,9 +618,88 @@
     }
     .exito-card {
         padding: 30px 20px;
+        width: calc(100% - 24px);
     }
     .precio-final {
         font-size: 22px;
+    }
+
+    /* Selector de tipo de envío: una tarjeta por fila */
+    .envio-tipo-selector {
+        flex-direction: column;
+    }
+    .envio-tipo-selector > label {
+        width: 100%;
+        flex: none;
+    }
+
+    /* Pestañas de método de pago: cuadrícula 2x2, sin apretarse */
+    .metodos-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-bottom: 0;
+        margin-bottom: 18px;
+    }
+    .tab-btn {
+        flex: none;
+        min-width: 0;
+        padding: 10px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        margin-bottom: 0;
+        font-size: 12.5px;
+        line-height: 1.2;
+        white-space: normal;
+        background: #f8fafc;
+    }
+    .tab-btn.active {
+        background: #152238;
+        border-color: #152238;
+        color: #ffffff;
+    }
+
+    .form-dinamico {
+        padding: 18px 14px;
+    }
+    .tarjeta-indicador {
+        top: -10px;
+        right: 12px;
+    }
+    .yape-header-info,
+    .plin-header-info {
+        align-items: flex-start;
+    }
+    .cuenta-verificada {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .plin-cuenta {
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
+    }
+    .plin-cuenta-datos {
+        align-items: center;
+    }
+    .plin-qr {
+        width: 104px;
+        height: 104px;
+        margin: 0 auto;
+    }
+    .panel-boleta {
+        width: 100%;
+        min-width: 0;
+    }
+    .boleta-header,
+    .boleta-productos,
+    .boleta-body,
+    .boleta-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .producto-item {
+        gap: 8px;
     }
 }
 
@@ -636,38 +743,3 @@
 /* ─── SIP (antes Ágora) ────────────────────────────────────────────────── */
 .sip-badge-logo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 .sip-cuenta { background: #f5f3ff; border-color: #ddd6fe; }
-
-/* ── Búsqueda predictiva Geoapify ── */
-.sugerencias-lista {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(26, 46, 74, 0.15);
-  max-height: 260px;
-  overflow-y: auto;
-  z-index: 50;
-  margin: 0;
-  padding: 6px 0;
-}
-.sugerencia-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 18px;
-  cursor: pointer;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.875rem;
-  color: #334155;
-  transition: background 0.15s, color 0.15s;
-}
-.sugerencia-item:last-child { border-bottom: none; }
-.sugerencia-item:hover { background: #f1f5f9; color: #1a2e4a; }
-.sug-texto { font-weight: 500; }
-
-
-.distrito-detectado { margin: 8px 0; }
-.chip-distrito { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }

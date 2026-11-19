@@ -1,5 +1,6 @@
 package com.example.demo.services;
 
+import com.example.demo.dto.PedidoEmailDTO;
 import com.example.demo.models.Pedido;
 import com.example.demo.models.User;
 import com.example.demo.repositories.PedidoRepository;
@@ -96,20 +97,20 @@ public class PedidoTrackingService {
 
         boolean cambio = false;
         boolean urgente = pedido.isEsUrgente();
+        PedidoEmailDTO emailEnCamino = null;
         if ((estado.equals("PAGADO") || estado.equals("CONFIRMADO")) && segundos >= MIN_PREVIOS * 60) {
             String nuevoEstado = urgente ? "EN_CAMINO" : "LISTO_RECOJO";
             pedido.setEstado(nuevoEstado);
             cambio = true;
-            // Enviar email "en camino" solo para delivery y una sola vez.
+            // Preparar el email "en camino" solo para delivery y una sola vez.
+            // Los datos se extraen aqui, dentro de la transaccion, para que el
+            // hilo asincrono no acceda a entidades JPA.
             if (urgente && emailService != null && pedido.getIdPedido() != null
                     && EMAIL_EN_CAMINO_ENVIADO.add(pedido.getIdPedido())) {
-                try {
-                    User u = pedido.getUsuario();
-                    if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
-                        String nro = String.format("%06d", pedido.getIdPedido());
-                        emailService.sendEnCaminoEmail(u.getEmail(), u.getNombre(), pedido, nro);
-                    }
-                } catch (Exception ignored) {
+                User u = pedido.getUsuario();
+                if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
+                    String nro = String.format("%06d", pedido.getIdPedido());
+                    emailEnCamino = PedidoEmailDTO.from(pedido, u, null, null, nro);
                 }
             }
         }
@@ -117,7 +118,12 @@ public class PedidoTrackingService {
         // El asistente de tienda debe marcar el pedido como "Entregado"
         // manualmente desde el modulo de pedidos.
         if (cambio || guardoCoordenadas) {
-            return pedidoRepository.save(pedido);
+            Pedido guardado = pedidoRepository.save(pedido);
+            if (emailEnCamino != null) {
+                final PedidoEmailDTO dto = emailEnCamino;
+                AfterCommitRunner.run(() -> emailService.sendEnCaminoEmail(dto));
+            }
+            return guardado;
         }
         return pedido;
     }

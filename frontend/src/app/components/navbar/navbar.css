@@ -507,11 +507,41 @@
         gap: 12px;
     }
 
+    .fc-mainbar .fc-container {
+        gap: 10px;
+    }
+
     .fc-search-wrapper {
         margin: 0;
         max-width: none;
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
+    .fc-search {
+        min-width: 0;
+    }
+
+    .search-input {
+        min-width: 0;
+        width: 100%;
+        padding: 0 10px;
+        font-size: 13px;
+    }
+
+    .fc-tools {
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .tools-sep {
+        display: none;
+    }
+
+    .tool-btn {
+        gap: 5px;
+        padding: 2px;
+    }
 
     .logo-botica,
     .logo-anita {
@@ -542,5 +572,56 @@
     .cats-btn {
         padding: 8px 14px;
         font-size: 12.5px;
+    }
+}
+
+@media (max-width: 400px) {
+    .fc-container {
+        padding: 0 10px;
+        gap: 8px;
+    }
+
+    .fc-mainbar .fc-container {
+        gap: 8px;
+    }
+
+    .fc-logo {
+        gap: 0;
+    }
+
+    .logo-botica,
+    .logo-anita {
+        font-size: 17px;
+    }
+
+    .search-input {
+        font-size: 12px;
+        padding: 0 8px;
+        height: 40px;
+    }
+
+    .search-btn {
+        width: 36px;
+        height: 40px;
+    }
+
+    .fc-tools {
+        gap: 7px;
+    }
+
+    .cart-badge {
+        min-width: 18px;
+        height: 18px;
+        font-size: 10px;
+    }
+
+    .cats-btn {
+        padding: 7px 10px;
+        font-size: 11.5px;
+        gap: 5px;
+    }
+
+    .bn-inner {
+        gap: 14px;
     }
 }

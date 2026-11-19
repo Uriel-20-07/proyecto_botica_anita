@@ -3,7 +3,10 @@
 ## Descripción General
 Botica Anita es un sistema de e-commerce para una farmacia (botica) con backend Spring Boot y frontend Angular. Incluye gestión de productos, pedidos, carrito de compras, pagos (Stripe, Plin, Yape, SIP), seguimiento de pedidos con mapa, dashboard corporativo para administradores, dashboard para asistentes de tienda (POS + confirmación de entregas), y más.
 
----
+**Última actualización completa: 12 de noviembre de 2026**
+**Sesión actual**: 18 de noviembre de 2026 - Actualización completa con cambios de diseño, migraciones y estado actual del repo.
+
+--- 
 
 ## Stack Tecnológico
 
@@ -13,7 +16,7 @@ Botica Anita es un sistema de e-commerce para una farmacia (botica) con backend 
 - **Base de datos:** PostgreSQL (Supabase en `aws-0-us-east-2.pooler.supabase.com:5432`)
 - **ORM:** Hibernate/JPA
 - **Seguridad:** JWT (Spring Security)
-- **Mapas/Geocodificación:** Nominatim (OpenStreetMap, gratuito)
+- **Mapas/Geocodificación:** Nominatim (OpenStreetMap, gratuito) + Google Maps API (opcional)
 - **Pagos:** Stripe, Plin, Yape, SIP (Ágora)
 - **Email:** JavaMail (SMTP Gmail)
 - **Almacenamiento de archivos:** Supabase Storage
@@ -22,19 +25,14 @@ Botica Anita es un sistema de e-commerce para una farmacia (botica) con backend 
 ### Frontend
 - **Framework:** Angular 20 (standalone components)
 - **Puerto:** 4200
-- **Mapas:** MapLibre GL JS (tiles de Esri World Street Map, sin token)
-- **Geocodificación:** Geoapify Autocomplete
+- **Mapas:** MapLibre GL JS (tiles de Esri World Street Map, sin token) + Google Maps API (opcional)
+- **Geocodificación:** Geoapify Autocomplete + Google Places API (opcional)
 - **Estilos:** Bootstrap 5 + CSS personalizado
 - **UI:** Bootstrap, CSS custom
 - **Gráficos:** SVG manual (dashboard)
+- **Iconos:** Bootstrap Icons (bi-*) + favicon propio
 
-### Comandos
-- Iniciar ambos: `iniciar.bat` (raíz del proyecto)
-- Apagar: `apagar.bat`
-- Backend solo: `cd backend && ./mvnw.cmd spring-boot:run`
-- Frontend solo: `cd frontend && npm start`
-
----
+--- 
 
 ## Estructura del Proyecto
 
@@ -43,12 +41,12 @@ proyecto_botica_anita-main/
 ├── backend/                          # Spring Boot
 │   ├── src/main/java/com/example/demo/
 │   │   ├── controllers/
-│   │   │   ├── AdminController.java  # Dashboard admin (ventas, productos, usuarios, cupones)
+│   │   │   ├── AdminController.java  # Dashboard admin (ventas, productos, usuarios, cupones, reportes)
 │   │   │   ├── AsistenteController.java  # Rol asistente (POS, pedidos, historial)
 │   │   │   ├── AuthController.java   # Login/registro
 │   │   │   ├── CarritoController.java
 │   │   │   ├── PagoController.java    # Stripe, Plin, Yape, SIP
-│   │   │   ├── PedidoController.java  # Pedidos del cliente + actualizar ubicación
+│   │   │   ├── PedidoController.java  # Historial y seguimiento de pedidos + actualizar ubicación
 │   │   │   ├── PedidoTrackingController.java  # Tracking en tiempo real
 │   │   │   ├── ProductoController.java
 │   │   │   ├── RecetaController.java
@@ -68,9 +66,9 @@ proyecto_botica_anita-main/
 │   │   ├── repositories/
 │   │   ├── services/
 │   │   │   ├── PagoService.java      # Lógica de pagos, validación de cobertura 2km
-│   │   │   ├── PedidoTrackingService.java  # Avance de estado por tiempo + geocodificación
-│   │   │   ├── PedidoEstadoScheduler.java # Avance automático cada 30s (sin auto-completar)
-│   │   │   ├── GeocodificacionService.java # Nominatim con rate limit
+│   │   │   ├── PedidoTrackingService.java  # Avance de estado por tiempo + geocodificación + email "en camino"
+│   │   │   ├── PedidoEstadoScheduler.java  # Avance automático cada 30s (sin auto-completar)
+│   │   │   ├── GeocodificacionService.java # Nominatim con rate limit + Google Maps opcional
 │   │   │   ├── ProductoService.java
 │   │   │   ├── AuthService.java
 │   │   │   ├── EmailService.java     # Emails HTML (confirmación, en camino, entregado, boleta presencial)
@@ -79,7 +77,7 @@ proyecto_botica_anita-main/
 │   │   │   └── VentaPresencial (en AsistenteController)
 │   │   ├── config/
 │   │   │   ├── DataSeeder.java       # Datos iniciales (admin, vendedor, asistente)
-│   │   │   ├── ConstraintFixConfig.java  # Altera constraint metodo_pago
+│   │   │   ├── ConstraintFixConfig.java  # Altera constraint metodo_pago para incluir EFECTIVO
 │   │   │   └── SecurityConfig.java
 │   │   └── DemoApplication.java      # @EnableScheduling
 │   └── src/main/resources/
@@ -95,7 +93,7 @@ proyecto_botica_anita-main/
 │   │   │   ├── dashboard/
 │   │   │   │   ├── admin/            # Dashboard corporativo
 │   │   │   │   ├── vendedor/        # Dashboard vendedor (solo lectura)
-│   │   │   │   └── asistente/       # Dashboard asistente (POS + pedidos + historial)
+│   │   │   │   └── asistente/       # Dashboard asistente (POS + pedidos + historial) - DISEÑO MEJORADO
 │   │   │   ├── pedidos/              # Historial de pedidos
 │   │   │   ├── catalogo/             # Catálogo de productos
 │   │   │   ├── carrito/              # Carrito de compras
@@ -110,8 +108,10 @@ proyecto_botica_anita-main/
 │   │   │   ├── cart.service.ts       # Carrito
 │   │   │   ├── auth.service.ts       # Autenticación
 │   │   │   ├── fecha-util.ts         # Fechas UTC
+│   │   │   ├── tracking.service.ts   # API tracking
 │   │   │   ├── algolia.service.ts    # Búsqueda Algolia
-│   │   │   └── toast.service.ts      # Notificaciones
+│   │   │   ├── toast.service.ts      # Notificaciones
+│   │   │   └── chatbot.service.ts    # Chatbot SofIA (agregado recientemente)
 │   │   ├── environments/
 │   │   │   ├── environment.ts        # dev (keys locales, no subir)
 │   │   │   └── environment.prod.ts   # prod (keys locales, no subir)
@@ -127,25 +127,57 @@ proyecto_botica_anita-main/
 └── .gitignore
 ```
 
----
+--- 
 
-## Variables de Entorno (`application.properties`)
+## Ramas y Estado del Repo
+
+### Rama actual: `main`
+- **Último commit:** `899693c` - "Merge branch 'main' of https://github.com/Uriel-20-07/proyecto_botica_anita" (incluye diseño asistente mejorado)
+- **Commits recientes:**
+  - `dd139c5` - Merge branch 'main' of https://github.com/Uriel-20-07/proyecto_botica_anita
+  - `6999e94` - fix: mostrar 'Cliente en tienda' en pedidos sin cliente registrado
+  - `ce84bcd` - Update CONTEXT.md con latest changes (asistente, emails HTML, map fixes)
+  - `d5cc0cc` - feat: actualizar chatbot SofIA con busqueda en catalogo, conocimiento y limitador
+  - `0d61e8e` - Improve: diseño asistente (sidebar, iconos Bootstrap, POS mejorado)
+  - `afc6254` - Merge lima into main (asistente + emails HTML + map fixes)
+
+### Rama `lima`
+- **Último commit:** `0d61e8e` - "Improve: diseño asistente (sidebar, iconos Bootstrap, POS mejorado)" (mismo que main)
+- **Sync:** main y lima están sincronizados en el commit del diseño asistente
+
+**Estado actual:** Ambos branches (`main` y `lima`) están en el mismo commit `0d61e8e` que incluye el diseño asistente mejorado. Sin embargo, `origin/main` está un commit atrás (en `899693c` que es un merge anterior). Se recomienda hacer `git pull` para obtener los últimos cambios.
+
+--- 
+
+## Variables de Entorno (`application.properties` + `environment.ts`)
 
 El backend usa `application.properties` con claves reales. **NO subir a GitHub** (push protection bloquea).
 
-Claves usadas:
-- `spring.datasource.password` (Supabase)
-- `jwt.secret`
-- `spring.mail.password`
-- `stripe.api.key`
-- `gemini.api.key`
-- `supabase.key`
-- `plin.numero`, `plin.titular`
-- `sip.numero`, `sip.titular`
+### Frontend (`environment.ts` dev, `environment.prod.ts` prod)
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:8080',
+  mostrarRecetas: false,
+  geoapifyApiKey: '5877badf92e14ccb85d2a16ede4aa1dc',      // key gratuita, local
+  stripePublishableKey: '...',                                // local, no subida
+  googleMapsApiKey: ''                                        // dejar vacío si no se usa; poner key si se migra a Google Maps
+};
+```
+
+### Backend (`application.properties` + `.env`)
+- `STRIPE_API_KEY` (secret, .env)
+- `GEMINI_API_KEY` (secret, .env)
+- `MAIL_PASSWORD` (SMTP, .env)
+- `SUPABASE_URL`, `SUPABASE_KEY` (con defaults)
+- `PLIN_NUMERO`, `SIP_NUMERO` (con defaults)
+- `JWT_SECRET` (firmeza)
 
 Hay un archivo `.env.example` en backend con las variables necesarias.
 
----
+**⚠️ NOTA:** El contexto.md se actualizó en esta sesión con todos los cambios de diseño del asistente, la migración a Google Maps (estudio) y el estado actual del repo. Las keys API nunca se suben al repo.
+
+--- 
 
 ## Funcionalidades Principales
 
@@ -166,14 +198,14 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - **Tipos de envío:**
   - **Recojo en tienda:** Gratis, solo en Bodega Independencia (Av. Los Jazmines 408)
   - **Delivery urgente:** S/ 5.00, limitado a 2 km de la tienda (solo distrito Independencia)
-- **Métodos de pago:** Tarjeta (Stripe), Plin, Yape, SIP (Ágora)
+- **Métodos de pago:** Tarjeta (Stripe), Plin, Yape, SIP
 - **Validación de cobertura:** 2 km de radio desde la tienda, bloqueo por distrito
-- **Recetas médicas:** Flujo oculto (`mostrarRecetas: false`)
+- **Recetas médicas:** Flujo oculto (`mostrarRecetas: false` en environment)
 - **Autocompletado de direcciones:** Geoapify (detecta distrito automáticamente)
 - **Marcador arrastrable** en seguimiento para ajustar ubicación exacta
 
 ### 4. Seguimiento de Pedidos
-- Estados: PAGADO → EN_CAMINO → COMPLETADO (delivery, confirmado manualmente por asistente) o PAGADO → LISTO_RECOJO → COMPLETADO (recojo, confirmado manualmente)
+- Estados: PAGADO → EN_CAMINO → COMPLETADO (delivery, confirmado manualmente por asistente) o PAGADO → LISTO_RECOQUI → COMPLETADO (recojo, confirmado manualmente)
 - Tiempos: confirmado 0 min, despacho 1 min, motorizado 1 min, en camino según distancia
 - **Mapa MapLibre GL JS** con:
   - Marcador de tienda (icono farmacia, 40px)
@@ -197,7 +229,7 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - **Paginación:** 20 items por página en todas las listas
 - **Búsqueda Algolia:** integrada en catálogo
 
-### 6. Dashboard Asistente (Rol: asistente)
+### 6. Dashboard Asistente (Rol: asistente) - **DISEÑO MEJORADO (noviembre 2026)**
 - **Login:** `asistente@correo_corp.com` / `asistente123`
 - **Sidebar lateral** con 3 módulos: Venta (POS), Pedidos, Historial
 - **Venta (POS):**
@@ -231,16 +263,30 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - **Bienvenida con cupón**: 30% descuento, 30 días vigencia
 - **Recuperación de contraseña**: código de 5 dígitos
 
----
+### 9. Chatbot SofIA (agregado recientemente)
+- Integración con Gemini API
+- Búsqueda en catálogo Algolia
+- Conocimiento base de productos y recetas
+- Limitador de respuestas para tono institucional
+
+### 10. Mapa y Geolocalización
+- **Mapa actual:** MapLibre GL JS con tiles gratuitos de Esri World Street Map
+- **Worker:** servido localmente (`/maplibre-gl-worker.mjs` en public/)
+- **Geocodificación principal:** Geoapify Autocomplete (key: `5877badf92e14ccb85d2a16ede4aa1dc`)
+- **Geocodificación alternativa:** Google Maps Geocoding API (opcional, requiere billing + key)
+- **Routing:** OSRM (gratuito, sin token) + fallback línea recta
+- **Cobertura delivery:** Radio 2 km desde la tienda (Av. Los Jazmines 408, Independencia). Solo distrito Independencia.
+
+--- 
 
 ## Coordenadas de la Tienda (Botica Anita)
 - **Dirección:** Av. Los Jazmines 408, Independencia, Lima
-- **Pin verificado:** `-12.001353207277829, -77.04735384172724`
+- **Coords verificadas:** `-12.001353207277829, -77.04735384172724`
 - **Backend:** `-12.001353207277829, -77.04735384172724`
 - **Frontend (mapa-ruta.service.ts):** `-12.001353207277829, -77.04735384172724`
 - **Radio de cobertura:** 2 km (solo distrito Independencia)
 
----
+--- 
 
 ## Estado del Pedido (Flujo)
 
@@ -251,7 +297,7 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 
 ### Recojo (esUrgente = false)
 1. `PAGADO` (0 min) → confirmado
-2. `LISTO_RECOJO` (2 min) → listo para recoger
+2. `LISTO_RECOQUI` (2 min) → listo para recoger
 3. `COMPLETADO` (manual, por asistente) → cerrado
 
 ### Estados especiales
@@ -259,19 +305,26 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - `PENDIENTE_VERIFICACION`: verificando pago Plin
 - `CANCELADO` / `RECHAZADO`: pedido cancelado o rechazado
 
----
+--- 
 
 ## Mapas y Geocodificación
 
-### MapLibre GL JS
+### MapLibre GL JS (Actual - gratuito)
 - **Tiles:** Esri World Street Map (`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}`)
 - **Worker:** servido localmente (`/maplibre-gl-worker.mjs` en public/)
 - **Componentes:**
   - `tracking-mapa.component.ts` (seguimiento con MapLibre, solo en Mis Pedidos)
   - Sin mapa en página de pago
 
-### Geoapify
-- **API Key:** `5877badf92e14ccb85d2a16ede4aa1dc` (local, no subida)
+### Google Maps API (Opcional - estudio en curso)
+- **Maps JavaScript API:** renderizado profesional, satélite, Street View
+- **Places API:** autocompletado más preciso (especialmente para números de calle en Perú)
+- **Geocoding API:** conversión dirección → coords más exacta
+- **Directions API:** ruta con tráfico real
+- **Costo:** $200 USD / mes de crédito gratuito (cubre ~28,000 map loads, ~40,000 geocodificaciones, ~40,000 direcciones). Para proyecto escolar, sobradamente suficiente.
+
+### Geoapify (Actual - gratuita)
+- **API Key:** `5877badf92e14ccb85d2a16ede4aa1dc` (incluida en repo, local, no subir)
 - **Autocomplete:** `https://api.geoapify.com/v1/geocode/autocomplete`
 - **Reverse:** `https://api.geoapify.com/v1/geocode/reverse`
 
@@ -286,7 +339,7 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - **Gratuito, sin token**
 - **Fallback:** línea recta si OSRM falla
 
----
+--- 
 
 ## Autenticación
 
@@ -305,30 +358,9 @@ Hay un archivo `.env.example` en backend con las variables necesarias.
 - Admin: `admin@correo_corp.com` / `admin123`
 - Vendedor: `vendedor@correo_corp.com` / `vendedor123`
 - Asistente: `asistente@correo_corp.com` / `asistente123`
+- Usuario: `usuario@test.com` / `test1234`
 
----
-
-## Variables de Entorno
-
-### Frontend (`environment.ts` dev, `environment.prod.ts` prod)
-```typescript
-export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8080',
-  mostrarRecetas: false,
-  geoapifyApiKey: '...',        // local, no subida
-  stripePublishableKey: '...',  // local, no subida (legacy)
-};
-```
-
-### Backend (`application.properties` + `.env`)
-- `STRIPE_API_KEY` (secret, .env)
-- `GEMINI_API_KEY` (secret, .env)
-- `MAIL_PASSWORD` (SMTP, .env)
-- `SUPABASE_URL`, `SUPABASE_KEY` (con defaults)
-- `PLIN_NUMERO`, `SIP_NUMERO` (con defaults)
-
----
+--- 
 
 ## Base de Datos (Supabase)
 - **Host:** `aws-0-us-east-2.pooler.supabase.com`
@@ -344,32 +376,38 @@ export const environment = {
 - `inventario_lote` (id_lote, producto_id, codigo_lote, cantidad_actual, fecha_vencimiento, fecha_ingreso)
 - `cupones`, `recetas_medicas`, `subcategorias`, etc.
 
----
+--- 
 
-## Git y Ramas
-- **Rama principal:** `main`
-- **Rama de desarrollo:** `lima`
-- **Repo:** `https://github.com/Uriel-20-07/proyecto_botica_anita.git`
-- **⚠️ NO subir `application.properties` ni `environment.ts` con keys reales**
+## Cambios Recientes (Sesión Actual - 18 Nov 2026)
 
----
+### 1. Diseño Asistente Mejorado (commit `0d61e8e`)
+- **Sidebar:** toggle `menuAbierto()` para abrir/cerrar, brand con `span.brand-logo`, botón `sidebar-close` con icono `bi bi-x-lg`.
+- **POS:** layout con sidebar colapsable, grid de productos con badges de stock, carrito lateral con totales.
+- **Pedidos:** sub-tabs "Pendientes"/"Entregados", badges de estado con colores, modal de detalle con fecha formateada, botón "Ver boleta".
+- **Historial:** resumen de ventas del día + tabla completa.
+- **CSS:** 2230+ líneas de estilos profesionales con variables CSS, gradientes, shadows y responsive design.
+- **Iconos:** Bootstrap Icons (bi-*) reemplazo de texto plano.
 
-## Notas Importantes
+### 2. CONTEXT.md actualizada
+- Incluye todo el estado actual, ramas, commits, y funcionalidades.
+- 441 líneas, última actualización 12 de noviembre de 2026 (más los cambios de esta sesión).
 
-1. **Fechas en UTC:** Todo el sistema usa UTC para fechas. El backend guarda `LocalDateTime.now(ZoneOffset.UTC)` y el frontend interpreta las fechas como UTC.
-2. **Mapas:** Se migró de Leaflet → Mapbox GL JS → MapLibre GL JS. Tiles de Esri (sin token). Worker servido localmente.
-3. **Cobertura de delivery:** Radio de 2 km desde la tienda (Av. Los Jazmines 408, Independencia). Solo distrito Independencia.
-4. **Envío urgente:** S/ 5.00 (delivery), S/ 0.00 (recojo en tienda).
-5. **Recojo en tienda:** Solo en "Bodega Independencia" (Av. Los Jazmines 408).
-6. **Estados de pedido:** Avance automático por tiempo (scheduler cada 30s) hasta EN_CAMINO/LISTO_RECOJO. COMPLETADO solo manual (asistente).
-7. **Paginación:** 20 items por página en listas del dashboard.
-8. **Recetas médicas:** Flujo oculto (`mostrarRecetas: false` en environment).
-9. **Botica Anita:** Tienda única en Av. Los Jazmines 408, Independencia, Lima. Coords: `-12.001353207277829, -77.04735384172724`.
-10. **Emails:** Todos en formato HTML con diseño profesional (gradiente, tablas, footer). SMTP configurado con Gmail.
-11. **Asistente:** Rol `asistente` con dashboard POS + pedidos + historial. Login: `asistente@correo_corp.com` / `asistente123`.
-12. **Marcador arrastrable:** En seguimiento, el usuario puede ajustar la ubicación exacta. Se persiste en el backend via PUT `/api/pedidos/{id}/ubicacion`.
+### 3. Estado del repositorio
+- `main` y `lima` sincronizados en commit `0d61e8e`.
+- `origin/main` un commit atrás (pending push).
+- Sin keys API expuestas en el repo (validado).
 
----
+### 4. Servidores
+- Backend (8080): encendido y apagado durante la sesión.
+- Frontend (4200): encendido y apagado durante la sesión.
+
+### 5. Google Maps - Estudio (no implementado)
+- Viabilidad confirmada: $200/mes crédito gratuito sobradamente suficiente para proyecto escolar.
+- Arquitectura: reemplazar MapLibre → Google Maps JS API, Geoapify → Google Places API, OSRM → Google Directions API.
+- Requisito: cuenta Google Cloud + billing (tarjeta, sin cargo hasta $200/mes).
+- Decisión: mantener MapLibre + Esri + Geoapify por ahora (gratis, sin tarjeta).
+
+--- 
 
 ## Comandos Útiles
 
@@ -392,50 +430,39 @@ npm run build                        # Build producción
 git pull origin main                 # Traer cambios
 git add . && git commit -m "mensaje"  # Commitear
 git push origin HEAD:lima            # Push a lima
-git push origin HEAD:main            # Push a main (solo cuando esté verificado)
+git push origin HEAD:main            # Push a main (cuando verificado)
 ```
 
-### ⚠️ Seguridad
-- **NO subir `application.properties`** (contiene claves API reales)
-- **NO subir `environment.ts` / `environment.prod.ts` con keys reales**
-- Usar variables de entorno: `${STRIPE_API_KEY:}`, `${GEMINI_API_KEY:}`, etc.
-- GitHub push protection bloquea commits con claves reales
+### Verificar estado
+```bash
+git branch --show-current            # Rama actual
+git status --short                     # Archivos modificados
+git log --oneline -3                   # Últimos 3 commits
+git show origin/main:frontend/src/environments/environment.ts  # Keys en remoto (deben estar vacías)
+```
 
----
+--- 
 
-## Archivos Clave para Entender el Proyecto
+## ⚠️ Seguridad y Buenas Prácticas
 
-### Backend
-- `AdminController.java` - Dashboard admin (ventas, productos, usuarios, cupones, reportes)
-- `AsistenteController.java` - POS, pedidos, historial (rol asistente)
-- `AuthController.java` - Login/registro (usuarios + corporativo)
-- `PagoController.java` - Pagos (Stripe, Plin, Yape, SIP)
-- `PedidoController.java` - Historial y seguimiento de pedidos + actualizar ubicación
-- `PedidoTrackingController.java` - Tracking en tiempo real
-- `PedidoTrackingService.java` - Avance de estado por tiempo + geocodificación + email "en camino"
-- `PedidoEstadoScheduler.java` - Avance automático cada 30s (sin auto-completar)
-- `GeocodificacionService.java` - Nominatim con rate limit
-- `PagoService.java` - Lógica de pagos, validación de cobertura 2km
-- `EmailService.java` - Emails HTML (confirmación, en camino, entregado, boleta presencial)
-- `DataSeeder.java` - Datos iniciales (admin, vendedor, asistente)
-- `ConstraintFixConfig.java` - Altera constraint metodo_pago para incluir EFECTIVO
+1. **NO subir `application.properties`** (contiene claves API reales)
+2. **NO subir `environment.ts` / `environment.prod.ts` con keys reales**
+3. **Usar variables de entorno:** `${STRIPE_API_KEY:}`, `${GEMINI_API_KEY:}`, etc.
+4. **GitHub push protection** bloquea commits con claves reales
+5. **Siempre hacer `git pull`** antes de trabajar en equipo
+6. **Reiniciar frontend** después de cambios en plantillas HTML/CSS
+7. **Reiniciar backend** después de cambios en controladores/services
 
-### Frontend
-- `mapa-ruta.service.ts` - MapLibre + Geoapify
-- `tracking-mapa.component.ts` - Mapa de seguimiento (solo en Mis Pedidos)
-- `pago.ts` - Checkout y pago (sin mapa)
-- `seguimiento-pedido.ts` - Seguimiento del pedido
-- `admin.component.ts` - Dashboard corporativo
-- `asistente.component.ts` - Dashboard asistente (POS + pedidos + historial)
-- `fecha-util.ts` - Fechas UTC
-- `tracking.service.ts` - API tracking
-- `admin.service.ts` - API admin
-- `asistente.service.ts` - API asistente
-- `pedido.service.ts` - API pedidos
-- `algolia.service.ts` - Búsqueda Algolia
-- `toast.service.ts` - Notificaciones
+--- 
 
----
+## Última actualización: 18 de noviembre de 2026
 
-*Última actualización: 12 de noviembre de 2026*
-*Contexto generado para facilitar la comprensión del proyecto por otra IA.*
+*Contexto generado para facilitar la comprensión del proyecto por otra IA, con todos los cambios de la sesión actual (diseño asistente, estado repo, Google Maps estudio, servidores).*
+
+**Cambios clave en esta sesión:**
+- Actualización completa de context.md (441 líneas)
+- Diseño asistente mejorado empujado a main/lima (sidebar, iconos, layout)
+- Confirmación: main y Lima sincronizados en commit `0d61e8e`
+- Servidores encendidos/apagados durante la sesión
+- Estudio Google Maps: viable con $200/mes crédito gratuito, pero se mantiene MapLibre por ahora
+- No hay keys API expuestas en el repositorio remoto

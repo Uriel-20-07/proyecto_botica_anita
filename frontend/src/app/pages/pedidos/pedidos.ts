@@ -63,19 +63,26 @@ export class PedidosComponent implements OnInit {
 
   /**
    * Carga los pedidos del usuario desde el backend.
+   *
+   * Si ya hay datos en memoria (caché compartida del servicio) los pinta al
+   * instante y luego revalida; así, al volver a la pestaña de historial no se
+   * vuelve a esperar la respuesta del servidor.
    */
   cargarPedidos(): void {
-    this.cargando.set(true);
     this.error.set('');
-    
+
+    const cache = this.pedidoService.pedidosDesdeCache();
+    if (cache) {
+      this.aplicarPedidos(cache);
+      this.cargando.set(false);
+    } else {
+      this.cargando.set(true);
+    }
+
     this.pedidoService.obtenerPedidos().subscribe({
       next: (data) => {
-        this.pedidos.set(data);
+        this.aplicarPedidos(data);
         this.cargando.set(false);
-        // Expandir el primer pedido por defecto si existe alguno
-        if (data.length > 0) {
-          this.toggleExpansion(data[0].idPedido);
-        }
       },
       error: (err) => {
         console.error('Error al cargar pedidos:', err);
@@ -83,6 +90,14 @@ export class PedidosComponent implements OnInit {
         this.cargando.set(false);
       }
     });
+  }
+
+  /** Vuelca el listado en la vista y expande el primer pedido si aún no lo está. */
+  private aplicarPedidos(data: any[]): void {
+    this.pedidos.set(data);
+    if (data.length > 0 && !this.pedidosExpandidos().has(data[0].idPedido)) {
+      this.toggleExpansion(data[0].idPedido);
+    }
   }
 
   /**

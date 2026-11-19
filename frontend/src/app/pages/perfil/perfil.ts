@@ -26,6 +26,12 @@ export class PerfilComponent implements OnInit, OnDestroy {
   private apiUrl = `${environment.apiUrl}/api/auth`;
 
   seccionActiva = signal<'info' | 'password' | 'pedidos'>('info');
+  /**
+   * Una vez que el usuario abre el historial, el componente se mantiene
+   * montado (oculto al cambiar de pestaña) para no volver a consultar el
+   * backend cada vez que alterna.
+   */
+  pedidosMontados = signal(false);
   private querySub?: Subscription;
   mensajeExito = '';
   mensajeError = '';
@@ -68,7 +74,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
     this.querySub = this.route.queryParamMap.subscribe(params => {
       const seccion = params.get('seccion');
       if (seccion === 'info' || seccion === 'password' || seccion === 'pedidos') {
-        this.seccionActiva.set(seccion);
+        this.activarSeccion(seccion);
       }
     });
   }
@@ -84,11 +90,19 @@ export class PerfilComponent implements OnInit, OnDestroy {
   }
 
   cambiarSeccion(seccion: 'info' | 'password' | 'pedidos'): void {
-    this.seccionActiva.set(seccion);
+    this.activarSeccion(seccion);
     this.mensajeExito = '';
     this.mensajeError = '';
     // Refleja la pestaña en la URL (sin llenar el historial) para poder recargar o compartir el enlace
     this.router.navigate([], { relativeTo: this.route, queryParams: { seccion }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  /** Cambia de pestaña y, la primera vez, monta el historial de pedidos. */
+  private activarSeccion(seccion: 'info' | 'password' | 'pedidos'): void {
+    this.seccionActiva.set(seccion);
+    if (seccion === 'pedidos') {
+      this.pedidosMontados.set(true);
+    }
   }
 
   guardarInfo(): void {

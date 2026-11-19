@@ -64,6 +64,27 @@
     height: 100%;
     border-radius: 0;
   }
+
+  /* Botón flotante más compacto y pegado a la esquina para no tapar contenido */
+  .chatbot-fab {
+    width: 52px;
+    height: 52px;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    box-shadow: 0 4px 14px rgba(232, 93, 4, 0.32);
+  }
+
+  .chatbot-fab i,
+  .chatbot-fab svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* En pantalla completa el chat ya tiene su botón de cierre en el header:
+     ocultamos el FAB para que no tape el campo de escritura. */
+  .chatbot-fab.active {
+    display: none;
+  }
 }
 
 /* Header styling */

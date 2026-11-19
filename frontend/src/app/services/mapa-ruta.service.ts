@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { environment } from '../../environments/environment';
+import { GoogleMapsService, DireccionUbicacion } from './google-maps.service';
 
 /** Coordenadas fijas de Botica Anita: Av. Los Jazmines 408, Independencia, Lima. */
 export const BOTICA_ANITA = {
@@ -22,6 +22,10 @@ export const MIN_DESPACHO = 1;
 export const MIN_MOTORIZADO = 1;
 export const MIN_ENTREGA_EXTRA = 1 / 60; // 10 segundos
 
+/**
+ * Estructura de sugerencia conservada por compatibilidad con el checkout y el
+ * resto de componentes. Ahora se alimenta con Google Geocoding / Places.
+ */
 export interface GeoapifySuggestion {
   lat: number;
   lon: number;
@@ -55,12 +59,19 @@ export interface GeoapifyReverse {
   city?: string;
 }
 
+/**
+ * Servicio de mapas y rutas de la aplicación.
+ *
+ * La API pública se mantiene intacta (la consumen checkout, seguimiento y el
+ * mapa de tracking), pero la geocodificación y el cálculo de rutas ahora usan
+ * Google Maps Platform (Geocoding + Routes API) a través de `GoogleMapsService`.
+ */
 @Injectable({ providedIn: 'root' })
 export class MapaRutaService {
-  private readonly geoapifyKey = environment.geoapifyApiKey;
-
   /** Cache simple de rutas por pares origen-destino. */
   private rutaCache = new Map<string, RutaInfo>();
+
+  constructor(private readonly googleMaps: GoogleMapsService) {}
 
   /** Distancia en metros (Haversine). */
   distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -93,66 +104,48 @@ export class MapaRutaService {
   }
 
   /**
-   * Buscador predictivo con Geoapify Autocomplete.
-   * Devuelve sugerencias de direcciones en Lima.
+   * Buscador de direcciones con Google Geocoding (respaldo: Places Autocomplete).
+   * Devuelve sugerencias en Lima con coordenadas listas para usar.
    */
   async buscarDirecciones(consulta: string): Promise<GeoapifySuggestion[]> {
-    if (!consulta || consulta.trim().length < 3) {
-      return [];
-    }
+    if (!consulta || consulta.trim().length < 3) return [];
+
+    // 1) Geocodificación directa (más precisa para direcciones completas).
     try {
-      const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-      url.searchParams.set('text', consulta.trim());
-      url.searchParams.set('format', 'json');
-      url.searchParams.set('apiKey', this.geoapifyKey);
-      url.searchParams.set('limit', '6');
-      url.searchParams.set('filter', 'countrycode:pe'); // solo Perú
-
-      const resp = await fetch(url.toString());
-      if (!resp.ok) return [];
-      const data = await resp.json();
-
-      const results = data.results || [];
-      return results.map((item: any) => ({
-        lat: item.lat,
-        lon: item.lon,
-        label: item.formatted || item.label || '',
-        city: item.city,
-        country: item.country,
-        address_line1: item.address_line1,
-        postcode: item.postcode,
-        distance: item.distance,
-      }));
-    } catch (err) {
-      console.error('Geoapify autocomplete error:', err);
-      return [];
+      const detalle = await this.googleMaps.geocodificar(consulta.trim());
+      if (detalle) return [this.aSugerencia(detalle)];
+    } catch (error) {
+      console.warn('Google Geocoding no disponible, se intentará Places.', error);
     }
+
+    // 2) Respaldo: primera coincidencia de Places Autocomplete.
+    try {
+      const sugerencias = await this.googleMaps.buscarSugerencias(consulta.trim());
+      const primera = sugerencias[0];
+      if (primera?.prediction) {
+        const ubicacion = await this.googleMaps.resolverSugerencia(primera.prediction);
+        if (ubicacion) return [this.aSugerencia(ubicacion)];
+      }
+    } catch (error) {
+      console.error('Google Places error:', error);
+    }
+
+    return [];
   }
 
-  /**
-   * Geocodificación inversa: coordenadas -> dirección legible.
-   */
+  /** Geocodificación inversa: coordenadas -> dirección legible. */
   async coordenadasADireccion(lat: number, lng: number): Promise<string> {
     try {
-      const url = new URL('https://api.geoapify.com/v1/geocode/reverse');
-      url.searchParams.set('lat', String(lat));
-      url.searchParams.set('lon', String(lng));
-      url.searchParams.set('format', 'json');
-      url.searchParams.set('apiKey', this.geoapifyKey);
-      url.searchParams.set('lang', 'es');
-
-      const resp = await fetch(url.toString());
-      if (!resp.ok) return `${lat}, ${lng}`;
-      const data = await resp.json();
-      return data.formatted || data.address_line1 || `${lat}, ${lng}`;
-    } catch (err) {
-      console.error('Geoapify reverse error:', err);
+      const detalle = await this.googleMaps.geocodificarInverso(lat, lng);
+      return detalle?.direccion || `${lat}, ${lng}`;
+    } catch (error) {
+      console.error('Google reverse geocoding error:', error);
       return `${lat}, ${lng}`;
     }
   }
 
   /**
-   * Ruta real por calles con Mapbox Directions API.
+   * Ruta real por calles con Google Routes API.
    * Devuelve la geometría en [lat, lng] y duración estimada.
    */
   async obtenerRutaPorCalles(
@@ -166,37 +159,33 @@ export class MapaRutaService {
     if (hit) return hit;
 
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${lngOrigen},${latOrigen};${lngDestino},${latDestino}?overview=full&geometries=geojson`;
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`OSRM ${resp.status}`);
-      const data = await resp.json();
-      const route = data.routes?.[0];
-      const pts = route?.geometry?.coordinates;
-      if (Array.isArray(pts) && pts.length > 1 && route.duration > 0) {
-        const coords: Array<[number, number]> = pts.map(
-          (c: [number, number]) => [c[1], c[0]] as [number, number]
-        );
-        const distanciaM = route.distance || this.distanciaM(latOrigen, lngOrigen, latDestino, lngDestino);
-        const duracionSeg = route.duration || Math.round((distanciaM / 1000) / VELOCIDAD_KMH * 3600);
+      const ruta = await this.googleMaps.calcularRuta(
+        { lat: latOrigen, lng: lngOrigen },
+        { lat: latDestino, lng: lngDestino }
+      );
 
+      if (ruta && ruta.coords.length > 1) {
         const info: RutaInfo = {
-          coords,
-          distanciaM,
-          duracionSeg,
-          tripMin: Math.max(1, Math.round(duracionSeg / 60)),
-          porCalles: true,
+          coords: ruta.coords,
+          distanciaM: ruta.distanciaM,
+          duracionSeg: ruta.duracionSeg,
+          tripMin: Math.max(1, Math.round(ruta.duracionSeg / 60)),
+          porCalles: ruta.porCalles,
         };
         this.rutaCache.set(key, info);
         return info;
       }
       throw new Error('Sin ruta válida');
-    } catch (err) {
-      console.error('OSRM directions error:', err);
+    } catch (error) {
+      console.warn('Google Routes error, usando línea recta:', error);
       const distanciaM = this.distanciaM(latOrigen, lngOrigen, latDestino, lngDestino);
       const info: RutaInfo = {
-        coords: [[latOrigen, lngOrigen], [latDestino, lngDestino]],
+        coords: [
+          [latOrigen, lngOrigen],
+          [latDestino, lngDestino],
+        ],
         distanciaM,
-        duracionSeg: Math.round((distanciaM / 1000) / VELOCIDAD_KMH * 3600),
+        duracionSeg: Math.round((distanciaM / 1000 / VELOCIDAD_KMH) * 3600),
         tripMin: this.tripMin(distanciaM),
         porCalles: false,
       };
@@ -215,8 +204,14 @@ export class MapaRutaService {
     );
     if (sugerencia.length > 0) {
       const s = sugerencia[0];
-      if (Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-          s.lat >= -20 && s.lat <= 0 && s.lon >= -82 && s.lon <= -68) {
+      if (
+        Number.isFinite(s.lat) &&
+        Number.isFinite(s.lon) &&
+        s.lat >= -20 &&
+        s.lat <= 0 &&
+        s.lon >= -82 &&
+        s.lon <= -68
+      ) {
         return [s.lat, s.lon];
       }
     }
@@ -224,10 +219,13 @@ export class MapaRutaService {
   }
 
   /** Verifica si una dirección está dentro del radio de cobertura (para delivery). */
-  async validarCoberturaDelivery(direccion: string, distrito: string): Promise<{ dentro: boolean; distKm: number; coords?: [number, number] }> {
+  async validarCoberturaDelivery(
+    direccion: string,
+    distrito: string
+  ): Promise<{ dentro: boolean; distKm: number; coords?: [number, number] }> {
     const sugerencias = await this.buscarDirecciones(`${direccion}, ${distrito}, Lima`);
     if (sugerencias.length === 0) {
-      // Si no se encontró en Geoapify, intentar solo con la dirección
+      // Si no se encontró con el distrito, intentar solo con la dirección.
       const sugerencias2 = await this.buscarDirecciones(`${direccion}, Lima`);
       if (sugerencias2.length === 0) {
         return { dentro: false, distKm: Infinity };
@@ -235,14 +233,20 @@ export class MapaRutaService {
       sugerencias.push(...sugerencias2);
     }
 
-    // Elegir el resultado más cercano a la tienda (como hace el backend con Nominatim)
-    const validas = sugerencias.filter((s) =>
-      Number.isFinite(s.lat) && Number.isFinite(s.lon) &&
-      s.lat >= -20 && s.lat <= 0 && s.lon >= -82 && s.lon <= -68
+    // Elegir el resultado más cercano a la tienda (como hace el backend).
+    const validas = sugerencias.filter(
+      (s) =>
+        Number.isFinite(s.lat) &&
+        Number.isFinite(s.lon) &&
+        s.lat >= -20 &&
+        s.lat <= 0 &&
+        s.lon >= -82 &&
+        s.lon <= -68
     );
     if (validas.length === 0) {
       return { dentro: false, distKm: Infinity };
     }
+
     let mejor = validas[0];
     let mejorD = Infinity;
     for (const sug of validas) {
@@ -253,12 +257,23 @@ export class MapaRutaService {
       }
     }
 
-    const distM = mejorD;
-    const distKm = distM / 1000;
+    const distKm = mejorD / 1000;
     return {
       dentro: distKm <= RADIO_COBERTURA_KM,
       distKm,
       coords: [mejor.lat, mejor.lon],
+    };
+  }
+
+  private aSugerencia(detalle: DireccionUbicacion): GeoapifySuggestion {
+    return {
+      lat: detalle.lat,
+      lon: detalle.lng,
+      label: detalle.direccion,
+      city: detalle.distrito || detalle.ciudad,
+      country: 'Perú',
+      address_line1: [detalle.calle, detalle.numero].filter(Boolean).join(' ').trim(),
+      postcode: detalle.codigoPostal || undefined,
     };
   }
 }

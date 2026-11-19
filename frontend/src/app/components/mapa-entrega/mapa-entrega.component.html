@@ -1,0 +1,150 @@
+<div class="me-card">
+  <div class="me-head">
+    <span class="me-head-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+    </span>
+    <div class="me-head-text">
+      <h3>¿Dónde entregamos?</h3>
+      <p>Busca tu dirección o marca el punto exacto en el mapa.</p>
+    </div>
+  </div>
+
+  <div class="me-buscador">
+    <label class="me-label" for="me-input-direccion">Dirección de entrega</label>
+
+    <div class="me-input-wrap">
+      <svg class="me-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+
+      <input id="me-input-direccion" type="text" class="me-input" autocomplete="off"
+        [(ngModel)]="direccion" (input)="onInput($event)" (focus)="onFocus()"
+        (blur)="cerrarSugerencias()" placeholder="Ej: Av. Los Jazmines 408, Independencia" />
+
+      <span class="me-spinner" *ngIf="buscando" aria-hidden="true"></span>
+    </div>
+
+    <div class="me-sugerencias" *ngIf="mostrarSugerencias && sugerencias.length > 0">
+      <button type="button" class="me-sugerencia" *ngFor="let sug of sugerencias"
+        (mousedown)="seleccionarSugerencia(sug); $event.preventDefault()">
+        <span class="me-sug-pin" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+        </span>
+        <span class="me-sug-texto">
+          <strong>{{ sug.principal }}</strong>
+          <small *ngIf="sug.secundaria">{{ sug.secundaria }}</small>
+        </span>
+        <span class="me-sug-dist" *ngIf="sug.distanciaM !== null">
+          {{ formatearDistanciaSugerencia(sug.distanciaM) }}
+        </span>
+      </button>
+    </div>
+
+    <p class="me-hint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 16v-4"></path>
+        <path d="M12 8h.01"></path>
+      </svg>
+      Selecciona una sugerencia o arrastra el marcador naranja para ajustar el punto exacto.
+    </p>
+  </div>
+
+  <div class="me-mapa-wrap">
+    <div #mapaHost class="me-mapa"></div>
+
+    <div class="me-overlay" *ngIf="cargandoMapa">
+      <span class="me-spinner me-spinner-lg" aria-hidden="true"></span>
+      <span class="me-overlay-text">Cargando mapa…</span>
+    </div>
+
+    <div class="me-leyenda" *ngIf="!cargandoMapa && !errorMapa">
+      <span class="me-leyenda-item"><i class="me-dot me-dot-tienda"></i> Botica Anita</span>
+      <span class="me-leyenda-item"><i class="me-dot me-dot-cliente"></i> Punto de entrega</span>
+    </div>
+
+    <div class="me-pin-hint" *ngIf="!cargandoMapa && !errorMapa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 9l-3 3 3 3"></path>
+        <path d="M9 5l3-3 3 3"></path>
+        <path d="M15 19l-3 3-3-3"></path>
+        <path d="M19 9l3 3-3 3"></path>
+        <path d="M2 12h20"></path>
+        <path d="M12 2v20"></path>
+      </svg>
+      Mueve el pin
+    </div>
+  </div>
+
+  <div class="me-error" *ngIf="errorMapa">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <span>{{ errorMapa }}</span>
+  </div>
+
+  <div class="me-resumen" *ngIf="direccionConfirmada">
+    <div class="me-metrica">
+      <span class="me-metrica-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19h4l3-9 3 6h6"></path>
+          <circle cx="6" cy="19" r="2"></circle>
+          <circle cx="18" cy="16" r="2"></circle>
+        </svg>
+      </span>
+      <div class="me-metrica-texto">
+        <span class="me-metrica-label">Distancia</span>
+        <strong class="me-metrica-valor">
+          <span class="me-mini-spinner" *ngIf="calculandoRuta" aria-hidden="true"></span>
+          {{ calculandoRuta ? 'Calculando…' : distanciaTexto }}
+        </strong>
+      </div>
+    </div>
+
+    <span class="me-divisor" aria-hidden="true"></span>
+
+    <div class="me-metrica">
+      <span class="me-metrica-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 7v5l3 2"></path>
+        </svg>
+      </span>
+      <div class="me-metrica-texto">
+        <span class="me-metrica-label">Tiempo estimado</span>
+        <strong class="me-metrica-valor">{{ calculandoRuta ? '—' : duracionTexto }}</strong>
+      </div>
+    </div>
+
+    <div class="me-cobertura" *ngIf="!calculandoRuta" [class.me-cobertura-fuera]="!dentroCobertura">
+      <svg *ngIf="dentroCobertura" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 6L9 17l-5-5"></path>
+      </svg>
+      <svg *ngIf="!dentroCobertura" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <span>{{ dentroCobertura ? 'Dentro del radio de 2 km' : 'Fuera del radio de 2 km' }}</span>
+    </div>
+  </div>
+</div>

@@ -149,9 +149,9 @@
         </div>
       }
 
-      <!-- HISTORIAL DE PEDIDOS -->
-      @if (seccionActiva() === 'pedidos') {
-        <div class="seccion fade-in">
+      <!-- HISTORIAL DE PEDIDOS (se mantiene montado tras la primera visita) -->
+      @if (pedidosMontados()) {
+        <div class="seccion fade-in" [style.display]="seccionActiva() === 'pedidos' ? null : 'none'">
           <h2 class="seccion-titulo">Historial de pedidos</h2>
           <p class="seccion-subtitulo">Revisa el detalle de tus compras anteriores, el estado de envío y descarga tus comprobantes en PDF.</p>
           <app-pedidos [embebido]="true"></app-pedidos>

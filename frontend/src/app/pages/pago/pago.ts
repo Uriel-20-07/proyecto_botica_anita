@@ -7,9 +7,11 @@ import { firstValueFrom } from 'rxjs';
 // Servicios de tu proyecto
 import { CartService } from '../../services/cart.service';
 import { PagoService } from '../../services/pago.service';
+import { PedidoService } from '../../services/pedido.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
-import { MapaRutaService, GeoapifySuggestion, RADIO_COBERTURA_KM, BOTICA_ANITA } from '../../services/mapa-ruta.service';
+import { MapaRutaService, RADIO_COBERTURA_KM, BOTICA_ANITA } from '../../services/mapa-ruta.service';
+import { MapaEntregaComponent, UbicacionEntrega } from '../../components/mapa-entrega/mapa-entrega.component';
 import { environment } from '../../../environments/environment';
 
 // Stripe Elements para el diseño profesional
@@ -22,7 +24,7 @@ const EMAILJS_PUBLIC_KEY  = 'HDwamrH2SgIFGUpNw';
 @Component({
   selector: 'app-pago',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, MapaEntregaComponent],
   templateUrl: './pago.html',
   styleUrl: './pago.css'
 })
@@ -68,9 +70,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
   folioGenerado: string = '';
   direccionFinal: string = '';
 
-  // --- Búsqueda predictiva de direcciones (Geoapify) ---
-  sugerenciasDireccion: GeoapifySuggestion[] = [];
-  mostrarSugerencias = false;
+  // --- Ubicación de entrega (Google Maps) ---
   coordsSeleccionadas: [number, number] | null = null;
 
   /** Tipo de entrega inferido de la opción seleccionada. */
@@ -231,6 +231,7 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     private readonly cartService: CartService,
     private readonly router: Router,
     private readonly pagoService: PagoService,
+    private readonly pedidoService: PedidoService,
     private readonly authService: AuthService,
     private readonly recetasService: RecetasService,
     private readonly mapaService: MapaRutaService
@@ -379,12 +380,6 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  onDistritoChange() {
-    this.formPago.direccionDetalle = '';
-    this.formPago.referencia = '';
-    this.formPago.puntoSeleccionado = '';
-  }
-
   onTipoEnvioChange() {
     this.formPago.direccionDetalle = '';
     this.formPago.referencia = '';
@@ -392,71 +387,24 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     this.calcularTotales();
   }
 
-  /** Buscador predictivo de direcciones con Geoapify. */
-  async onDireccionInput(event: Event): Promise<void> {
-    const input = (event.target as HTMLInputElement).value;
-    this.formPago.direccionDetalle = input;
-    this.coordsSeleccionadas = null;
-    if (!input || input.trim().length < 3) {
-      this.sugerenciasDireccion = [];
-      this.mostrarSugerencias = false;
-      return;
-    }
-    this.sugerenciasDireccion = await this.mapaService.buscarDirecciones(
-      `${input}, ${this.formPago.distrito}, Lima`
-    );
-    this.mostrarSugerencias = this.sugerenciasDireccion.length > 0;
-  }
+  /** Recibe el punto de entrega confirmado en el mapa de Google. */
+  onUbicacionEntrega(ubicacion: UbicacionEntrega): void {
+    this.formPago.direccionDetalle = ubicacion.direccion;
 
-  /** Selecciona una sugerencia y geocodifica para obtener coordenadas exactas. */
-  async seleccionarDireccion(sug: GeoapifySuggestion): Promise<void> {
-    this.formPago.direccionDetalle = sug.label;
-    this.coordsSeleccionadas = [sug.lat, sug.lon];
-    this.sugerenciasDireccion = [];
-    this.mostrarSugerencias = false;
+    // Solo aceptamos distritos reconocidos para no bloquear por etiquetas
+    // genéricas como "Lima" o "Perú" que devuelve el geocodificador.
+    const detectado = (ubicacion.distrito || '').trim().toLowerCase();
+    const oficial = this.distritosLima.find((d) => d.toLowerCase() === detectado);
+    if (oficial) this.formPago.distrito = oficial;
+
+    this.coordsSeleccionadas = [ubicacion.lat, ubicacion.lng];
     this.mensajeError = '';
-
-    // Detectar automáticamente el distrito desde la sugerencia de Geoapify
-    const distritoDetectado = this.detectarDistrito(sug);
-    if (distritoDetectado) {
-      this.formPago.distrito = distritoDetectado;
-    }
   }
 
-  /** Detecta el distrito de Lima desde la sugerencia de Geoapify. */
-  private detectarDistrito(sug: GeoapifySuggestion): string | null {
-    const distritosLima = this.distritosLima;
-    const label = (sug.label || '').toLowerCase();
-    const city = (sug.city || '').toLowerCase();
-    const address = (sug.address_line1 || '').toLowerCase();
-
-    // Buscar coincidencia exacta en city primero
-    for (const dist of distritosLima) {
-      if (city === dist.toLowerCase()) {
-        return dist;
-      }
-    }
-
-    // Buscar en el label
-    for (const dist of distritosLima) {
-      if (label.includes(dist.toLowerCase())) {
-        return dist;
-      }
-    }
-
-    // Buscar en address_line1
-    for (const dist of distritosLima) {
-      if (address.includes(dist.toLowerCase())) {
-        return dist;
-      }
-    }
-
-    return null;
-  }
-
-  limpiarSugerencias(): void {
-    this.sugerenciasDireccion = [];
-    this.mostrarSugerencias = false;
+  /** El usuario está reescribiendo la dirección: invalidar la selección previa. */
+  onDireccionEditada(): void {
+    this.formPago.direccionDetalle = '';
+    this.coordsSeleccionadas = null;
   }
 
   onPuntoRecojoChange() {
@@ -783,14 +731,14 @@ this.descuento = subtotalElegible * (valor / 100);
               this.procesandoPago = false;
 
               this.cartService.clear();
-              // Con Plin y SIP llevamos al cliente a sus pedidos para que vea el estado de la verificación
-              setTimeout(() => {
-                if (this.pagoPendienteVerificacion) {
-                  this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });
-                } else {
-                  this.router.navigate(['/catalogo']);
-                }
-              }, 4000);
+              // El pedido ya quedó registrado: invalidamos la caché del historial
+              // y navegamos de inmediato (sin esperas artificiales).
+              this.pedidoService.invalidarCache();
+              if (this.pagoPendienteVerificacion) {
+                this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });
+              } else {
+                this.router.navigate(['/catalogo']);
+              }
           },
           error: (err) => {
               this.mensajeError = err.error?.error || 'Error al crear el pedido final.';

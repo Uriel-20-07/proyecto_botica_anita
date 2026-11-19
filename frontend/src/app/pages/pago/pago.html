@@ -70,12 +70,6 @@
           </label>
         </div>
 
-        @if (formPago.distrito) {
-          <div class="distrito-detectado">
-            <span class="chip-distrito">📍 {{ formPago.distrito }}, Lima</span>
-          </div>
-        }
-
         <div *ngIf="!formPago.esUrgente">
           <div class="form-group" *ngIf="formPago.distrito">
             <label>Establecimiento de Recojo (Tienda / Bodega)</label>
@@ -95,21 +89,9 @@
         </div>
 
         <div *ngIf="formPago.esUrgente">
-          <div class="form-group" *ngIf="formPago.distrito">
-            <label>Dirección Domiciliaria Detallada <span class="req">*</span></label>
-            <input type="text" [(ngModel)]="formPago.direccionDetalle" class="form-input"
-              placeholder="Ej: Calle Melgar 123, Dpto 202"
-              (input)="onDireccionInput($event)"
-              (blur)="limpiarSugerencias()" />
-            <span class="field-hint">Ingresa la dirección exacta en Lima Para mayor precision, selecciona una sugerencia del autocompletado.</span>
-
-            <!-- Sugerencias predictivas de Geoapify -->
-            <div *ngIf="mostrarSugerencias && sugerenciasDireccion.length > 0" class="sugerencias-lista">
-              <div *ngFor="let sug of sugerenciasDireccion" class="sugerencia-item"
-                (mousedown)="seleccionarDireccion(sug); $event.preventDefault()">
-                <span class="sug-texto">{{ sug.label }}</span>
-              </div>
-            </div>
+          <div class="mapa-entrega-wrap" *ngIf="formPago.distrito">
+            <app-mapa-entrega (ubicacionSeleccionada)="onUbicacionEntrega($event)"
+              (direccionEditada)="onDireccionEditada()"></app-mapa-entrega>
           </div>
 
           <div class="form-group" *ngIf="formPago.distrito && formPago.direccionDetalle">

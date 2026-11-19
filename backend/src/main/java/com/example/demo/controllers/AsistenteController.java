@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.dto.PedidoEmailDTO;
 import com.example.demo.models.Administrador;
 import com.example.demo.models.DetallePedido;
 import com.example.demo.models.Pedido;
@@ -190,17 +190,13 @@ public class AsistenteController {
                 productoRepository.save(prod);
             }
 
-            // Enviar boleta por email si hay email del cliente
+            // Enviar boleta por email si hay email del cliente.
+            // El stock y la venta ya quedaron guardados; el correo sale en otro hilo.
             if (emailCliente != null && !emailCliente.isBlank()) {
-                try {
-                    User u = new User();
-                    u.setNombre(nombreCliente);
-                    u.setEmail(emailCliente);
-                    String nro = String.format("%06d", pedido.getIdPedido());
-                    emailService.sendBoletaPresencialEmail(emailCliente, nombreCliente, pedido, detalles, nro);
-                } catch (Exception e) {
-                    System.out.println("Error enviando boleta: " + e.getMessage());
-                }
+                String nro = String.format("%06d", pedido.getIdPedido());
+                PedidoEmailDTO emailDto = PedidoEmailDTO.from(
+                        pedido, emailCliente, nombreCliente, detalles, null, nro);
+                emailService.sendBoletaPresencialEmail(emailDto);
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -249,14 +245,13 @@ public class AsistenteController {
         pedido.setEstado("COMPLETADO");
         pedidoRepository.save(pedido);
 
-        // Enviar email de confirmación de entrega al cliente
-        try {
-            User u = pedido.getUsuario();
-            if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
-                String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
-                emailService.sendEntregadoEmail(u.getEmail(), u.getNombre(), pedido, nro);
-            }
-        } catch (Exception ignored) {
+        // El estado ya quedó persistido de forma síncrona. El correo se envía
+        // en segundo plano con datos planos, sin tocar entidades JPA.
+        User u = pedido.getUsuario();
+        if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
+            String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
+            PedidoEmailDTO emailDto = PedidoEmailDTO.from(pedido, u, null, null, nro);
+            emailService.sendEntregadoEmail(emailDto);
         }
 
         return ResponseEntity.ok(Map.of("ok", true, "estado", "COMPLETADO"));

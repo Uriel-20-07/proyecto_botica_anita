@@ -185,8 +185,15 @@
 .summary-row {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   margin-top: 14px;
   color: #475569;
+}
+
+.summary-row > span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .summary-row.total {
@@ -246,6 +253,51 @@
 
   .item-actions {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .carrito-page {
+    padding: 20px 12px 44px;
+    max-width: 100%;
+  }
+
+  .carrito-hero {
+    padding: 20px 18px;
+    border-radius: 18px;
+    gap: 14px;
+  }
+
+  .carrito-hero h1 {
+    font-size: 26px;
+  }
+
+  .items-panel,
+  .checkout-panel {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .panel-header {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .cart-item {
+    gap: 12px;
+    padding: 14px 0;
+  }
+
+  .item-info h3 {
+    font-size: 16px;
+  }
+
+  .checkout-panel h2 {
+    font-size: 19px;
+  }
+
+  .summary-row.total {
+    font-size: 16px;
   }
 }
 /* Promociones aplicadas en el resumen */

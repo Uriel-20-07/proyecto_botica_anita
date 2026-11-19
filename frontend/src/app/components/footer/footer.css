@@ -302,3 +302,32 @@
         gap: 6px;
     }
 }
+
+@media (max-width: 480px) {
+    .footer-container {
+        padding: 0 16px;
+    }
+
+    .footer-body {
+        padding: 40px 0 32px;
+    }
+
+    .footer-grid {
+        gap: 26px;
+        padding-bottom: 32px;
+    }
+
+    .footer-payments {
+        gap: 12px;
+    }
+
+    .payment-cards {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .p-card {
+        height: 32px;
+        padding: 0 10px;
+    }
+}

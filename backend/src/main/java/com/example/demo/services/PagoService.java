@@ -1,6 +1,7 @@
 package com.example.demo.services;
 
 import com.example.demo.dto.PagoRequest;
+import com.example.demo.dto.PedidoEmailDTO;
 import com.example.demo.models.*;
 import com.example.demo.repositories.*;
 import com.stripe.Stripe;
@@ -18,7 +19,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 
 @Service
@@ -79,9 +79,11 @@ public class PagoService {
 
     /**
      * Valida que la dirección de entrega esté dentro del radio de cobertura desde la tienda.
+     * Devuelve las coordenadas resueltas [lat, lng] para reutilizarlas al crear el
+     * pedido (así se evita geocodificar dos veces la misma dirección).
      * Lanza RuntimeException si está fuera de cobertura.
      */
-    private void validarCobertura(String direccion, String distrito, Double lat, Double lng) {
+    private double[] validarCobertura(String direccion, String distrito, Double lat, Double lng) {
         double latU;
         double lngU;
         if (lat != null && lng != null) {
@@ -92,14 +94,14 @@ public class PagoService {
                 throw new RuntimeException("Ingresa la direccion de entrega.");
             }
             geocodificacionService.esperarTurno();
-        double[] coords = geocodificacionService.buscar(direccion, distrito);
-        if (coords == null) {
-            throw new RuntimeException("No se pudo verificar la direccion de entrega. Selecciona una sugerencia del autocompletado.");
-            // No se pudo ubicar la dirección (o Nominatim está saturado):
-            // no se bloquea el pago, el frontend ya avisa si no encuentra la dirección.
-        }
-        latU = coords[0];
-        lngU = coords[1];
+            double[] coords = geocodificacionService.buscar(direccion, distrito);
+            if (coords == null) {
+                throw new RuntimeException("No se pudo verificar la direccion de entrega. Selecciona una sugerencia del autocompletado.");
+                // No se pudo ubicar la dirección (o Nominatim está saturado):
+                // no se bloquea el pago, el frontend ya avisa si no encuentra la dirección.
+            }
+            latU = coords[0];
+            lngU = coords[1];
         }
         double distM = distanciaM(TIENDA_LAT, TIENDA_LNG, latU, lngU);
         double distKm = distM / 1000.0;
@@ -107,6 +109,7 @@ public class PagoService {
             throw new RuntimeException("Tu dirección está fuera del área de cobertura de delivery (máx. "
                     + RADIO_COBERTURA_KM + " km desde la botica).");
         }
+        return new double[] { latU, lngU };
     }
 
     private double distanciaM(double lat1, double lng1, double lat2, double lng2) {
@@ -121,16 +124,16 @@ public class PagoService {
 
     /**
      * LÓGICA FEFO: Descuenta el stock de los lotes que vencen primero.
+     * Recibe el Producto ya cargado desde el carrito para no volver a buscarlo.
      */
-    private void descontarStockLotesFefo(Integer idProducto, int cantidadComprada) {
+    private void descontarStockLotesFefo(Producto producto, int cantidadComprada) {
+        Integer idProducto = producto.getIdProducto();
         List<InventarioLote> lotes = loteRepository.findByProductoIdProductoOrderByFechaVencimientoAsc(idProducto);
         int cantidadRestante = cantidadComprada;
 
         if (lotes.isEmpty()) {
             // El producto no tiene lotes físicos registrados:
             // se descuenta directamente del stock general del producto.
-            Producto producto = productoRepository.findById(idProducto)
-                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + idProducto));
             int stockActual = producto.getStock() != null ? producto.getStock() : 0;
             if (stockActual < cantidadComprada) {
                 throw new RuntimeException("Stock insuficiente para el producto: " + producto.getNombre());
@@ -141,6 +144,7 @@ public class PagoService {
         }
 
         // Lógica FEFO: descontar de los lotes que vencen primero
+        List<InventarioLote> modificados = new ArrayList<>();
         for (InventarioLote lote : lotes) {
             if (cantidadRestante <= 0)
                 break;
@@ -149,17 +153,21 @@ public class PagoService {
 
             if (lote.getCantidadActual() >= cantidadRestante) {
                 lote.setCantidadActual(lote.getCantidadActual() - cantidadRestante);
-                loteRepository.save(lote);
                 cantidadRestante = 0;
             } else {
                 cantidadRestante -= lote.getCantidadActual();
                 lote.setCantidadActual(0);
-                loteRepository.save(lote);
             }
+            modificados.add(lote);
         }
 
         if (cantidadRestante > 0) {
             throw new RuntimeException("Stock insuficiente en lotes físicos para el producto ID: " + idProducto);
+        }
+
+        // Un solo flush para todos los lotes tocados.
+        if (!modificados.isEmpty()) {
+            loteRepository.saveAll(modificados);
         }
     }
 
@@ -233,12 +241,14 @@ public class PagoService {
 
         // La cobertura de 2 km solo aplica al delivery (envío a domicilio).
         // El recojo en tienda es gratis y no tiene radio de entrega.
+        double[] coordsEntrega = null;
         if (request.isEsUrgente()) {
             // Solo se entrega en el distrito de Independencia.
             if (request.getDistrito() != null && !request.getDistrito().trim().equalsIgnoreCase("Independencia")) {
                 throw new RuntimeException("Solo realizamos delivery en el distrito de Independencia.");
             }
-            validarCobertura(request.getDireccionEnvio(), request.getDistrito(), request.getLatitudEntrega(), request.getLongitudEntrega());
+            // Devuelve las coords ya resueltas para no geocodificar otra vez al crear el pedido.
+            coordsEntrega = validarCobertura(request.getDireccionEnvio(), request.getDistrito(), request.getLatitudEntrega(), request.getLongitudEntrega());
         }
 
         // --- Validación de pagos por transferencia: Plin, SIP y Yape con QR (antes de consumir cupones o stock) ---
@@ -307,19 +317,11 @@ public class PagoService {
         pedido.setDireccionEnvio(request.getDireccionEnvio());
         pedido.setEsUrgente(request.isEsUrgente());
         pedido.setDistrito(request.getDistrito());
-        // Guardar coordenadas precisas del frontend (Geoapify) si vienen; si no, geocodificar con Nominatim.
-        if (request.getLatitudEntrega() != null && request.getLongitudEntrega() != null) {
-            pedido.setLatitudEntrega(BigDecimal.valueOf(request.getLatitudEntrega()));
-            pedido.setLongitudEntrega(BigDecimal.valueOf(request.getLongitudEntrega()));
-        } else {
-            try {
-                double[] coords = geocodificacionService.buscar(request.getDireccionEnvio(), request.getDistrito());
-                if (coords != null) {
-                    pedido.setLatitudEntrega(BigDecimal.valueOf(coords[0]));
-                    pedido.setLongitudEntrega(BigDecimal.valueOf(coords[1]));
-                }
-            } catch (Exception ignored) {
-            }
+        // Coordenadas de entrega ya resueltas por validarCobertura (o enviadas por
+        // el frontend). En recojo no se geocodifica nada: el mapa no aplica.
+        if (coordsEntrega != null) {
+            pedido.setLatitudEntrega(BigDecimal.valueOf(coordsEntrega[0]));
+            pedido.setLongitudEntrega(BigDecimal.valueOf(coordsEntrega[1]));
         }
         pedido.setMetodoPago(request.getMetodoPago());
         pedido.setIdReceta(request.getIdReceta());
@@ -334,16 +336,17 @@ public class PagoService {
 
             // EJECUTAMOS LA LÓGICA FEFO (Esto actualiza los lotes y el trigger actualizará
             // el stock general)
-            descontarStockLotesFefo(producto.getIdProducto(), cantidadComprada);
+            descontarStockLotesFefo(producto, cantidadComprada);
 
             DetallePedido detPed = new DetallePedido();
             detPed.setPedido(pedido);
             detPed.setProducto(producto);
             detPed.setCantidad(cantidadComprada);
             detPed.setPrecioHistorico(obtenerPrecioConDescuento(producto));
-            detPed = detallePedidoRepository.save(detPed);
             detallesGuardados.add(detPed);
         }
+        // Un solo guardado por lote de filas en vez de un INSERT por producto.
+        detallesGuardados = detallePedidoRepository.saveAll(detallesGuardados);
 
         carritoService.vaciarCarrito(idUsuario);
 
@@ -352,21 +355,19 @@ public class PagoService {
         long nroPedidoCliente = pedidoRepository.countByUsuario(usuario);
         String nroBoleta = String.format("%06d", nroPedidoCliente);
 
-        // Correo de confirmación para todos los métodos (Plin ya no espera verificación)
-        enviarCorreoConfirmacion(usuario, pedido, detallesGuardados, request.getCodigoCupon(), nroBoleta);
+        // Extraemos los datos planos DENTRO de la transacción: el hilo asíncrono
+        // nunca toca entidades JPA ni el EntityManager (evita LazyInitializationException).
+        PedidoEmailDTO emailDto = PedidoEmailDTO.from(
+                pedido, usuario, detallesGuardados, request.getCodigoCupon(), nroBoleta);
+
+        // El pedido y el stock ya quedaron guardados de forma síncrona.
+        // El correo se dispara después del commit y en otro hilo, así la
+        // respuesta al cliente no espera al SMTP.
+        enviarCorreoConfirmacion(emailDto);
     }
 
-    private void enviarCorreoConfirmacion(User usuario, Pedido pedido, List<DetallePedido> detalles,
-            String codigoCupon, String nroBoleta) {
-        CompletableFuture.runAsync(() -> {
-            try {
-                emailService.sendOrderConfirmationEmail(usuario.getEmail(),
-                        usuario.getNombre() + " " + usuario.getApellido(), pedido, detalles,
-                        codigoCupon, nroBoleta);
-            } catch (Exception e) {
-                System.out.println("Error en correo: " + e.getMessage());
-            }
-        });
+    private void enviarCorreoConfirmacion(PedidoEmailDTO emailDto) {
+        AfterCommitRunner.run(() -> emailService.sendOrderConfirmationEmail(emailDto));
     }
 private Cupon obtenerCuponValido(Integer idUsuario, String codigo) {
     Cupon cupon = cuponRepository
