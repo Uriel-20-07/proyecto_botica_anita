@@ -5,6 +5,6 @@ export const environment = {
   mostrarRecetas: false,
   geoapifyApiKey: '5877badf92e14ccb85d2a16ede4aa1dc',
   // Google Maps Platform (Maps JS API, Places, Geocoding y Routes).
-  // Recomendado: restringir esta clave por referrer HTTP en Google Cloud Console.
-  googleMapsApiKey: 'AIzaSyDyLofI1wMc3uwQdvEWPU3160X0DeC8asQ',
+  // La key debe configurarse en tiempo de despliegue, nunca subida al repo.
+  googleMapsApiKey: '',
 };
