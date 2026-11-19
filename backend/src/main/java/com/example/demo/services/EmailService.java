@@ -1,14 +1,12 @@
 package com.example.demo.services;
 
 import java.math.BigDecimal;
-<<<<<<< Updated upstream
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-=======
-import java.time.LocalDateTime;
->>>>>>> Stashed changes
 import java.util.List;
+import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,18 +22,12 @@ import com.example.demo.dto.PedidoEmailDTO;
 
 import jakarta.mail.internet.MimeMessage;
 
-/**
- * Servicio para el envio de correos electronicos transaccionales.
- *
- * Los correos de pedidos se envian de forma asincrona (@Async) y reciben
- * unicamente DTOs con datos planos, para no acceder a entidades JPA desde
- * otro hilo. Cualquier fallo de SMTP se registra en el log y nunca se propaga
- * a la respuesta del cliente.
- */
 @Service
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Autowired
     private JavaMailSender mailSender;
@@ -132,38 +124,27 @@ public class EmailService {
         }
     }
 
-    /**
-     * Confirmacion de compra. Se ejecuta en el pool "emailTaskExecutor".
-     * Recibe datos planos: no accede a entidades ni a la base de datos.
-     */
     @Async("emailTaskExecutor")
     public void sendOrderConfirmationEmail(PedidoEmailDTO dto) {
         try {
-            // Plin, SIP y Yape con QR: correo de verificacion de la compra (con numero de operacion)
-            boolean transferencia = esTransferencia(pedido);
-            String metodo = nombreMetodo(pedido.getMetodoPago());
+            boolean transferencia = esTransferencia(dto);
+            String metodo = nombreMetodo(dto.getMetodoPago());
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom("noreply@boticaanita.com");
-<<<<<<< Updated upstream
-            helper.setTo(destinatario);
-            helper.setSubject((transferencia ? "Verificacion de tu compra #" : "Confirmacion de tu compra #") + nroBoleta + " - BoticaAnita");
-=======
             helper.setTo(dto.getDestinatario());
-            helper.setSubject("Confirmacion de tu compra #" + dto.getNumeroPedido() + " - BoticaAnita");
->>>>>>> Stashed changes
+            helper.setSubject((transferencia ? "Verificacion de tu compra #" : "Confirmacion de tu compra #") + dto.getNumeroPedido() + " - BoticaAnita");
 
             StringBuilder html = new StringBuilder();
             html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='font-family:Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:0;background:#f4f6f9;'>");
             html.append("<div style='max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);'>");
             html.append("<div style='background:linear-gradient(135deg,#1a2e4a,#2d4a7a);padding:24px;text-align:center;'>");
             html.append("<h1 style='color:#fff;margin:0;font-size:1.6rem;'>BoticaAnita</h1>");
-            html.append("<p style='color:#cbd5e1;margin:4px 0 0;font-size:0.9rem;'>" + (transferencia ? "Verificacion de Compra" : "Confirmacion de Compra") + "</p>");
+            html.append("<p style='color:#cbd5e1;margin:4px 0 0;font-size:0.9rem;'>").append(transferencia ? "Verificacion de Compra" : "Confirmacion de Compra").append("</p>");
             html.append("</div>");
             html.append("<div style='padding:24px;'>");
-<<<<<<< Updated upstream
-            html.append("<p style='color:#334155;font-size:1rem;'>Hola <strong>").append(nombre).append("</strong>,</p>");
+            html.append("<p style='color:#334155;font-size:1rem;'>Hola <strong>").append(dto.getNombreCliente()).append("</strong>,</p>");
             if (transferencia) {
                 html.append("<p style='color:#64748b;font-size:0.95rem;'>Recibimos tu pago por <strong>").append(metodo).append("</strong> y registramos tu compra. Este correo es la verificacion de tu compra.</p>");
             } else {
@@ -172,27 +153,15 @@ public class EmailService {
 
             html.append("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;'>");
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.9rem;color:#334155;'>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Codigo de pedido:</td><td style='padding:4px 0;text-align:right;'>#").append(nroBoleta).append("</td></tr>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(formatearFecha(pedido)).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Codigo de pedido:</td><td style='padding:4px 0;text-align:right;'>#").append(dto.getNumeroPedido()).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(formatearFechaLima(dto.getFecha())).append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;font-weight:600;'>Metodo de pago:</td><td style='padding:4px 0;text-align:right;'>").append(metodo).append("</td></tr>");
             if (transferencia) {
-                html.append("<tr><td style='padding:4px 0;font-weight:600;'>Numero de operacion:</td><td style='padding:4px 0;text-align:right;'>").append(pedido.getNumeroOperacion() == null ? "-" : pedido.getNumeroOperacion()).append("</td></tr>");
+                html.append("<tr><td style='padding:4px 0;font-weight:600;'>Numero de operacion:</td><td style='padding:4px 0;text-align:right;'>").append(dto.getNumeroOperacion() == null ? "-" : dto.getNumeroOperacion()).append("</td></tr>");
             }
-            if (pedido.getDireccionEnvio() != null && !pedido.getDireccionEnvio().trim().isEmpty()) {
-                if (pedido.isEsUrgente()) {
-                    html.append("<tr><td style='padding:4px 0;font-weight:600;'>Direccion de envio:</td><td style='padding:4px 0;text-align:right;'>").append(pedido.getDireccionEnvio()).append("</td></tr>");
-=======
-            html.append("<p style='color:#334155;font-size:1rem;'>Hola <strong>").append(dto.getNombreCliente()).append("</strong>,</p>");
-            html.append("<p style='color:#64748b;font-size:0.95rem;'>Muchas gracias por tu compra. Tu pago ha sido procesado con exito.</p>");
-
-            html.append("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;'>");
-            html.append("<table style='width:100%;border-collapse:collapse;font-size:0.9rem;color:#334155;'>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Codigo de pedido:</td><td style='padding:4px 0;text-align:right;'>#").append(dto.getNumeroPedido()).append("</td></tr>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(textoFecha(dto.getFecha())).append("</td></tr>");
             if (dto.getDireccionEnvio() != null && !dto.getDireccionEnvio().trim().isEmpty()) {
                 if (dto.isEsUrgente()) {
                     html.append("<tr><td style='padding:4px 0;font-weight:600;'>Direccion de envio:</td><td style='padding:4px 0;text-align:right;'>").append(dto.getDireccionEnvio()).append("</td></tr>");
->>>>>>> Stashed changes
                 } else {
                     html.append("<tr><td style='padding:4px 0;font-weight:600;'>Establecimiento de recojo:</td><td style='padding:4px 0;text-align:right;'>").append(dto.getDireccionEnvio()).append("</td></tr>");
                 }
@@ -223,23 +192,18 @@ public class EmailService {
             html.append("</tbody></table>");
 
             double costoEnvio = dto.isEsUrgente() ? 5.0 : 0.0;
+            double totalCobrado = dto.getTotal() == null ? 0.0 : dto.getTotal().doubleValue();
+            double descuentos = subtotalProductos + costoEnvio - totalCobrado;
 
             html.append("<div style='margin-top:16px;padding:16px;background:#f8fafc;border-radius:8px;'>");
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.95rem;'>");
-            html.append("<tr><td style='padding:4px 0;color:#64748b;'>Subtotal productos:</td><td style='padding:4px 0;text-align:right;color:#334155;'>S/ ").append(String.format("%.2f", subtotalProductos)).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;color:#64748b;'>Subtotal productos:</td><td style='padding:4px 0;text-align:right;color:#334155;'>S/ ").append(String.format(Locale.US, "%.2f", subtotalProductos)).append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;color:#64748b;'>Costo de envio:</td><td style='padding:4px 0;text-align:right;color:#334155;'>").append(costoEnvio == 0.0 ? "Gratis" : "S/ 5.00").append("</td></tr>");
-<<<<<<< Updated upstream
-            // Descuentos (promociones y cupon): lo que suman productos + envio menos lo realmente cobrado
-            double descuentos = subtotalProductos + costoEnvio - (pedido.getTotal() == null ? 0.0 : pedido.getTotal().doubleValue());
             if (descuentos >= 0.01) {
-                html.append("<tr><td style='padding:4px 0;color:#64748b;'>Descuentos (promociones y cupon):</td><td style='padding:4px 0;text-align:right;color:#16a34a;'>- S/ ").append(String.format(java.util.Locale.US, "%.2f", descuentos)).append("</td></tr>");
+                html.append("<tr><td style='padding:4px 0;color:#64748b;'>Descuentos (promociones y cupon):</td><td style='padding:4px 0;text-align:right;color:#16a34a;'>- S/ ").append(String.format(Locale.US, "%.2f", descuentos)).append("</td></tr>");
             }
-            if (codigoCupon != null && !codigoCupon.trim().isEmpty()) {
-                html.append("<tr><td style='padding:4px 0;color:#64748b;'>Cupon aplicado:</td><td style='padding:4px 0;text-align:right;color:#334155;'>").append(codigoCupon.toUpperCase()).append("</td></tr>");
-=======
             if (dto.getCodigoCupon() != null && !dto.getCodigoCupon().trim().isEmpty()) {
                 html.append("<tr><td style='padding:4px 0;color:#64748b;'>Cupon aplicado:</td><td style='padding:4px 0;text-align:right;color:#334155;'>").append(dto.getCodigoCupon().toUpperCase()).append("</td></tr>");
->>>>>>> Stashed changes
             }
             html.append("<tr><td style='padding:8px 0 0;font-weight:700;color:#1a2e4a;font-size:1.1rem;'>Total pagado:</td><td style='padding:8px 0 0;text-align:right;font-weight:800;color:#e85d04;font-size:1.2rem;'>S/ ").append(textoTotal(dto.getTotal())).append("</td></tr>");
             html.append("</table></div>");
@@ -253,7 +217,7 @@ public class EmailService {
             }
 
             if (transferencia) {
-                if ("EN_ESPERA".equals(pedido.getEstado())) {
+                if ("EN_ESPERA".equals(dto.getEstado())) {
                     html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Tu pedido contiene productos que requieren receta medica, por lo que quedara en espera hasta validar tu receta.</p>");
                 }
                 html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Guarda este correo y tu numero de operacion como comprobante. Si algun dato no coincide con la constancia de tu transferencia, responde a este correo indicando tu numero de operacion.</p>");
@@ -274,19 +238,16 @@ public class EmailService {
         }
     }
 
-    // ----- Apoyo para el correo de verificacion (Plin, SIP y Yape con QR) -----
-
-    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
-    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
-    /** Plin y SIP siempre; Yape solo cuando se pago con QR (tiene numero de operacion). */
-    private boolean esTransferencia(Pedido pedido) {
-        String metodo = pedido.getMetodoPago();
+    private boolean esTransferencia(PedidoEmailDTO dto) {
+        if (dto == null) {
+            return false;
+        }
+        String metodo = dto.getMetodoPago();
         if ("PLIN".equalsIgnoreCase(metodo) || "SIP".equalsIgnoreCase(metodo)) {
             return true;
         }
         return "YAPE".equalsIgnoreCase(metodo)
-                && pedido.getNumeroOperacion() != null && !pedido.getNumeroOperacion().trim().isEmpty();
+                && dto.getNumeroOperacion() != null && !dto.getNumeroOperacion().trim().isEmpty();
     }
 
     private String nombreMetodo(String metodoPago) {
@@ -303,12 +264,11 @@ public class EmailService {
         }
     }
 
-    /** La fecha del pedido se guarda en UTC; en el correo se muestra en hora de Lima. */
-    private String formatearFecha(Pedido pedido) {
-        if (pedido.getFecha() == null) {
+    private String formatearFechaLima(LocalDateTime fecha) {
+        if (fecha == null) {
             return "-";
         }
-        return pedido.getFecha().atOffset(ZoneOffset.UTC).atZoneSameInstant(ZONA_LIMA).format(FORMATO_FECHA);
+        return fecha.atOffset(ZoneOffset.UTC).atZoneSameInstant(ZONA_LIMA).format(FORMATO_FECHA);
     }
 
     public void sendCampaignCouponEmail(String destinatario, String nombre, String codigoCupon, double descuento, String descripcion) {
@@ -330,9 +290,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Aviso de pedido en camino. Se ejecuta de forma asincrona con datos planos.
-     */
     @Async("emailTaskExecutor")
     public void sendEnCaminoEmail(PedidoEmailDTO dto) {
         try {
@@ -379,9 +336,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Boleta de venta presencial. Se ejecuta de forma asincrona con datos planos.
-     */
     @Async("emailTaskExecutor")
     public void sendBoletaPresencialEmail(PedidoEmailDTO dto) {
         try {
@@ -405,7 +359,7 @@ public class EmailService {
             html.append("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;'>");
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.9rem;color:#334155;'>");
             html.append("<tr><td style='padding:4px 0;font-weight:600;'>Codigo de boleta:</td><td style='padding:4px 0;text-align:right;'>#").append(dto.getNumeroPedido()).append("</td></tr>");
-            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(textoFecha(dto.getFecha())).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Fecha:</td><td style='padding:4px 0;text-align:right;'>").append(formatearFechaLima(dto.getFecha())).append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;font-weight:600;'>Metodo de pago:</td><td style='padding:4px 0;text-align:right;'>").append(dto.getMetodoPago() != null ? dto.getMetodoPago() : "Efectivo").append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;font-weight:600;'>Tipo:</td><td style='padding:4px 0;text-align:right;'>Venta en tienda</td></tr>");
             html.append("</table></div>");
@@ -435,7 +389,7 @@ public class EmailService {
 
             html.append("<div style='margin-top:16px;padding:16px;background:#f8fafc;border-radius:8px;'>");
             html.append("<table style='width:100%;border-collapse:collapse;font-size:0.95rem;'>");
-            html.append("<tr><td style='padding:4px 0;color:#64748b;'>Subtotal productos:</td><td style='padding:4px 0;text-align:right;color:#334155;'>S/ ").append(String.format("%.2f", subtotalProductos)).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;color:#64748b;'>Subtotal productos:</td><td style='padding:4px 0;text-align:right;color:#334155;'>S/ ").append(String.format(Locale.US, "%.2f", subtotalProductos)).append("</td></tr>");
             html.append("<tr><td style='padding:4px 0;color:#64748b;'>Costo de envio:</td><td style='padding:4px 0;text-align:right;color:#334155;'>Gratis (en tienda)</td></tr>");
             html.append("<tr><td style='padding:8px 0 0;font-weight:700;color:#1a2e4a;font-size:1.1rem;'>Total pagado:</td><td style='padding:8px 0 0;text-align:right;font-weight:800;color:#e85d04;font-size:1.2rem;'>S/ ").append(textoTotal(dto.getTotal())).append("</td></tr>");
             html.append("</table></div>");
@@ -455,9 +409,6 @@ public class EmailService {
         }
     }
 
-    /**
-     * Confirmacion de entrega. Se ejecuta de forma asincrona con datos planos.
-     */
     @Async("emailTaskExecutor")
     public void sendEntregadoEmail(PedidoEmailDTO dto) {
         try {
@@ -503,10 +454,6 @@ public class EmailService {
 
     private static List<ItemPedidoEmailDTO> itemsDe(PedidoEmailDTO dto) {
         return dto != null && dto.getItems() != null ? dto.getItems() : List.of();
-    }
-
-    private static String textoFecha(LocalDateTime fecha) {
-        return fecha != null ? fecha.toString() : "-";
     }
 
     private static String textoTotal(BigDecimal total) {

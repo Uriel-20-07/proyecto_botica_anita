@@ -41,6 +41,8 @@ public class PedidoEmailDTO {
     private BigDecimal latitudEntrega;
     private BigDecimal longitudEntrega;
     private List<ItemPedidoEmailDTO> items;
+    private String numeroOperacion;
+    private String estado;
 
     /**
      * Construye el DTO a partir de un usuario registrado. Debe invocarse
@@ -101,6 +103,24 @@ public class PedidoEmailDTO {
                 .latitudEntrega(pedido != null ? pedido.getLatitudEntrega() : null)
                 .longitudEntrega(pedido != null ? pedido.getLongitudEntrega() : null)
                 .items(items)
+                .numeroOperacion(pedido != null ? pedido.getNumeroOperacion() : null)
+                .estado(pedido != null && pedido.getEstado() != null ? pedido.getEstado().toString() : null)
                 .build();
+    }
+
+    public String getNumeroOperacion() {
+        return numeroOperacion;
+    }
+
+    public void setNumeroOperacion(String numeroOperacion) {
+        this.numeroOperacion = numeroOperacion;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 }
