@@ -154,28 +154,25 @@ export class ProductoDetalleComponent implements OnInit {
   }
 
   agregarAlCarrito(): void {
-    if (!this.producto || this.agotado) return;
-    const prodApi: ProductoApi = {
-      idProducto: this.producto.id,
-      nombre: this.producto.nombre,
-      descripcion: this.producto.descripcion,
-      precioVenta: this.producto.precioVenta,
-      fechaCaducidad: this.producto.fechaCaducidad
-    };
-    
-    const nombre = this.producto.nombre;
-    const cantidad = this.cantidad;
-    for (let i = 0; i < cantidad; i++) {
-      const esUltima = i === cantidad - 1;
-      this.cartService.add(prodApi, esUltima ? () => {
-        this.toastService.mostrar(`${nombre} (x${cantidad}) agregado al carrito`);
-        this.mensaje = `${nombre} (x${cantidad}) agregado al carrito.`;
-        setTimeout(() => {
-          this.mensaje = '';
-        }, 3000);
-      } : undefined);
-    }
-  }
+  if (!this.producto || this.agotado) return;
+  const { id, nombre } = this.producto;
+  const cantidad = this.cantidad;
+
+  this.cartService.addWithQty(id, cantidad).subscribe({
+    next: () => {
+      this.toastService.mostrar(`${nombre} (x${cantidad}) agregado al carrito`);
+      this.mensaje = `${nombre} (x${cantidad}) agregado al carrito.`;
+      this.cantidad = 1;
+      setTimeout(() => (this.mensaje = ''), 3000);
+    },
+    error: (err) => {
+      if (err?.status === 401) return; // ya se abrió el modal de login
+      const msg = err?.error?.mensaje || err?.error?.message
+        || 'No se pudo agregar el producto al carrito.';
+      this.toastService.mostrar(msg);
+    },
+  });
+}
 
   isFavorito(): boolean {
     if (!this.producto) return false;
