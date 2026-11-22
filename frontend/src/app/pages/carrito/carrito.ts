@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { CartService } from '../../services/cart.service';
+import { CartService, CartItem } from '../../services/cart.service';
 import { PromocionService, PromoAplicada } from '../../services/promocion.service';
 
 @Component({
@@ -66,6 +66,28 @@ export class CarritoComponent {
     return items;
   }
 
+  /**
+   * Identidad estable de cada fila del carrito para *ngFor.
+   * Como getItems() retorna un arreglo nuevo en cada detección de cambios,
+   * sin trackBy Angular destruiría y recrearía todos los nodos (y cualquier
+   * reorden del servidor movería los productos de sitio).
+   */
+  trackByItem(index: number, item: CartItem): number {
+    return item?.producto?.idProducto ?? index;
+  }
+
+  /**
+   * true mientras se pueda sumar una unidad más de este ítem:
+   * máximo 10 por producto (regla de negocio) y sin superar el stock.
+   */
+  puedeAumentar(item: CartItem): boolean {
+    if (!item) return false;
+    if (item.cantidad >= 10) return false;
+    const stock = item.producto?.stock;
+    if (stock != null && item.cantidad >= Number(stock)) return false;
+    return true;
+  }
+
   getProductImage(producto: any): string {
     if (producto.imgUrl) return producto.imgUrl;
     const cat = producto.categoria?.nombre?.toLowerCase() || 'general';
@@ -109,7 +131,8 @@ export class CarritoComponent {
 
   increase(productoId: number): void {
     const item = this.getItems().find((entry) => entry.producto.idProducto === productoId);
-    if (item) this.cartService.add(item.producto);
+    if (!item || !this.puedeAumentar(item)) return;
+    this.cartService.add(item.producto);
   }
 
   decrease(productoId: number): void {

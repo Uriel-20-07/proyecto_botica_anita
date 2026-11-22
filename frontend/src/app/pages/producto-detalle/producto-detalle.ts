@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CatalogoService, ProductoApi } from '../../services/catalogo.service';
 import { CartService } from '../../services/cart.service';
@@ -45,7 +46,62 @@ export class ProductoDetalleComponent implements OnInit {
     private readonly authService: AuthService,
     private readonly authModalService: AuthModalService,
     private readonly toastService: ToastService
-  ) {}
+  ) {
+    // Recalcular el límite del selector cada vez que cambia el carrito
+    // (agregado aquí, en el chatbot, en la página de carrito, etc.).
+    this.cartService.items$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.ajustarCantidadAlLimite());
+  }
+
+  /**
+   * Unidades de ESTE producto que ya están en el carrito.
+   */
+  get cantidadEnCarrito(): number {
+    if (!this.producto) return 0;
+    return this.cartService.cantidadEnCarrito(this.producto.id);
+  }
+
+  /**
+   * Límite máximo seleccionable con los botones - y +:
+   * nunca más de 10 en total (sumando lo que ya está en el carrito)
+   * ni más de las unidades disponibles en stock.
+   */
+  get maxPermitido(): number {
+    if (!this.producto) return 0;
+    const stock = this.producto.stock != null ? Number(this.producto.stock) : Number.POSITIVE_INFINITY;
+    return Math.max(0, Math.min(stock, 10 - this.cantidadEnCarrito));
+  }
+
+  /** true cuando ya no se puede agregar nada más de este producto. */
+  get limiteAlcanzado(): boolean {
+    return !!this.producto && this.maxPermitido === 0;
+  }
+
+  /** Mensaje claro cuando se alcanzó el máximo del carrito (no por stock agotado). */
+  get mensajeLimite(): string {
+    if (this.agotado || this.maxPermitido > 0) return '';
+    if (this.cantidadEnCarrito >= 10) {
+      return 'Ya tienes el máximo de 10 unidades de este producto en tu carrito';
+    }
+    return 'No hay más unidades disponibles de este producto para agregar al carrito';
+  }
+
+  /**
+   * Ajusta la cantidad seleccionada para que nunca supere el máximo permitido.
+   * Se ejecuta al cargar el producto y en cada cambio del carrito.
+   * Si el límite se libera (p. ej. se quitaron unidades desde /carrito),
+   * vuelve a 1 en lugar de quedarse en 0.
+   */
+  private ajustarCantidadAlLimite(): void {
+    if (!this.producto) return;
+    const max = this.maxPermitido;
+    if (this.cantidad > max) {
+      this.cantidad = Math.max(0, max);
+    } else if (this.cantidad < 1 && max >= 1) {
+      this.cantidad = 1;
+    }
+  }
 
   ngOnInit(): void {
     // Escuchar parámetros de ruta y parámetros de búsqueda de forma combinada
@@ -108,9 +164,13 @@ export class ProductoDetalleComponent implements OnInit {
             categoriaNombre: catNombre,
             imagen: imagen,
             fechaCaducidad: fechaCad,
+            stock: found.stock,
             requiereReceta: this.requiereRecetaMedica(found.nombre)
           };
           this.mensaje = ''; // Limpiar mensaje de error ya que el producto fue encontrado con éxito
+          // Respetar el límite de 10 por producto según lo que ya esté en el carrito
+          this.cantidad = 1;
+          this.ajustarCantidadAlLimite();
         } else {
           this.producto = null; // Limpiar datos previos si no se encuentra
           this.mensaje = 'Producto no encontrado.';
@@ -142,7 +202,8 @@ export class ProductoDetalleComponent implements OnInit {
   }
 
   incrementar(): void {
-    if (this.agotado) return;
+    if (this.agotado || this.limiteAlcanzado) return;
+    if (this.cantidad >= this.maxPermitido) return;
     this.cantidad++;
   }
 
@@ -154,15 +215,18 @@ export class ProductoDetalleComponent implements OnInit {
   }
 
   agregarAlCarrito(): void {
-  if (!this.producto || this.agotado) return;
+  if (!this.producto || this.agotado || this.limiteAlcanzado) return;
   const { id, nombre } = this.producto;
-  const cantidad = this.cantidad;
+  // Nunca enviar más de lo que permite el límite (10 en total - lo ya en el carrito)
+  const cantidad = Math.max(1, Math.min(this.cantidad, this.maxPermitido));
 
   this.cartService.addWithQty(id, cantidad).subscribe({
     next: () => {
       this.toastService.mostrar(`${nombre} (x${cantidad}) agregado al carrito`);
       this.mensaje = `${nombre} (x${cantidad}) agregado al carrito.`;
-      this.cantidad = 1;
+      // El carrito ya se actualizó (tap emite antes del next): reiniciar el
+      // selector sin superar el nuevo máximo restante (puede ser 0).
+      this.cantidad = this.maxPermitido >= 1 ? 1 : 0;
       setTimeout(() => (this.mensaje = ''), 3000);
     },
     error: (err) => {

@@ -82,6 +82,40 @@ export class CartService {
   }
 
   /**
+   * Aplica los detalles devueltos por el servidor SIN alterar el orden en pantalla.
+   *
+   * Estrategia:
+   * - Conserva el orden actual de los ítems locales que siguen en el servidor
+   *   (solo se actualiza su cantidad/objeto).
+   * - Descarta los ítems que el servidor ya no devuelve (quitados/vaciado).
+   * - Agrega al final los ítems nuevos (agregados desde otra vista), en el orden
+   *   en que el servidor los envía.
+   *
+   * Así, aunque el backend reordene su respuesta, la lista no "salta" de posición.
+   */
+  private aplicarDetallesDelServidor(detalles: CartItem[]): void {
+    const pendientes = new Map<number, CartItem>();
+    for (const detalle of detalles) {
+      const id = detalle?.producto?.idProducto;
+      if (id != null) pendientes.set(id, detalle);
+    }
+
+    const ordenados: CartItem[] = [];
+    for (const item of this.itemsSubject.value) {
+      const id = item?.producto?.idProducto;
+      if (id != null && pendientes.has(id)) {
+        ordenados.push(pendientes.get(id)!);
+        pendientes.delete(id);
+      }
+    }
+    // Ítems nuevos (no estaban en pantalla): al final, en orden del servidor.
+    for (const detalle of pendientes.values()) ordenados.push(detalle);
+
+    this.itemsSubject.next(ordenados);
+    this.saveItemsToStorage(ordenados);
+  }
+
+  /**
    * Carga el carrito desde el servidor y actualiza el estado local.
    * Se llama automáticamente al iniciar sesión.
    * En caso de error (backend no disponible), usa el carrito almacenado en localStorage.
@@ -90,8 +124,7 @@ export class CartService {
     this.http.get<any>(this.apiUrl, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);          // Actualizar estado reactivo
-          this.saveItemsToStorage(carrito.detalles);          // Guardar caché local
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
       },
       error: (err) => {
@@ -122,8 +155,7 @@ export class CartService {
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);
-          this.saveItemsToStorage(carrito.detalles);
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
         onSuccess?.();
       },
@@ -172,8 +204,7 @@ export class CartService {
     return this.http.post<any>(url, {}, { headers: this.getHeaders() }).pipe(
       tap((carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);
-          this.saveItemsToStorage(carrito.detalles);
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
       })
     );
@@ -195,8 +226,7 @@ export class CartService {
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);
-          this.saveItemsToStorage(carrito.detalles);
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
       },
       error: (err) => {
@@ -220,8 +250,7 @@ export class CartService {
     this.http.delete<any>(url, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);
-          this.saveItemsToStorage(carrito.detalles);
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
       },
       error: (err) => {
@@ -245,8 +274,7 @@ export class CartService {
     this.http.delete<any>(url, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         if (carrito && carrito.detalles) {
-          this.itemsSubject.next(carrito.detalles);
-          this.saveItemsToStorage(carrito.detalles);
+          this.aplicarDetallesDelServidor(carrito.detalles);
         }
       },
       error: (err) => {
@@ -272,6 +300,23 @@ export class CartService {
    */
   getCount(): number {
     return this.itemsSubject.value.reduce((total, item) => total + item.cantidad, 0);
+  }
+
+  /**
+   * Cantidad actual de un producto específico dentro del carrito.
+   * Usado por el detalle del producto para aplicar el límite de 10 unidades
+   * por producto restando lo que ya se agregó.
+   *
+   * @param idProducto ID del producto a consultar.
+   * @returns unidades de ese producto ya presentes en el carrito (0 si no está).
+   */
+  cantidadEnCarrito(idProducto: number): number {
+    if (idProducto == null) return 0;
+    return this.itemsSubject.value.reduce(
+      (total, item) =>
+        item?.producto?.idProducto === idProducto ? total + (Number(item.cantidad) || 0) : total,
+      0
+    );
   }
 
   getFecha(producto: any): string {

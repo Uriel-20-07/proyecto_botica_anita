@@ -15,7 +15,7 @@
         <button type="button" class="text-button" (click)="clear()">Vaciar carrito</button>
       </div>
 
-      <div class="cart-item" *ngFor="let item of getItems()">
+      <div class="cart-item" *ngFor="let item of getItems(); trackBy: trackByItem">
         <div class="item-image">
           <img [src]="getProductImage(item.producto)" [alt]="item.producto.nombre" class="cart-product-img" />
         </div>
@@ -35,7 +35,9 @@
           <div class="qty-control" *ngIf="!getDiscountInfo(item.producto).isExpired">
             <button type="button" (click)="decrease(item.producto.idProducto)">-</button>
             <span>{{ item.cantidad }}</span>
-            <button type="button" (click)="increase(item.producto.idProducto)">+</button>
+            <button type="button" (click)="increase(item.producto.idProducto)"
+              [disabled]="!puedeAumentar(item)"
+              [title]="puedeAumentar(item) ? 'Aumentar cantidad' : 'Máximo alcanzado (10 unidades o stock disponible)'">+</button>
           </div>
 
           <div class="price-block">

@@ -356,6 +356,33 @@
   background: var(--bg-light);
 }
 
+.qty-btn:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.qty-btn:disabled:hover {
+  background: transparent;
+}
+
+.msg-limite {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.btn-add-to-cart:disabled {
+  background-color: #cbd5e1;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .qty-value {
   padding: 0 15px;
   font-size: 1rem;

@@ -47,7 +47,12 @@ public class Carrito {
      * mappedBy = "carrito": el campo "carrito" en DetalleCarrito es el dueño de la relación.
      * cascade = ALL: cambios en el carrito se propagan a los detalles.
      * orphanRemoval = true: detalles sin carrito asociado se eliminan de la BD.
+     *
+     * @OrderBy("idDetalleCarrito ASC"): orden determinista y estable por ID de creación.
+     * Sin este orden, la BD puede devolver las líneas en orden físico de fila y un
+     * UPDATE de cantidad reordena los ítems del carrito en cada respuesta.
      */
     @OneToMany(mappedBy = "carrito", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("idDetalleCarrito ASC")
     private List<DetalleCarrito> detalles;
 }
