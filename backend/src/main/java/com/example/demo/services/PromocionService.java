@@ -8,7 +8,9 @@ import com.example.demo.models.Producto;
 import com.example.demo.repositories.ProductoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -42,6 +44,15 @@ public class PromocionService {
 
     @Autowired
     private ProductoRepository productoRepository;
+
+    /**
+     * El carrusel lo ve todo el mundo en varias páginas, así que se guarda el resultado 60 segundos
+     * en lugar de consultar la base de datos en cada visita. El cálculo del carrito y del pago NO usa
+     * esta copia: siempre consulta precios y productos al momento.
+     */
+    private static final long VIGENCIA_CACHE_MS = 60_000;
+    private volatile List<PromocionDTO> cacheDisponibles;
+    private volatile long cacheValidaHasta = 0;
 
     /** Producto buscado por nombre (ya normalizado: minúsculas y sin tildes) y cantidad requerida. */
     private record Regla(Pattern incluye, Pattern excluye, int cantidad) {
@@ -190,7 +201,29 @@ public class PromocionService {
      * productos en el catálogo, con stock suficiente y sin estar vencidos.
      */
     public List<PromocionDTO> listarDisponibles() {
-        return resolver(true);
+        List<PromocionDTO> guardadas = cacheDisponibles;
+        if (guardadas != null && System.currentTimeMillis() < cacheValidaHasta) {
+            return guardadas;
+        }
+        List<PromocionDTO> nuevas = resolver(true);
+        cacheDisponibles = nuevas;
+        cacheValidaHasta = System.currentTimeMillis() + VIGENCIA_CACHE_MS;
+        return nuevas;
+    }
+
+    /** Vacía la copia guardada del carrusel (la próxima visita vuelve a consultar la base de datos). */
+    public void invalidarCache() {
+        cacheValidaHasta = 0;
+    }
+
+    /** Deja el carrusel listo al arrancar el servidor, para que la primera visita no espere a la base de datos. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void precalentar() {
+        try {
+            listarDisponibles();
+        } catch (Exception e) {
+            log.warn("No se pudo precargar las promociones: {}", e.getMessage());
+        }
     }
 
     /**
@@ -202,7 +235,7 @@ public class PromocionService {
     }
 
     private List<PromocionDTO> resolver(boolean exigirStock) {
-        List<Producto> productos = productoRepository.findAll();
+        List<Producto> productos = productoRepository.findAllConRelaciones();
         List<PromocionDTO> resultado = new ArrayList<>();
         // Un producto solo puede estar en UNA promoción: si no, se le sumarían dos descuentos.
         Set<Integer> usados = new HashSet<>();

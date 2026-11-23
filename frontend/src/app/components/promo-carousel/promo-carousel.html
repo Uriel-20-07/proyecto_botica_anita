@@ -23,7 +23,7 @@
       <div class="promo-viewport">
         <div class="promo-track" [class.sin-transicion]="sinTransicion"
           [style.--visibles]="visiblesEfectivos" [style.--indice]="indice">
-          <article class="promo-slot" *ngFor="let p of slides">
+          <article class="promo-slot" *ngFor="let p of slides; let i = index">
             <div class="promo-card">
               <div class="promo-copy">
                 <span class="promo-tag">{{ p.etiqueta }}</span>
@@ -41,7 +41,7 @@
                 <span class="promo-badge">{{ insignia(p) }}</span>
                 <ng-container *ngFor="let item of p.items">
                   <img *ngFor="let c of copias(p, item)" [src]="imagen(item.imgUrl)" [alt]="item.nombre"
-                    (error)="imagenRota($event)" loading="lazy" />
+                    (error)="imagenRota($event)" decoding="async" [attr.loading]="i < 4 ? 'eager' : 'lazy'" />
                 </ng-container>
               </div>
             </div>

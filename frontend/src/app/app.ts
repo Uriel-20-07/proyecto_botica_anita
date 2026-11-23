@@ -6,6 +6,7 @@ import { AuthModalComponent } from './components/auth-modal/auth-modal.component
 import { ChatbotComponent } from './components/chatbot/chatbot';
 import { CalificacionFlotanteComponent } from './components/calificacion-flotante/calificacion-flotante';
 import { CommonModule } from '@angular/common';
+import { PromocionService } from './services/promocion.service';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +18,9 @@ import { CommonModule } from '@angular/common';
 export class App implements OnInit {
   isDashboard = false;
 
-  constructor(private router: Router) {
+  constructor(private router: Router, promocionService: PromocionService) {
+    // Las promociones se piden apenas carga la app, así ya están listas cuando se dibuja el carrusel
+    promocionService.precargar();
     if (typeof window !== 'undefined') {
       this.isDashboard = window.location.pathname.startsWith('/dashboard');
     }
