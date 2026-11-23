@@ -38,6 +38,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
   fotoPreview = '';
   guardando = false;
 
+  
   infoForm!: FormGroup;
   passwordForm!: FormGroup;
 
