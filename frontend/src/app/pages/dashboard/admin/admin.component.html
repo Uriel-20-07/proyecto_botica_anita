@@ -279,6 +279,10 @@
             <i class="bi bi-search search-icon"></i>
             <input type="text" [(ngModel)]="searchCliente" placeholder="Buscar por cliente..." />
           </div>
+          <button class="btn-secondary" type="button" (click)="cargarVentas()"
+            [class.spinning]="ventasCargando" [disabled]="ventasCargando" title="Actualizar">
+            <i class="bi bi-arrow-clockwise"></i> Actualizar
+          </button>
         </div>
         <div class="table-responsive">
           <table class="dashboard-table">
@@ -339,6 +343,10 @@
               <input type="text" [(ngModel)]="searchProducto" placeholder="Buscar producto o descripción..." />
             </div>
           </div>
+          <button class="btn-secondary" type="button" (click)="recargarInventario()"
+            [class.spinning]="inventarioCargando" [disabled]="inventarioCargando" title="Actualizar">
+            <i class="bi bi-arrow-clockwise"></i> Actualizar
+          </button>
         </div>
         <div class="table-responsive">
           <table class="dashboard-table">
@@ -1167,7 +1175,8 @@
 <aside *ngIf="activeTab === 'inventario'" style="min-width:0;">
   <div class="card" style="padding:18px;border-top:4px solid #ea580c;">
 
-    <div class="card-header" style="margin-bottom:14px;">
+    <div class="card-header"
+         style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
       <div>
         <h2 style="margin:0;font-size:16px;">
           Alertas de inventario
@@ -1177,14 +1186,20 @@
         </span>
       </div>
 
-      <span class="status-badge">
-        {{ bajoStockCount + (reporteData?.lotesProximosVencer?.length || 0) }}
-      </span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="status-badge">
+          {{ bajoStockCount + (reporteData?.lotesProximosVencer?.length || 0) }}
+        </span>
+        <button class="btn-secondary" type="button" (click)="recargarAlertas()"
+          [class.spinning]="alertasCargando" [disabled]="alertasCargando" title="Actualizar">
+          <i class="bi bi-arrow-clockwise"></i> Actualizar
+        </button>
+      </div>
     </div>
 
     <div style="width:100%;overflow-x:auto;">
 
-      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
 
         <thead>
           <tr style="background:#f8fafc;text-align:left;">
@@ -1199,6 +1214,9 @@
             </th>
             <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
               Stock
+            </th>
+            <th style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">
+              Acciones
             </th>
           </tr>
         </thead>
@@ -1228,6 +1246,13 @@
 
                 <td style="padding:10px 8px;font-weight:800;color:#dc2626;">
                   {{ prod.stock }} u.
+                </td>
+
+                <td style="padding:10px 8px;">
+                  <button (click)="openLotesModal(prod)" class="btn-action edit-btn"
+                    style="font-size:11px;padding:5px 8px;white-space:nowrap;">
+                    Gestionar Lotes
+                  </button>
                 </td>
 
               </tr>
@@ -1264,11 +1289,18 @@
               {{ lote.stock }} u.
             </td>
 
+            <td style="padding:10px 8px;">
+              <button (click)="openLotesModalPorNombre(lote.producto)" class="btn-action edit-btn"
+                style="font-size:11px;padding:5px 8px;white-space:nowrap;">
+                Gestionar Lotes
+              </button>
+            </td>
+
           </tr>
 
           <!-- Mensaje cuando no hay alertas -->
           <tr *ngIf="bajoStockCount === 0 && !reporteData?.lotesProximosVencer?.length">
-            <td colspan="4"
+            <td colspan="5"
                 style="padding:24px 10px;text-align:center;color:#16a34a;">
               ✓ No hay productos con poco stock ni lotes próximos a vencer.
             </td>

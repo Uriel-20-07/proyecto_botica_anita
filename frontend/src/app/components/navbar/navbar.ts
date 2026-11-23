@@ -6,7 +6,6 @@ import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
-import { ProductoApi } from '../../services/catalogo.service';
 import { AlgoliaService, AlgoliaProducto } from '../../services/algolia.service';
 
 @Component({
@@ -151,48 +150,14 @@ export class NavbarComponent implements OnDestroy {
   }
 
   /**
-   * El usuario seleccionó una sugerencia del dropdown: navega al catálogo
-   * con esa búsqueda para ver el producto junto con resultados relacionados.
+   * El usuario seleccionó una sugerencia del dropdown: navega al detalle
+   * del producto (/catalogo/producto?producto=...).
    */
   seleccionarSugerencia(sugerencia: AlgoliaProducto): void {
     this.terminoBusqueda = sugerencia.nombre;
     this.mostrarSugerencias = false;
     this.sugerencias = [];
     this.router.navigate(['/catalogo/producto'], { queryParams: { producto: sugerencia.idProducto } });
-  }
-
-  /**
-   * Agrega un producto directamente al carrito desde el dropdown de sugerencias,
-   * sin necesidad de navegar al catálogo.
-   *
-   * Se detiene la propagación del evento click para que NO se dispare
-   * seleccionarSugerencia() (que navegaría al catálogo).
-   *
-   * @param sugerencia producto de Algolia a agregar.
-   * @param event evento click del botón "+".
-   */
-  agregarDesdeSugerencia(sugerencia: AlgoliaProducto, event: MouseEvent): void {
-    event.stopPropagation();
-
-    const productoApi: ProductoApi = {
-      idProducto: sugerencia.idProducto,
-      nombre: sugerencia.nombre,
-      descripcion: sugerencia.descripcion ?? '',
-      precioVenta: sugerencia.precioVenta,
-      categoria: sugerencia.categoriaId
-        ? { idCategoria: sugerencia.categoriaId, nombre: sugerencia.categoriaNombre ?? 'General' }
-        : null
-    };
-
-    if (this.estaAgotado(sugerencia)) {
-      return;
-    }
-
-    this.cartService.add(productoApi);
-
-    // Cerrar el dropdown tras agregar
-    this.mostrarSugerencias = false;
-    this.sugerencias = [];
   }
 
   logout(): void {

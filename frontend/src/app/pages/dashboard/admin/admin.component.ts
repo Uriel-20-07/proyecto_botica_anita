@@ -47,6 +47,8 @@ export class AdminDashboardComponent implements OnInit {
   stats: any[] = [];
 
   searchCliente = '';
+  /** Estado de carga del botón "Actualizar" de la tabla de ventas. */
+  ventasCargando = false;
   searchProducto = '';
   categoriaFiltro: string = '';
 
@@ -54,6 +56,10 @@ export class AdminDashboardComponent implements OnInit {
   ticketPromedio = 0;
   totalPedidos = 0;
   bajoStockCount = 0;
+  /** Estado de carga del botón "Actualizar" de la tarjeta de Inventario. */
+  inventarioCargando = false;
+  /** Estado de carga del botón "Actualizar" de las alertas de inventario. */
+  alertasCargando = false;
 
   
 
@@ -266,14 +272,7 @@ ocultarDemandaEstacional(): void {
       error: (err: any) => console.error(err),
     });
 
-    this.adminService.getVentas().subscribe({
-      next: (data: any[]) => {
-        this.ventas = data;
-        this.calcularMetricasVentas();
-        this.calcularPredicciones();
-      },
-      error: (err: any) => console.error(err),
-    });
+    this.cargarVentas();
 
     this.adminService.getStats().subscribe({
       next: (data: any[]) => {
@@ -298,6 +297,27 @@ ocultarDemandaEstacional(): void {
       },
     });
 
+  }
+
+  /**
+   * Recarga la lista de ventas de la tabla (mismo endpoint de la carga inicial).
+   * Se usa en la carga inicial y en el botón "Actualizar" junto al buscador.
+   * No toca `searchCliente`, por lo que el filtro de búsqueda se mantiene intacto.
+   */
+  cargarVentas(): void {
+    this.ventasCargando = true;
+    this.adminService.getVentas().subscribe({
+      next: (data: any[]) => {
+        this.ventas = data;
+        this.calcularMetricasVentas();
+        this.calcularPredicciones();
+        this.ventasCargando = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.ventasCargando = false;
+      },
+    });
   }
 
 
@@ -386,23 +406,28 @@ ocultarDemandaEstacional(): void {
   }
 
   // ══════════ Métodos de pago (dona) ══════════
-  /** Agrupa las ventas ya cargadas por método de pago (mismos datos que las tarjetas de arriba). */
+  /**
+   * Agrupa las ventas ya cargadas por método de pago (mismos datos que las tarjetas de arriba).
+   * Se excluyen los métodos nulos / sin registrar ("Otro / sin registrar"): los porcentajes,
+   * los arcos de la dona y el total del centro se calculan únicamente sobre
+   * Tarjeta, Yape, Plin y SIP, de modo que los % suman 100% y la dona queda cerrada.
+   */
   calcularMetodosPago(): void {
     const defs = [
       { clave: 'TARJETA', etiqueta: 'Tarjeta', color: '#1a2a4a' },
       { clave: 'YAPE', etiqueta: 'Yape', color: '#7c3aed' },
       { clave: 'PLIN', etiqueta: 'Plin', color: '#06b6d4' },
       { clave: 'SIP', etiqueta: 'SIP', color: '#16a34a' },
-      { clave: 'OTRO', etiqueta: 'Otro / sin registrar', color: '#94a3b8' },
     ];
     const acum: Record<string, { cantidad: number; monto: number }> = {};
     defs.forEach((d) => (acum[d.clave] = { cantidad: 0, monto: 0 }));
 
     for (const v of this.ventas) {
       const clave = String(v.metodoPago ?? '').toUpperCase();
-      const destino = acum[clave] ? clave : 'OTRO';
-      acum[destino].cantidad += 1;
-      acum[destino].monto += Number(v.total) || 0;
+      // Excluye nulos, vacíos y métodos fuera de la lista ("Otro / sin registrar")
+      if (!acum[clave]) continue;
+      acum[clave].cantidad += 1;
+      acum[clave].monto += Number(v.total) || 0;
     }
 
     const totalCantidad = defs.reduce((a, d) => a + acum[d.clave].cantidad, 0);
@@ -613,6 +638,76 @@ ocultarDemandaEstacional(): void {
     }
   });
 }
+
+  /**
+   * Recarga el listado de inventario (productos y stock) desde el backend.
+   * No toca `categoriaFiltro` ni `searchProducto`: los filtros activos se conservan.
+   */
+  recargarInventario(): void {
+    this.inventarioCargando = true;
+    this.adminService.getProductos().subscribe({
+      next: (data: any[]) => {
+        this.productos = data;
+        this.bajoStockCount = this.productos.filter((p) => p.stock < 60).length;
+        this.calcularPredicciones();
+        this.inventarioCargando = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.inventarioCargando = false;
+      },
+    });
+  }
+
+  /**
+   * Recarga las alertas de inventario desde el backend: productos
+   * (stock bajo → `bajoStockCount` y filas "Poco stock") y reportes
+   * (lotes próximos a vencer → filas "Por vencer").
+   */
+  recargarAlertas(): void {
+    this.alertasCargando = true;
+    let pendientes = 2;
+    const terminar = () => {
+      pendientes -= 1;
+      if (pendientes <= 0) this.alertasCargando = false;
+    };
+
+    this.adminService.getProductos().subscribe({
+      next: (data: any[]) => {
+        this.productos = data;
+        this.bajoStockCount = this.productos.filter((p) => p.stock < 60).length;
+        this.calcularPredicciones();
+        terminar();
+      },
+      error: (err: any) => {
+        console.error(err);
+        terminar();
+      },
+    });
+
+    this.adminService.getReportes().subscribe({
+      next: (data: any) => {
+        this.reporteData = data;
+        terminar();
+      },
+      error: (err: any) => {
+        console.error('Error al cargar alertas:', err);
+        terminar();
+      },
+    });
+  }
+
+  /**
+   * Abre el modal de "Gestionar Lotes" buscando el producto por nombre.
+   * Se usa desde las alertas de inventario, donde los lotes por vencer
+   * llegan del backend únicamente con el nombre del producto.
+   */
+  openLotesModalPorNombre(nombre: string): void {
+    const buscado = (nombre || '').trim().toLowerCase();
+    if (!buscado) return;
+    const prod = this.productos.find((p) => (p?.nombre || '').trim().toLowerCase() === buscado);
+    if (prod) this.openLotesModal(prod);
+  }
 
 
   // ── Filtro calendario Top 10 ─────────────────────────────────────────────
@@ -1096,7 +1191,9 @@ ocultarDemandaEstacional(): void {
 
   closeLotesModal(): void {
     this.selectedProductoLotes = null;
+    // Recarga inventario (tabla) y alertas (stock bajo + lotes por vencer)
     this.cargarDatos();
+    this.cargarReportes();
   }
 
   guardarLote(): void {
@@ -1112,6 +1209,9 @@ ocultarDemandaEstacional(): void {
         this.lotesProductoActual.push(loteGuardado);
         this.nuevoLote = { codigoLote: '', cantidadActual: 0, fechaVencimiento: '' };
         this.loadingLotes = false;
+        // Refresca la tabla de inventario y las alertas con el nuevo lote
+        this.recargarInventario();
+        this.cargarReportes();
       },
       error: (err) => {
         this.loadingLotes = false;
@@ -1131,6 +1231,7 @@ ocultarDemandaEstacional(): void {
             (l) => (l.idLote || l.idlote) !== idParaEliminar,
           );
           this.cargarDatos();
+          this.cargarReportes();
         },
         error: (err) => {
           alert(`Error del servidor: ${err.status} - Revisa la consola`);

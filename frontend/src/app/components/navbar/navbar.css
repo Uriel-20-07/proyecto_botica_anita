@@ -400,6 +400,24 @@
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
     z-index: 1100;
     overflow: hidden;
+    /* Altura para 5 filas visibles (fila ≈ 60px + bordes) con scroll vertical */
+    max-height: 360px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Scrollbar discreto del dropdown */
+.navbar-autocomplete-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.navbar-autocomplete-dropdown::-webkit-scrollbar-thumb {
+    background: #c9d4e8;
+    border-radius: 8px;
+}
+
+.navbar-autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #a8b8d4;
 }
 
 .navbar-autocomplete-item {
@@ -467,24 +485,29 @@
     white-space: nowrap;
 }
 
-.navbar-sug-add-btn {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: none;
-    background: #e8edff;
-    color: #2b78e4;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+.navbar-sug-precio--oferta {
+    color: #e63946;
+    font-weight: 800;
 }
 
-.navbar-sug-add-btn:hover {
-    background: #2b78e4;
-    color: #ffffff;
+/* Columna de precio: alineada a la derecha de la fila */
+.navbar-sug-precio-container {
+    flex-shrink: 0;
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 70px;
+    text-align: right;
+}
+
+.navbar-sug-original-precio {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-decoration: line-through;
+    white-space: nowrap;
+    margin-top: 1px;
 }
 
 @media (max-width: 768px) {
