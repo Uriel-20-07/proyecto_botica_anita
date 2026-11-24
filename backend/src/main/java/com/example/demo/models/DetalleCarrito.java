@@ -43,7 +43,7 @@ public class DetalleCarrito {
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
-    /** Momento en que vence la reserva: 24 horas después de entrar al carrito (UTC). */
+    /** Momento en que vence la reserva: 2 horas después de entrar al carrito (UTC). */
     @Column(name = "fecha_expiracion", nullable = false)
     private LocalDateTime fechaExpiracion;
 
@@ -53,7 +53,7 @@ public class DetalleCarrito {
             fechaCreacion = LocalDateTime.now(ZoneOffset.UTC);
         }
         if (fechaExpiracion == null) {
-            fechaExpiracion = fechaCreacion.plusHours(24);
+            fechaExpiracion = fechaCreacion.plusHours(2);
         }
         if (estado == null) {
             estado = EstadoDetalleCarrito.ACTIVA;

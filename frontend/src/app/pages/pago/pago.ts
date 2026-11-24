@@ -249,7 +249,7 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     // Mantener la página sincronizada con el carrito real del servidor.
-    // Si una reserva de 24 h vence mientras el usuario está aquí, el backend
+    // Si una reserva de 2 h vence mientras el usuario está aquí, el backend
     // elimina la línea, avisa con un toast y aquí se recalculan los totales.
     this.cartSub = this.cartService.items$.subscribe((items) => {
       this.productosCarrito = items;

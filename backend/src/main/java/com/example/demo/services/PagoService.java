@@ -42,7 +42,7 @@ public class PagoService {
     @Autowired
     private DetalleCarritoRepository detalleCarritoRepository;
 
-    @Value("${app.carrito.reserva.horas:24}")
+    @Value("${app.carrito.reserva.horas:2}")
     private long horasReserva;
 
     @Value("${stripe.api.key}")

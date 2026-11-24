@@ -8,7 +8,7 @@ import { AuthModalService } from './auth-modal.service';
 import { ToastService } from './toast.service';
 import { environment } from '../../environments/environment';
 
-/** Producto cuya reserva de 24 h venció y volvió al stock. */
+/** Producto cuya reserva de 2 h venció y volvió al stock. */
 export interface ItemExpirado {
   idProducto: number;
   nombre: string;
@@ -27,7 +27,7 @@ export interface CartItem {
   cantidad: number;            // Unidades del producto en el carrito
   estado?: 'ACTIVA' | 'EXPIRADA' | 'CONFIRMADA' | 'LIBERADA';
   fechaCreacion?: string;      // UTC
-  fechaExpiracion?: string;    // UTC: 24 h después de entrar al carrito
+  fechaExpiracion?: string;    // UTC: 2 h después de entrar al carrito
   segundosRestantes?: number;  // calculado por el backend al responder
   reservaVencida?: boolean;    // calculado por el backend al responder
 }
@@ -133,7 +133,7 @@ export class CartService {
 
   /**
    * Procesa la respuesta completa del carrito:
-   * - Avisa al usuario si alguna reserva de 24 h venció.
+   * - Avisa al usuario si alguna reserva de 2 h venció.
    * - Actualiza la lista de ítems.
    */
   private procesarRespuestaCarrito(carrito: any): void {
@@ -456,7 +456,7 @@ export class CartService {
     return Math.max(0, Math.floor((expiracion.getTime() - Date.now()) / 1000));
   }
 
-  /** true si la reserva de 24 h de este ítem ya venció. */
+  /** true si la reserva de 2 h de este ítem ya venció. */
   estaReservaVencida(item: CartItem): boolean {
     if (!item) return false;
     if (item.estado === 'EXPIRADA' || item.reservaVencida === true) return true;

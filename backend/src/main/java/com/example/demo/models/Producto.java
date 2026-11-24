@@ -86,7 +86,7 @@ public class Producto {
     private Integer stock = 0;
 
     /**
-     * Unidades apartadas en carritos activos (reservas de 24 horas).
+     * Unidades apartadas en carritos activos (reservas de 2 horas).
      * El stock disponible para vender es {@code stock - stockEnCarrito}.
      */
     @Column(name = "stock_en_carrito", nullable = false, columnDefinition = "integer default 0")

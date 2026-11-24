@@ -3,7 +3,7 @@ package com.example.demo.dto;
 import java.time.LocalDateTime;
 
 /**
- * Producto cuya reserva de 24 horas venció y fue liberada.
+ * Producto cuya reserva de 2 horas venció y fue liberada.
  * Se devuelve en el carrito para que el frontend avise al usuario.
  */
 public record ItemExpiradoDTO(

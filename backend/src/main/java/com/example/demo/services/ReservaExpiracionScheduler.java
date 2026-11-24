@@ -15,7 +15,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 /**
- * Libera las reservas de carrito que cumplieron 24 horas.
+ * Libera las reservas de carrito que cumplieron 2 horas.
  *
  * No borra las líneas: las marca EXPIRADA para que el siguiente GET del
  * carrito las elimine y pueda avisar al usuario. Así el stock vuelve a estar

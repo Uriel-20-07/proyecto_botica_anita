@@ -5,5 +5,5 @@ export const environment = {
   mostrarRecetas: false,
   // Google Maps Platform (Maps JS API, Places, Geocoding y Routes).
   // Recomendado: restringir esta clave por referrer HTTP en Google Cloud Console.
-  googleMapsApiKey: '',
+  googleMapsApiKey: 'AIzaSyDyLofI1wMc3uwQdvEWPU3160X0DeC8asQ',
 };

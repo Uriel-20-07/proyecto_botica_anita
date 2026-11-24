@@ -22,7 +22,7 @@ export class CarritoComponent implements OnInit, OnDestroy {
     'equipos médicos': 'assets/img/producto2.png',
   };
 
-  // Bloquea el checkout si algún producto venció o su reserva de 24 h expiró.
+  // Bloquea el checkout si algún producto venció o su reserva de 2 h expiró.
   hasExpiredProducts = false;
 
   /** Evita pedir el carrito varias veces por el mismo vencimiento. */

@@ -26,7 +26,7 @@ import java.util.Optional;
  * Servicio que gestiona el carrito de compras de los usuarios.
  *
  * Cada usuario tiene exactamente UN carrito (relación OneToOne).
- * Cada línea de detalle reserva stock durante 24 horas. Si el usuario no
+ * Cada línea de detalle reserva stock durante 2 horas. Si el usuario no
  * compra en ese plazo, la reserva se libera y la línea se elimina en el
  * siguiente GET del carrito (devolviendo la lista de expirados para avisar).
  */
@@ -51,7 +51,7 @@ public class CarritoService {
     @Autowired
     private StockService stockService;
 
-    @Value("${app.carrito.reserva.horas:24}")
+    @Value("${app.carrito.reserva.horas:2}")
     private long horasReserva;
 
     /**
@@ -81,7 +81,7 @@ public class CarritoService {
     }
 
     /**
-     * Agrega un producto al carrito reservando stock durante 24 horas.
+     * Agrega un producto al carrito reservando stock durante 2 horas.
      */
     @Transactional
     public Carrito agregarProductoAlCarrito(Integer idUsuario, Integer idProducto, Integer cantidad) {
@@ -275,7 +275,7 @@ public class CarritoService {
                     detalle.getProducto().getNombre(),
                     detalle.getCantidad(),
                     detalle.getFechaExpiracion(),
-                    "La reserva de 24 horas venció y el producto volvió al stock."));
+                    "La reserva de 2 horas venció y el producto volvió al stock."));
 
             carrito.getDetalles().remove(detalle);
             aEliminar.add(detalle);

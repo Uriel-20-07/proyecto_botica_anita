@@ -60,7 +60,7 @@ public class Carrito {
     private List<DetalleCarrito> detalles;
 
     /**
-     * Líneas que se eliminaron por vencer su reserva de 24 horas.
+     * Líneas que se eliminaron por vencer su reserva de 2 horas.
      * No se persiste: se llena en la respuesta para que el frontend notifique.
      */
     @Transient
