@@ -48,8 +48,12 @@ export interface ProductoApi {
   fecha_caducidad?: any;
   precioConDescuento?: number;
   descuentoPorcentaje?: number;
-  agotado?: boolean;         // true si no hay stock o el producto está vencido
-  stock?: number;
+  agotado?: boolean;         // true si no hay stock físico o el producto está vencido
+  stock?: number;            // stock físico (incluye unidades reservadas)
+  stockEnCarrito?: number;   // unidades apartadas por carritos activos
+  stockDisponible?: number;  // stock que realmente se puede vender (stock - stockEnCarrito)
+  agotadoOnline?: boolean;   // true si no hay stock disponible para la venta online
+  estadoStock?: 'DISPONIBLE' | 'PARCIALMENTE_RESERVADO' | 'RESERVADO' | 'AGOTADO' | 'VENCIDO';
 }
 
 /**

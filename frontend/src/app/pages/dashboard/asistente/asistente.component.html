@@ -160,7 +160,7 @@
                     }
                     <span class="product-bottom">
                       <span class="product-price">S/ {{ p.precioVenta.toFixed(2) }}</span>
-                      <span class="stock-pill" [class.low]="p.stock <= 10">Stock {{ p.stock }}</span>
+                      <span class="stock-pill" [class.low]="stockVendible(p) <= 10">Stock {{ stockVendible(p) }}</span>
                     </span>
                   </span>
                   <span class="product-add"><i class="bi bi-plus-lg"></i></span>

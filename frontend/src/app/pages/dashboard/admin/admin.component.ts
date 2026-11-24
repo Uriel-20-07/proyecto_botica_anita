@@ -255,12 +255,19 @@ ocultarDemandaEstacional(): void {
     });
   }
 
+  /** Stock que realmente se puede vender (físico menos reservas de carritos). */
+  stockVendible(prod: any): number {
+    if (!prod) return 0;
+    if (prod.stockDisponible != null) return Math.max(0, Number(prod.stockDisponible));
+    return Math.max(0, Number(prod.stock) || 0);
+  }
+
   cargarDatos(): void {
     this.cargarSatisfaccion();
     this.adminService.getProductos().subscribe({
       next: (data: any[]) => {
         this.productos = data;
-        this.bajoStockCount = this.productos.filter((p) => p.stock < 60).length;
+        this.bajoStockCount = this.productos.filter((p) => this.stockVendible(p) < 60).length;
         this.calcularPredicciones();
       },
       error: (err: any) => console.error(err),
@@ -724,7 +731,7 @@ ocultarDemandaEstacional(): void {
     const tempCompra: any[] = [];
     this.productos.forEach(prod => {
       const sales30d = ventasPorProducto.get(prod.idProducto) || 0;
-      const stock = prod.stock || 0;
+      const stock = this.stockVendible(prod);
       const tcd = sales30d / 30.0; // Tasa de consumo diario
 
       if (stock === 0) {
@@ -843,7 +850,7 @@ ocultarDemandaEstacional(): void {
           producto: prod,
           estacion: estacionActual.nombre,
           incremento: incrementoDemanda,
-          sugerenciaStock: Math.max(Math.round(prod.stock * (1 + incrementoDemanda / 100)), prod.stock + 15),
+          sugerenciaStock: Math.max(Math.round(this.stockVendible(prod) * (1 + incrementoDemanda / 100)), this.stockVendible(prod) + 15),
           recomendacion: recomendacion
         });
       }
@@ -855,7 +862,7 @@ ocultarDemandaEstacional(): void {
           producto: prod,
           estacion: estacionActual.nombre,
           incremento: 25 + i * 5,
-          sugerenciaStock: prod.stock + 20,
+          sugerenciaStock: this.stockVendible(prod) + 20,
           recomendacion: `Aumento preventivo proyectado del ${25 + i * 5}% debido al cambio climático de la temporada.`
         });
       });
@@ -1022,7 +1029,7 @@ ocultarDemandaEstacional(): void {
     const tempDescuento: any[] = [];
     this.productos.forEach(prod => {
       const sales30d = ventasPorProducto.get(prod.idProducto) || 0;
-      const stock = prod.stock || 0;
+      const stock = this.stockVendible(prod);
       let necesitaDescuento = false;
       let porcentajeDescuento = 0;
       let motivoDescuento = '';

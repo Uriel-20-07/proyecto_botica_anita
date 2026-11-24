@@ -69,7 +69,8 @@ export class ProductoDetalleComponent implements OnInit {
    */
   get maxPermitido(): number {
     if (!this.producto) return 0;
-    const stock = this.producto.stock != null ? Number(this.producto.stock) : Number.POSITIVE_INFINITY;
+    const disponible = this.cartService.stockVendible(this.producto);
+    const stock = disponible != null ? disponible : Number.POSITIVE_INFINITY;
     return Math.max(0, Math.min(stock, 10 - this.cantidadEnCarrito));
   }
 
@@ -165,6 +166,9 @@ export class ProductoDetalleComponent implements OnInit {
             imagen: imagen,
             fechaCaducidad: fechaCad,
             stock: found.stock,
+            stockEnCarrito: found.stockEnCarrito,
+            stockDisponible: found.stockDisponible,
+            agotadoOnline: found.agotadoOnline,
             requiereReceta: this.requiereRecetaMedica(found.nombre)
           };
           this.mensaje = ''; // Limpiar mensaje de error ya que el producto fue encontrado con éxito
@@ -231,7 +235,7 @@ export class ProductoDetalleComponent implements OnInit {
     },
     error: (err) => {
       if (err?.status === 401) return; // ya se abrió el modal de login
-      const msg = err?.error?.mensaje || err?.error?.message
+      const msg = err?.error?.error || err?.error?.mensaje || err?.error?.message
         || 'No se pudo agregar el producto al carrito.';
       this.toastService.mostrar(msg);
     },
