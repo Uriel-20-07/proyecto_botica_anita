@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -57,13 +57,61 @@ export interface ProductoApi {
 }
 
 /**
+ * Respuesta paginada del endpoint GET /api/productos/paginado.
+ * Reproduce la estructura del DTO PageDTO del backend.
+ */
+export interface PaginaApi<T> {
+  content: T[];        // productos de la página actual (30)
+  totalPages: number;  // total de páginas
+  totalElements: number; // total de productos (sin paginar)
+  number: number;      // índice de la página actual (base 0)
+  size: number;        // tamaño de página solicitado
+}
+
+/**
+ * Filtros del catálogo. Se envían como query params al backend, que filtra
+ * sobre TODOS los productos y recién después pagina de 30 en 30.
+ * Todos los campos son opcionales: si no se envían, no filtran nada.
+ */
+export interface FiltroCatalogo {
+  categoriaId?: number | null;
+  subcategoriaIds?: number[];
+  marcaIds?: number[];
+  search?: string;
+  enOferta?: boolean;
+  precioMax?: number;
+  /** relevancia | precio_asc | precio_desc | nombre_asc */
+  orden?: string;
+}
+
+/** Conteo de productos de una subcategoría o marca. */
+export interface ConteoApi {
+  id: number;
+  nombre: string;
+  cantidad: number;
+}
+
+/**
+ * Respuesta de GET /api/productos/conteos: contadores reales del menú
+ * lateral (calculados en la BD, no sobre la página cargada) y el precio
+ * más alto del catálogo para el slider de precio.
+ */
+export interface ConteosApi {
+  subcategorias: ConteoApi[];
+  marcas: ConteoApi[];
+  precioMaximo: number;
+}
+
+/**
  * Servicio para consumir la API del catálogo de productos, categorías y marcas.
  * Singleton compartido en toda la aplicación (providedIn: 'root').
  * 
  * Conecta con los endpoints públicos del backend:
- * - GET /api/productos  → lista de todos los productos.
- * - GET /api/categorias → lista de categorías disponibles.
- * - GET /api/marcas     → lista de marcas disponibles.
+ * - GET /api/productos           → lista de todos los productos.
+ * - GET /api/productos/paginado  → catálogo paginado + filtros (30 por página).
+ * - GET /api/productos/conteos   → conteos por subcategoría/marca + precio máximo.
+ * - GET /api/categorias          → lista de categorías disponibles.
+ * - GET /api/marcas              → lista de marcas disponibles.
  */
 @Injectable({
   providedIn: 'root'
@@ -85,11 +133,71 @@ export class CatalogoService {
 
   /**
    * Obtiene la lista completa de productos del catálogo.
+   * Se mantiene para componentes que necesitan todo el catálogo
+   * (carrousel, detalle, marcas). La página del catálogo usa
+   * {@link getProductosPaginado}.
    *
    * @returns Observable con array de ProductoApi.
    */
   getProductos(): Observable<ProductoApi[]> {
     return this.http.get<ProductoApi[]>(this.productosUrl);
+  }
+
+  /**
+   * Obtiene una página del catálogo (30 productos por defecto) ya filtrada
+   * por el backend: los filtros se aplican sobre todos los productos y
+   * recién después se pagina, así el listado no depende de lo que haya
+   * cargado en memoria.
+   *
+   * @param page índice de página, base 0.
+   * @param size cantidad de productos por página.
+   * @param filtros filtros activos (categoría, subcategorías, marcas,
+   *                búsqueda, ofertas, precio máximo y orden).
+   * @returns Observable con la página (content, totalPages, totalElements, number, size).
+   */
+  getProductosPaginado(page = 0, size = 30, filtros: FiltroCatalogo = {}): Observable<PaginaApi<ProductoApi>> {
+    let params = new HttpParams()
+      .set('page', String(page))
+      .set('size', String(size));
+
+    if (filtros.categoriaId != null) {
+      params = params.set('categoriaId', String(filtros.categoriaId));
+    }
+    for (const id of filtros.subcategoriaIds ?? []) {
+      params = params.append('subcategoriaId', String(id));
+    }
+    for (const id of filtros.marcaIds ?? []) {
+      params = params.append('marcaId', String(id));
+    }
+    if (filtros.search && filtros.search.trim()) {
+      params = params.set('search', filtros.search.trim());
+    }
+    if (filtros.enOferta) {
+      params = params.set('enOferta', 'true');
+    }
+    if (filtros.precioMax != null) {
+      params = params.set('precioMax', String(filtros.precioMax));
+    }
+    if (filtros.orden && filtros.orden !== 'relevancia') {
+      params = params.set('orden', filtros.orden);
+    }
+
+    return this.http.get<PaginaApi<ProductoApi>>(`${this.productosUrl}/paginado`, { params });
+  }
+
+  /**
+   * Conteos reales del catálogo (productos por subcategoría y por marca)
+   * calculados en la BD, más el precio más alto del catálogo.
+   *
+   * @param categoriaId categoría opcional para acotar los conteos de marcas.
+   * @returns Observable con los conteos y el precio máximo global.
+   */
+  getConteos(categoriaId?: number | null): Observable<ConteosApi> {
+    let params = new HttpParams();
+    if (categoriaId != null) {
+      params = params.set('categoriaId', String(categoriaId));
+    }
+    return this.http.get<ConteosApi>(`${this.productosUrl}/conteos`, { params });
   }
 
   /**

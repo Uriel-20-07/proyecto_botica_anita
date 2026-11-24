@@ -3,5 +3,5 @@ export const environment = {
   apiUrl: 'http://localhost:8080',
   // Mostrar flujo de recetas médicas (subida en checkout, tab admin, avisos). En false se oculta sin borrar código.
   mostrarRecetas: false,
-  googleMapsApiKey: 'AIzaSyDyLofI1wMc3uwQdvEWPU3160X0DeC8asQ',
+  googleMapsApiKey: '',
 };
