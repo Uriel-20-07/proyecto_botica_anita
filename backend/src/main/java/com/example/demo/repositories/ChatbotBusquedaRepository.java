@@ -34,7 +34,8 @@ public class ChatbotBusquedaRepository {
     private static final int SIN_FILTRO = ChatbotCatalogoRepository.SIN_FILTRO;
 
     private static final String SELECT_DTO = "select new com.example.demo.dto.chatbot.ProductoChatDTO("
-            + "p.idProducto, p.nombre, p.precioVenta, p.precioOferta, p.enOferta, p.stock, p.fechaCaducidad, p.imgUrl) ";
+            + "p.idProducto, p.nombre, p.precioVenta, p.precioOferta, p.enOferta, "
+            + "(p.stock - coalesce(p.stockEnCarrito, 0)), p.fechaCaducidad, p.imgUrl) ";
 
     /** Texto donde se busca, en minúsculas y sin tildes (la "ñ" pasa a "n"). */
     private static final String TEXTO_BUSCABLE = sinAcentos(

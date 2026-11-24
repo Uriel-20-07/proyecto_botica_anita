@@ -20,17 +20,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.PedidoEmailDTO;
 import com.example.demo.models.Administrador;
-import com.example.demo.models.DetallePedido;
 import com.example.demo.models.Pedido;
 import com.example.demo.models.Producto;
 import com.example.demo.models.User;
 import com.example.demo.repositories.AdministradorRepository;
-import com.example.demo.repositories.DetallePedidoRepository;
 import com.example.demo.repositories.PedidoRepository;
 import com.example.demo.repositories.ProductoRepository;
 import com.example.demo.services.EmailService;
 import com.example.demo.services.JwtService;
 import com.example.demo.services.PagoService;
+import com.example.demo.services.VentaPresencialService;
 
 /**
  * Controlador para el rol "asistente" (personal de tienda).
@@ -55,9 +54,6 @@ public class AsistenteController {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private DetallePedidoRepository detallePedidoRepository;
-
-    @Autowired
     private EmailService emailService;
 
     @Autowired
@@ -65,6 +61,9 @@ public class AsistenteController {
 
     @Autowired
     private PagoService pagoService;
+
+    @Autowired
+    private VentaPresencialService ventaPresencialService;
 
     private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder passwordEncoder =
             new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
@@ -111,12 +110,13 @@ public class AsistenteController {
     }
 
     /**
-     * Lista de productos disponibles (stock > 0) para el POS.
+     * Lista de productos disponibles para el POS.
+     * Solo incluye lo que se puede vender: stock físico menos reservas de carritos.
      */
     @GetMapping("/productos")
     public ResponseEntity<?> listarProductos() {
         List<Producto> productos = productoRepository.findAll().stream()
-                .filter(p -> p.getStock() != null && p.getStock() > 0 && !p.isAgotado())
+                .filter(p -> p.getStockDisponible() > 0 && !p.isAgotado())
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(productos);
     }
@@ -134,78 +134,12 @@ public class AsistenteController {
             String emailCliente = request.get("emailCliente") != null ? String.valueOf(request.get("emailCliente")) : null;
             String nombreCliente = request.get("nombreCliente") != null ? String.valueOf(request.get("nombreCliente")) : "Cliente en tienda";
 
-            if (items == null || items.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "El carrito est\u00e1 vac\u00edo"));
-            }
-
-            // Validar stock
-            for (Map<String, Object> item : items) {
-                Integer idProd = Integer.valueOf(String.valueOf(item.get("idProducto")));
-                int cant = Integer.parseInt(String.valueOf(item.get("cantidad")));
-                Producto prod = productoRepository.findById(idProd).orElse(null);
-                if (prod == null) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "Producto no encontrado: " + idProd));
-                }
-                if (prod.getStock() == null || prod.getStock() < cant) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "Stock insuficiente para " + prod.getNombre()));
-                }
-            }
-
-            // Crear pedido
-            Pedido pedido = new Pedido();
-            pedido.setFecha(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
-            pedido.setEstado("PAGADO");
-            pedido.setMetodoPago(metodoPago);
-            pedido.setEsUrgente(false);
-            pedido.setDireccionEnvio("Venta en tienda");
-            pedido.setDistrito("Independencia");
-
-            // Calcular total
-            double total = 0.0;
-            List<com.example.demo.models.DetallePedido> detalles = new ArrayList<>();
-            for (Map<String, Object> item : items) {
-                Integer idProd = Integer.valueOf(String.valueOf(item.get("idProducto")));
-                int cant = Integer.parseInt(String.valueOf(item.get("cantidad")));
-                Producto prod = productoRepository.findById(idProd).orElseThrow();
-                double precio = prod.getPrecioVenta() != null ? prod.getPrecioVenta().doubleValue() : 0.0;
-                total += precio * cant;
-
-                com.example.demo.models.DetallePedido det = new com.example.demo.models.DetallePedido();
-                det.setPedido(pedido);
-                det.setProducto(prod);
-                det.setCantidad(cant);
-                det.setPrecioHistorico(prod.getPrecioVenta());
-                detalles.add(det);
-            }
-            pedido.setTotal(java.math.BigDecimal.valueOf(total));
-            pedidoRepository.save(pedido);
-
-            // Guardar detalles y descontar stock
-            for (com.example.demo.models.DetallePedido det : detalles) {
-                detallePedidoRepository.save(det);
-                // Descontar stock
-                Producto prod = det.getProducto();
-                int nuevoStock = (prod.getStock() != null ? prod.getStock() : 0) - det.getCantidad();
-                prod.setStock(Math.max(0, nuevoStock));
-                productoRepository.save(prod);
-            }
-
-            // Enviar boleta por email si hay email del cliente.
-            // El stock y la venta ya quedaron guardados; el correo sale en otro hilo.
-            if (emailCliente != null && !emailCliente.isBlank()) {
-                String nro = String.format("%06d", pedido.getIdPedido());
-                PedidoEmailDTO emailDto = PedidoEmailDTO.from(
-                        pedido, emailCliente, nombreCliente, detalles, null, nro);
-                emailService.sendBoletaPresencialEmail(emailDto);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("ok", true);
-            response.put("idPedido", pedido.getIdPedido());
-            response.put("total", pedido.getTotal());
-            response.put("nroBoleta", String.format("%06d", pedido.getIdPedido()));
+            // La venta completa (pedido + detalles + stock) se ejecuta en una sola
+            // transacción dentro del servicio: si algo falla, no queda nada a medias.
+            Map<String, Object> response = ventaPresencialService.registrarVenta(
+                    items, metodoPago, emailCliente, nombreCliente);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
