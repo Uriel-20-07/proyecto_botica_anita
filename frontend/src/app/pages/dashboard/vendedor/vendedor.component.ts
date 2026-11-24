@@ -34,6 +34,13 @@ export class VendedorDashboardComponent implements OnInit {
     this.cargarInventario();
   }
 
+  /** Stock que realmente se puede vender (físico menos reservas de carritos). */
+  stockVendible(prod: any): number {
+    if (!prod) return 0;
+    if (prod.stockDisponible != null) return Math.max(0, Number(prod.stockDisponible));
+    return Math.max(0, Number(prod.stock) || 0);
+  }
+
   cargarInventario(): void {
     this.adminService.getProductos().subscribe({
       next: (data: any[]) => {

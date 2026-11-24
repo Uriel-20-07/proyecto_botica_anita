@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CartService, CartItem } from '../../services/cart.service';
 import { PromocionService, PromoAplicada } from '../../services/promocion.service';
@@ -11,7 +11,7 @@ import { PromocionService, PromoAplicada } from '../../services/promocion.servic
   templateUrl: './carrito.html',
   styleUrl: './carrito.css',
 })
-export class CarritoComponent {
+export class CarritoComponent implements OnInit, OnDestroy {
   private readonly imagenPorCategoria: Record<string, string> = {
     medicamentos: 'assets/img/producto1.png',
     'cuidado personal': 'assets/img/producto2.png',
@@ -22,8 +22,14 @@ export class CarritoComponent {
     'equipos médicos': 'assets/img/producto2.png',
   };
 
-  // Variable de seguridad para bloquear el checkout si hay productos expirados
+  // Bloquea el checkout si algún producto venció o su reserva de 2 h expiró.
   hasExpiredProducts = false;
+
+  /** Evita pedir el carrito varias veces por el mismo vencimiento. */
+  private refrescoSolicitado = false;
+
+  /** Actualiza la cuenta regresiva cada segundo. */
+  private temporizador?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly cartService: CartService,
@@ -32,6 +38,17 @@ export class CarritoComponent {
   ) {
     // Reglas de las promociones para calcular el descuento del carrito
     this.promocionService.cargarReglas().subscribe();
+  }
+
+  ngOnInit(): void {
+    this.actualizarEstadoExpiracion();
+    this.temporizador = setInterval(() => this.actualizarEstadoExpiracion(), 1000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.temporizador) {
+      clearInterval(this.temporizador);
+    }
   }
 
   /**
@@ -59,11 +76,51 @@ export class CarritoComponent {
 
   getItems() {
     const items = this.cartService.getItems();
-    // Verificamos en tiempo real si hay productos vencidos en la lista
+    // Se recalcula también en el temporizador, para reflejar el vencimiento en vivo.
     this.hasExpiredProducts = items.some(
-      (item) => this.getDiscountInfo(this.getFecha(item.producto)).isExpired,
+      (item) =>
+        this.cartService.estaReservaVencida(item) ||
+        this.getDiscountInfo(item.producto).isExpired,
     );
     return items;
+  }
+
+  /** Revisa reservas vencidas y pide al backend que libere las que correspondan. */
+  private actualizarEstadoExpiracion(): void {
+    const items = this.cartService.getItems();
+    const hayReservaVencida = items.some((item) => this.cartService.estaReservaVencida(item));
+
+    this.hasExpiredProducts =
+      hayReservaVencida || items.some((item) => this.getDiscountInfo(item.producto).isExpired);
+
+    if (hayReservaVencida && !this.refrescoSolicitado) {
+      // El backend libera el stock, borra la línea y devuelve la lista de expirados.
+      this.refrescoSolicitado = true;
+      this.cartService.refrescarCarrito();
+    } else if (!hayReservaVencida) {
+      this.refrescoSolicitado = false;
+    }
+  }
+
+  /** Segundos restantes de la reserva de este ítem. */
+  getTiempoRestante(item: CartItem): number {
+    return this.cartService.getSegundosRestantes(item);
+  }
+
+  /** Texto de la cuenta regresiva ("23h 59m", "12m 05s"...). */
+  getTiempoTexto(item: CartItem): string {
+    return this.cartService.formatearTiempoRestante(this.getTiempoRestante(item));
+  }
+
+  /** true si la reserva ya venció (la línea se eliminará al refrescar). */
+  esReservaVencida(item: CartItem): boolean {
+    return this.cartService.estaReservaVencida(item);
+  }
+
+  /** true cuando queda menos de 1 hora de reserva (para resaltar el aviso). */
+  reservaPorVencer(item: CartItem): boolean {
+    const segundos = this.getTiempoRestante(item);
+    return segundos > 0 && segundos <= 3600;
   }
 
   /**
@@ -78,14 +135,14 @@ export class CarritoComponent {
 
   /**
    * true mientras se pueda sumar una unidad más de este ítem:
-   * máximo 10 por producto (regla de negocio) y sin superar el stock.
+   * máximo 10 por producto (regla de negocio) y con stock disponible.
    */
   puedeAumentar(item: CartItem): boolean {
     if (!item) return false;
     if (item.cantidad >= 10) return false;
-    const stock = item.producto?.stock;
-    if (stock != null && item.cantidad >= Number(stock)) return false;
-    return true;
+    if (this.cartService.estaReservaVencida(item)) return false;
+    const disponible = this.cartService.stockVendible(item.producto);
+    return disponible == null || disponible > 0;
   }
 
   getProductImage(producto: any): string {
