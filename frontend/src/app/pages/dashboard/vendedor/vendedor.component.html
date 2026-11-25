@@ -78,9 +78,14 @@
                 <td>{{ prod.categoria?.nombre || 'General' }}</td>
                 <td class="bold-text">S/. {{ prod.precioVenta | number:'1.2-2' }}</td>
                 <td>
-                  <span class="stock-badge" [class.danger-badge]="prod.stock < 60" [class.success-badge]="prod.stock >= 60">
-                    {{ prod.stock }} unidades
-                  </span>
+                  <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                    <span class="stock-badge" [class.danger-badge]="stockVendible(prod) < 60" [class.success-badge]="stockVendible(prod) >= 60">
+                      {{ stockVendible(prod) }} disp.
+                    </span>
+                    <span *ngIf="prod.stockEnCarrito > 0" style="font-size:0.7rem;color:#b45309;font-weight:700;">
+                      {{ prod.stockEnCarrito }} reservadas
+                    </span>
+                  </div>
                 </td>
               </tr>
               <tr *ngIf="filteredProductos.length === 0">

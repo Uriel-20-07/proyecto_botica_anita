@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.ArrayList;
 import java.util.List;
+
+import com.example.demo.dto.ItemExpiradoDTO;
 
 /**
  * Entidad JPA que representa el carrito de compras de un usuario.
@@ -55,4 +58,11 @@ public class Carrito {
     @OneToMany(mappedBy = "carrito", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("idDetalleCarrito ASC")
     private List<DetalleCarrito> detalles;
+
+    /**
+     * Líneas que se eliminaron por vencer su reserva de 2 horas.
+     * No se persiste: se llena en la respuesta para que el frontend notifique.
+     */
+    @Transient
+    private List<ItemExpiradoDTO> expirados = new ArrayList<>();
 }

@@ -5,7 +5,17 @@ import { tap } from 'rxjs/operators';
 import { ProductoApi } from './catalogo.service';
 import { AuthService } from './auth.service';
 import { AuthModalService } from './auth-modal.service';
+import { ToastService } from './toast.service';
 import { environment } from '../../environments/environment';
+
+/** Producto cuya reserva de 2 h venció y volvió al stock. */
+export interface ItemExpirado {
+  idProducto: number;
+  nombre: string;
+  cantidad: number;
+  fechaExpiracion?: string;
+  mensaje?: string;
+}
 
 /**
  * Interfaz que representa un ítem (línea) dentro del carrito de compras.
@@ -15,6 +25,11 @@ export interface CartItem {
   idDetalleCarrito?: number;  // ID del detalle en BD (opcional: no existe antes de guardar)
   producto: ProductoApi;       // Datos completos del producto
   cantidad: number;            // Unidades del producto en el carrito
+  estado?: 'ACTIVA' | 'EXPIRADA' | 'CONFIRMADA' | 'LIBERADA';
+  fechaCreacion?: string;      // UTC
+  fechaExpiracion?: string;    // UTC: 2 h después de entrar al carrito
+  segundosRestantes?: number;  // calculado por el backend al responder
+  reservaVencida?: boolean;    // calculado por el backend al responder
 }
 
 /**
@@ -56,7 +71,8 @@ export class CartService {
   constructor(
     private readonly http: HttpClient,
     private readonly authService: AuthService,
-    private readonly authModalService: AuthModalService
+    private readonly authModalService: AuthModalService,
+    private readonly toastService: ToastService
   ) {
     // Escuchar cambios de autenticación para cargar o limpiar el carrito
     this.authService.token$.subscribe((token) => {
@@ -116,6 +132,53 @@ export class CartService {
   }
 
   /**
+   * Procesa la respuesta completa del carrito:
+   * - Avisa al usuario si alguna reserva de 2 h venció.
+   * - Actualiza la lista de ítems.
+   */
+  private procesarRespuestaCarrito(carrito: any): void {
+    if (!carrito) return;
+    this.notificarExpirados(carrito.expirados);
+    if (carrito.detalles) {
+      this.aplicarDetallesDelServidor(carrito.detalles);
+    }
+  }
+
+  /**
+   * Muestra un aviso por cada reserva que venció y volvió al stock.
+   * El backend borra esas líneas al responder, así que solo se avisa una vez.
+   */
+  private notificarExpirados(expirados: ItemExpirado[] | null | undefined): void {
+    if (!Array.isArray(expirados) || expirados.length === 0) return;
+
+    if (expirados.length === 1) {
+      const e = expirados[0];
+      this.toastService.mostrar(
+        `La reserva de "${e.nombre}" venció y volvió al stock.`,
+        'error',
+        5000
+      );
+      return;
+    }
+
+    const nombres = expirados.map((e) => e.nombre).join(', ');
+    this.toastService.mostrar(
+      `Las reservas de ${nombres} vencieron y volvieron al stock.`,
+      'error',
+      5500
+    );
+  }
+
+  /**
+   * Vuelve a pedir el carrito al servidor. Sirve para que el backend
+   * elimine las reservas vencidas y avise al usuario.
+   */
+  refrescarCarrito(): void {
+    if (!this.authService.isAuthenticated()) return;
+    this.cargarCarritoServidor();
+  }
+
+  /**
    * Carga el carrito desde el servidor y actualiza el estado local.
    * Se llama automáticamente al iniciar sesión.
    * En caso de error (backend no disponible), usa el carrito almacenado en localStorage.
@@ -123,9 +186,7 @@ export class CartService {
   private cargarCarritoServidor(): void {
     this.http.get<any>(this.apiUrl, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
       },
       error: (err) => {
         console.error('Error al cargar el carrito del servidor:', err);
@@ -154,9 +215,7 @@ export class CartService {
     const url = `${this.apiUrl}/agregar?idProducto=${producto.idProducto}&cantidad=1`;
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
         onSuccess?.();
       },
       error: (err) => this.manejarErrorCarrito(err, 'agregar el producto al carrito')
@@ -171,14 +230,22 @@ export class CartService {
    */
   private manejarErrorCarrito(err: any, accion: string): void {
     console.error(`Error al ${accion}:`, err);
+    const mensajeBackend = err?.error?.error || err?.error?.mensaje;
+
     if (err?.status === 401 || err?.status === 403) {
       this.authService.logout();
       this.authModalService.open('login');
-      alert('Tu sesión venció. Inicia sesión nuevamente para continuar.');
+      this.toastService.mostrar('Tu sesión venció. Inicia sesión nuevamente para continuar.', 'error', 5000);
     } else if (err?.status === 0) {
-      alert('No se pudo conectar con el servidor. Verifica que el backend esté en ejecución (puerto 8080).');
+      this.toastService.mostrar(
+        'No se pudo conectar con el servidor. Verifica que el backend esté en ejecución (puerto 8080).',
+        'error',
+        5000
+      );
+    } else if (mensajeBackend) {
+      this.toastService.mostrar(String(mensajeBackend), 'error', 5000);
     } else {
-      alert(`No se pudo ${accion}. Intenta nuevamente.`);
+      this.toastService.mostrar(`No se pudo ${accion}. Intenta nuevamente.`, 'error', 4000);
     }
   }
 
@@ -203,9 +270,7 @@ export class CartService {
     const url = `${this.apiUrl}/agregar?idProducto=${idProducto}&cantidad=${cantidad}`;
     return this.http.post<any>(url, {}, { headers: this.getHeaders() }).pipe(
       tap((carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
       })
     );
   }
@@ -225,9 +290,7 @@ export class CartService {
     const url = `${this.apiUrl}/disminuir?idProducto=${productoId}`;
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
       },
       error: (err) => {
         console.error('Error al disminuir producto del carrito:', err);
@@ -249,9 +312,7 @@ export class CartService {
     const url = `${this.apiUrl}/eliminar?idProducto=${productoId}`;
     this.http.delete<any>(url, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
       },
       error: (err) => {
         console.error('Error al eliminar producto del carrito:', err);
@@ -273,9 +334,7 @@ export class CartService {
     const url = `${this.apiUrl}/vaciar`;
     this.http.delete<any>(url, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
-        if (carrito && carrito.detalles) {
-          this.aplicarDetallesDelServidor(carrito.detalles);
-        }
+        this.procesarRespuestaCarrito(carrito);
       },
       error: (err) => {
         console.error('Error al vaciar el carrito:', err);
@@ -367,9 +426,78 @@ export class CartService {
     return { percentage, message, isExpired };
   }
 
-  /** Agotado = sin stock o vencido (el backend lo envía como "agotado"; respaldo por stock/fecha). */
+  /** Convierte una fecha del backend a Date, interpretando las fechas sin zona como UTC. */
+  private parseFechaUtc(valor: any): Date | null {
+    if (!valor) return null;
+
+    if (Array.isArray(valor)) {
+      const [anio, mes, dia, hora = 0, minuto = 0, segundo = 0] = valor;
+      if (anio == null || mes == null || dia == null) return null;
+      return new Date(Date.UTC(anio, mes - 1, dia, hora, minuto, segundo));
+    }
+
+    let texto = String(valor).trim();
+    if (!texto) return null;
+    // LocalDateTime del backend no trae zona: se interpreta como UTC.
+    if (!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(texto)) {
+      texto += 'Z';
+    }
+    const fecha = new Date(texto);
+    return isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  /** Segundos que le quedan a la reserva de un ítem (0 si ya venció). */
+  getSegundosRestantes(item: CartItem): number {
+    if (!item) return 0;
+    const expiracion = this.parseFechaUtc(item.fechaExpiracion);
+    if (!expiracion) {
+      return Math.max(0, Number(item.segundosRestantes) || 0);
+    }
+    return Math.max(0, Math.floor((expiracion.getTime() - Date.now()) / 1000));
+  }
+
+  /** true si la reserva de 2 h de este ítem ya venció. */
+  estaReservaVencida(item: CartItem): boolean {
+    if (!item) return false;
+    if (item.estado === 'EXPIRADA' || item.reservaVencida === true) return true;
+    const expiracion = this.parseFechaUtc(item.fechaExpiracion);
+    return expiracion != null && expiracion.getTime() <= Date.now();
+  }
+
+  /** Texto corto para la cuenta regresiva: "23h 59m", "12m 05s" o "Reserva vencida". */
+  formatearTiempoRestante(segundos: number): string {
+    if (segundos <= 0) return 'Reserva vencida';
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const segs = segundos % 60;
+    const dosDigitos = (n: number) => (n < 10 ? '0' + n : String(n));
+    if (horas > 0) return `${horas}h ${dosDigitos(minutos)}m`;
+    if (minutos > 0) return `${minutos}m ${dosDigitos(segs)}s`;
+    return `${segs}s`;
+  }
+
+  /** Unidades que se pueden vender ahora (stock físico menos reservas). */
+  stockVendible(producto: any): number | null {
+    if (!producto) return null;
+    if (producto.stockDisponible != null) {
+      return Math.max(0, Number(producto.stockDisponible));
+    }
+    if (producto.stock != null) {
+      return Math.max(0, Number(producto.stock));
+    }
+    return null;
+  }
+
+  /**
+   * Agotado para la venta online: sin stock disponible o vencido.
+   * Si el backend envía "agotadoOnline" se usa ese valor (ya descuenta reservas).
+   */
   estaAgotado(producto: any): boolean {
     if (!producto) return false;
+    if (typeof producto.agotadoOnline === 'boolean') return producto.agotadoOnline;
+    if (producto.stockDisponible != null) {
+      return Number(producto.stockDisponible) <= 0 || this.getDiscountInfo(producto).isExpired;
+    }
     if (producto.agotado === true) return true;
     if (producto.stock != null && Number(producto.stock) <= 0) return true;
     return this.getDiscountInfo(producto).isExpired;

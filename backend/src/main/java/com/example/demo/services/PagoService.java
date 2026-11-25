@@ -2,6 +2,7 @@ package com.example.demo.services;
 
 import com.example.demo.dto.PagoRequest;
 import com.example.demo.dto.PedidoEmailDTO;
+import com.example.demo.exceptions.CarritoException;
 import com.example.demo.models.*;
 import com.example.demo.repositories.*;
 import com.stripe.Stripe;
@@ -27,6 +28,8 @@ public class PagoService {
     @Autowired
     private CarritoService carritoService;
     @Autowired
+    private StockService stockService;
+    @Autowired
     private PromocionService promocionService;
     @Autowired
     private CuponRepository cuponRepository;
@@ -35,12 +38,12 @@ public class PagoService {
     @Autowired
     private DetallePedidoRepository detallePedidoRepository;
     @Autowired
-    private ProductoRepository productoRepository;
-    @Autowired
     private EmailService emailService;
-    // INYECTAMOS EL REPOSITORIO DE LOTES
     @Autowired
-    private InventarioLoteRepository loteRepository;
+    private DetalleCarritoRepository detalleCarritoRepository;
+
+    @Value("${app.carrito.reserva.horas:2}")
+    private long horasReserva;
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
@@ -122,55 +125,6 @@ public class PagoService {
         return 2 * r * Math.asin(Math.sqrt(a));
     }
 
-    /**
-     * LÓGICA FEFO: Descuenta el stock de los lotes que vencen primero.
-     * Recibe el Producto ya cargado desde el carrito para no volver a buscarlo.
-     */
-    private void descontarStockLotesFefo(Producto producto, int cantidadComprada) {
-        Integer idProducto = producto.getIdProducto();
-        List<InventarioLote> lotes = loteRepository.findByProductoIdProductoOrderByFechaVencimientoAsc(idProducto);
-        int cantidadRestante = cantidadComprada;
-
-        if (lotes.isEmpty()) {
-            // El producto no tiene lotes físicos registrados:
-            // se descuenta directamente del stock general del producto.
-            int stockActual = producto.getStock() != null ? producto.getStock() : 0;
-            if (stockActual < cantidadComprada) {
-                throw new RuntimeException("Stock insuficiente para el producto: " + producto.getNombre());
-            }
-            producto.setStock(stockActual - cantidadComprada);
-            productoRepository.save(producto);
-            return;
-        }
-
-        // Lógica FEFO: descontar de los lotes que vencen primero
-        List<InventarioLote> modificados = new ArrayList<>();
-        for (InventarioLote lote : lotes) {
-            if (cantidadRestante <= 0)
-                break;
-            if (lote.getCantidadActual() <= 0)
-                continue;
-
-            if (lote.getCantidadActual() >= cantidadRestante) {
-                lote.setCantidadActual(lote.getCantidadActual() - cantidadRestante);
-                cantidadRestante = 0;
-            } else {
-                cantidadRestante -= lote.getCantidadActual();
-                lote.setCantidadActual(0);
-            }
-            modificados.add(lote);
-        }
-
-        if (cantidadRestante > 0) {
-            throw new RuntimeException("Stock insuficiente en lotes físicos para el producto ID: " + idProducto);
-        }
-
-        // Un solo flush para todos los lotes tocados.
-        if (!modificados.isEmpty()) {
-            loteRepository.saveAll(modificados);
-        }
-    }
-
     public PaymentIntent crearPaymentIntent(Integer idUsuario, PagoRequest request) throws Exception {
         Carrito carrito = carritoService.obtenerOCrearCarrito(idUsuario);
         if (carrito.getDetalles().isEmpty())
@@ -231,8 +185,34 @@ public class PagoService {
         if (carrito.getDetalles().isEmpty())
             throw new RuntimeException("Carrito vacío.");
 
-        // Los productos agotados (sin stock o vencidos) no se pueden comprar
+        // Validar reservas: si la línea ya fue marcada EXPIRADA (stock liberado),
+        // se intenta reservar de nuevo. Si sigue ACTIVA pero pasó la hora, la
+        // reserva todavía está contada en stockEnCarrito: solo se extiende.
+        LocalDateTime ahora = LocalDateTime.now(ZoneOffset.UTC);
         for (DetalleCarrito d : carrito.getDetalles()) {
+            boolean vencida = d.getFechaExpiracion() == null
+                    || !d.getFechaExpiracion().isAfter(ahora);
+
+            if (d.getEstado() == EstadoDetalleCarrito.EXPIRADA) {
+                try {
+                    stockService.reservar(d.getProducto().getIdProducto(), d.getCantidad());
+                    d.setEstado(EstadoDetalleCarrito.ACTIVA);
+                    d.setFechaExpiracion(ahora.plusHours(horasReserva));
+                    detalleCarritoRepository.save(d);
+                } catch (CarritoException e) {
+                    throw new RuntimeException("La reserva de \"" + d.getProducto().getNombre()
+                            + "\" venció y ya no hay stock disponible. Vuelve a agregarlo al carrito.");
+                }
+            } else if (d.getEstado() != EstadoDetalleCarrito.ACTIVA) {
+                throw new RuntimeException("La reserva de \"" + d.getProducto().getNombre()
+                        + "\" ya no está activa. Vuelve a agregarlo al carrito.");
+            } else if (vencida) {
+                // La reserva sigue vigente en stockEnCarrito: se extiende para que
+                // el scheduler no la libere mientras se confirma el pago.
+                d.setFechaExpiracion(ahora.plusHours(horasReserva));
+                detalleCarritoRepository.save(d);
+            }
+
             if (d.getProducto().isAgotado()) {
                 throw new RuntimeException("El producto \"" + d.getProducto().getNombre()
                         + "\" está agotado por ahora. Elimínalo del carrito para continuar.");
@@ -334,9 +314,8 @@ public class PagoService {
             Producto producto = detCart.getProducto();
             int cantidadComprada = detCart.getCantidad();
 
-            // EJECUTAMOS LA LÓGICA FEFO (Esto actualiza los lotes y el trigger actualizará
-            // el stock general)
-            descontarStockLotesFefo(producto, cantidadComprada);
+            // Confirma la reserva y descuenta el stock físico (FEFO) una sola vez.
+            stockService.confirmarVenta(producto, cantidadComprada);
 
             DetallePedido detPed = new DetallePedido();
             detPed.setPedido(pedido);
@@ -348,7 +327,9 @@ public class PagoService {
         // Un solo guardado por lote de filas en vez de un INSERT por producto.
         detallesGuardados = detallePedidoRepository.saveAll(detallesGuardados);
 
-        carritoService.vaciarCarrito(idUsuario);
+        // Las reservas ya se descontaron en StockService.confirmarVenta:
+        // vaciar sin volver a liberar stock.
+        carritoService.vaciarCarritoSinLiberar(idUsuario);
 
         // Envío de correo...
         User usuario = carrito.getUsuario();

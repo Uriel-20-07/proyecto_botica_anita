@@ -390,10 +390,15 @@
                     </td>
                     <td class="bold-text">S/. {{ prod.precioVenta | number:'1.2-2' }}</td>
                     <td>
-                      <span class="stock-badge" [class.danger-badge]="prod.stock < 60"
-                        [class.success-badge]="prod.stock >= 60">
-                        {{ prod.stock }} unidades
-                      </span>
+                      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                        <span class="stock-badge" [class.danger-badge]="stockVendible(prod) < 60"
+                          [class.success-badge]="stockVendible(prod) >= 60">
+                          {{ stockVendible(prod) }} disp.
+                        </span>
+                        <span *ngIf="prod.stockEnCarrito > 0" style="font-size:0.7rem;color:#b45309;font-weight:700;">
+                          {{ prod.stockEnCarrito }} reservadas
+                        </span>
+                      </div>
                     </td>
                     <td>
                       <div *ngIf="prod.enOferta" style="display:flex;flex-direction:column;align-items:center;gap:4px;">
@@ -800,7 +805,7 @@
                       </div>
                     </div>
                   </td>
-                  <td style="text-align:center;" class="bold-text">{{ item.producto.stock }} u.</td>
+                  <td style="text-align:center;" class="bold-text">{{ stockVendible(item.producto) }} u.</td>
                   <td style="text-align:center; color:#475569; font-weight:600;">{{ item.tasaConsumo | number:'1.1-2' }}
                     u/día</td>
                   <td style="text-align:center;">
@@ -1227,7 +1232,7 @@
           <ng-container *ngFor="let grupo of productosPorCategoria">
             <ng-container *ngFor="let prod of grupo.productos">
 
-              <tr *ngIf="prod.stock < 60"
+              <tr *ngIf="stockVendible(prod) < 60"
                   style="border-bottom:1px solid #f1f5f9;">
 
                 <td style="padding:10px 8px;">
@@ -1245,7 +1250,10 @@
                 </td>
 
                 <td style="padding:10px 8px;font-weight:800;color:#dc2626;">
-                  {{ prod.stock }} u.
+                  {{ stockVendible(prod) }} u.
+                  <span *ngIf="prod.stockEnCarrito > 0" style="display:block;font-size:0.7rem;color:#b45309;font-weight:700;">
+                    {{ prod.stockEnCarrito }} reservadas
+                  </span>
                 </td>
 
                 <td style="padding:10px 8px;">

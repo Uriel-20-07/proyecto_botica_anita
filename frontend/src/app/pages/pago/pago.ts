@@ -1,8 +1,8 @@
-import { Component, OnInit, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 // Servicios de tu proyecto
 import { CartService } from '../../services/cart.service';
@@ -28,9 +28,12 @@ const EMAILJS_PUBLIC_KEY  = 'HDwamrH2SgIFGUpNw';
   templateUrl: './pago.html',
   styleUrl: './pago.css'
 })
-export class PagoComponent implements OnInit, AfterViewChecked {
+export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   metodoSeleccionado: 'TARJETA' | 'YAPE' | 'PLIN' | 'SIP' = 'TARJETA';
+
+  /** Suscripción al carrito para mantener los totales al día si una reserva vence. */
+  private cartSub?: Subscription;
 
   // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
@@ -245,6 +248,20 @@ export class PagoComponent implements OnInit, AfterViewChecked {
       return;
     }
 
+    // Mantener la página sincronizada con el carrito real del servidor.
+    // Si una reserva de 2 h vence mientras el usuario está aquí, el backend
+    // elimina la línea, avisa con un toast y aquí se recalculan los totales.
+    this.cartSub = this.cartService.items$.subscribe((items) => {
+      this.productosCarrito = items;
+      this.subtotal = this.cartService.getTotal();
+      this.subtotalOriginal = items.reduce((acc, item) => {
+        return acc + (item.producto.precioVenta * item.cantidad);
+      }, 0);
+      this.requiereReceta = this.mostrarRecetas
+        && items.some(item => this.requiereRecetaMedica(item.producto.nombre));
+      this.calcularTotales();
+    });
+
     this.subtotal = this.cartService.getTotal();
     this.productosCarrito = this.cartService.getItems();
     this.subtotalOriginal = this.productosCarrito.reduce((acc, item) => {
@@ -261,6 +278,9 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     // Verificar si requiere receta (solo si el flujo está visible)
     this.requiereReceta = this.mostrarRecetas && this.productosCarrito.some(item => this.requiereRecetaMedica(item.producto.nombre));
 
+    // Pedir el carrito al servidor: limpia reservas vencidas y avisa al usuario.
+    this.cartService.refrescarCarrito();
+
     // Punto de recojo por defecto: Botica Anita (único local)
     this.formPago.puntoSeleccionado = 'Bodega Independencia';
     this.onPuntoRecojoChange();
@@ -268,6 +288,10 @@ export class PagoComponent implements OnInit, AfterViewChecked {
     // 3. Inicializamos Stripe con tu clave pública
     // ¡REEMPLAZA ESTO CON TU CLAVE REAL!
     this.stripe = await loadStripe('pk_test_51UTDWtB9zD3sDEYE12Dh7Jn4mBZeR21FNqbTTMeF7BYlMNLhYhrCdTMLkAVPtGbGW2hLatVxmrtrmFmLTtPVW7tN00bn92lKEK');
+  }
+
+  ngOnDestroy(): void {
+    this.cartSub?.unsubscribe();
   }
 
   ngAfterViewChecked() {
