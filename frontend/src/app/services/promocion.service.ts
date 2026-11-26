@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, concat, toArray, tap } from 'rxjs';
+import { BehaviorSubject, Observable, concat, toArray, tap, shareReplay } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { CartItem, CartService } from './cart.service';
 
@@ -58,9 +58,27 @@ export class PromocionService {
     private readonly cartService: CartService
   ) {}
 
+  /** Copia en memoria del carrusel: así al pasar de Inicio a Catálogo o Nosotros no se vuelve a pedir. */
+  private disponibles$: Observable<Promocion[]> | null = null;
+  private disponiblesDesde = 0;
+  private static readonly VIGENCIA_MS = 60_000;
+
   /** Promociones que se pueden ofrecer ahora (todos sus productos con stock). */
   getDisponibles(): Observable<Promocion[]> {
-    return this.http.get<Promocion[]>(this.url);
+    const vigente = this.disponibles$ && Date.now() - this.disponiblesDesde < PromocionService.VIGENCIA_MS;
+    if (!vigente) {
+      this.disponiblesDesde = Date.now();
+      this.disponibles$ = this.http.get<Promocion[]>(this.url).pipe(
+        tap({ error: () => (this.disponibles$ = null) }), // si falla, la próxima vez se reintenta
+        shareReplay(1)
+      );
+    }
+    return this.disponibles$!;
+  }
+
+  /** Empieza a pedir las promociones desde que carga la página, sin esperar a que se dibuje el carrusel. */
+  precargar(): void {
+    this.getDisponibles().subscribe({ error: () => {} });
   }
 
   /** Carga las reglas para el cálculo del carrito (se llama desde carrito y pago). */
