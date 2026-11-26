@@ -35,6 +35,9 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
   /** Suscripción al carrito para mantener los totales al día si una reserva vence. */
   private cartSub?: Subscription;
 
+  /** Temporizador de la pantalla de éxito antes de redirigir. */
+  private redireccionTimer?: ReturnType<typeof setTimeout>;
+
   // Flag para mostrar/ocultar todo el flujo de recetas (ver environment.mostrarRecetas)
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
 
@@ -292,6 +295,7 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
+    if (this.redireccionTimer) clearTimeout(this.redireccionTimer);
   }
 
   ngAfterViewChecked() {
@@ -755,14 +759,17 @@ this.descuento = subtotalElegible * (valor / 100);
               this.procesandoPago = false;
 
               this.cartService.clear();
-              // El pedido ya quedó registrado: invalidamos la caché del historial
-              // y navegamos de inmediato (sin esperas artificiales).
+              // El pedido ya quedó registrado: invalidamos la caché del historial.
+              // Dejamos ver la animación de éxito (check + barra) antes de navegar.
               this.pedidoService.invalidarCache();
-              if (this.pagoPendienteVerificacion) {
-                this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });
-              } else {
-                this.router.navigate(['/catalogo']);
-              }
+              if (this.redireccionTimer) clearTimeout(this.redireccionTimer);
+              this.redireccionTimer = setTimeout(() => {
+                if (this.pagoPendienteVerificacion) {
+                  this.router.navigate(['/perfil'], { queryParams: { seccion: 'pedidos' } });
+                } else {
+                  this.router.navigate(['/catalogo']);
+                }
+              }, 4000);
           },
           error: (err) => {
               this.mensajeError = err.error?.error || 'Error al crear el pedido final.';

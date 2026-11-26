@@ -35,6 +35,9 @@ public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
+    /** Correo de contacto que se muestra al cliente en avisos de suspendido/cancelado. */
+    private static final String CORREO_CONTACTO = "boticaanita1980@gmail.com";
+
     @Autowired
     private JavaMailSender mailSender;
 
@@ -445,6 +448,81 @@ public class EmailService {
             mailSender.send(mimeMessage);
         } catch (Exception e) {
             log.error("Error enviando email 'entregado' del pedido {}: {}", dto != null ? dto.getNumeroPedido() : "-", e.getMessage(), e);
+        }
+    }
+
+    /** Aviso de pedido suspendido (no entregado porque el cliente no estaba). */
+    @Async("emailTaskExecutor")
+    public void sendPedidoSuspendidoEmail(PedidoEmailDTO dto) {
+        enviarPedidoNoEntregado(
+                dto,
+                "Pedido suspendido",
+                "No pudimos entregar tu pedido porque no habia nadie en la direccion al momento de la entrega. "
+                        + "Coordina con la tienda para reprogramar la entrega.",
+                "Cliente ausente en la direccion",
+                "#f59e0b",
+                "#d97706");
+    }
+
+    /** Aviso de pedido cancelado (receta medica incorrecta). */
+    @Async("emailTaskExecutor")
+    public void sendPedidoCanceladoEmail(PedidoEmailDTO dto) {
+        enviarPedidoNoEntregado(
+                dto,
+                "Pedido cancelado",
+                "Tu pedido fue cancelado porque la receta medica presentada no era correcta. "
+                        + "Acercate a la tienda para regularizarlo.",
+                "Receta medica incorrecta",
+                "#ef4444",
+                "#dc2626");
+    }
+
+    /**
+     * Correo comun para pedidos que no se entregaron. Incluye la boleta/pedido,
+     * el motivo y el correo de contacto de la botica.
+     */
+    private void enviarPedidoNoEntregado(PedidoEmailDTO dto, String titulo, String motivo,
+                                         String motivoCorto, String colorInicio, String colorFin) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom("noreply@boticaanita.com");
+            helper.setTo(dto.getDestinatario());
+            helper.setSubject(titulo + " - Pedido #" + dto.getNumeroPedido() + " - BoticaAnita");
+
+            StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='font-family:Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:0;background:#f4f6f9;'>");
+            html.append("<div style='max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);'>");
+            html.append("<div style='background:linear-gradient(135deg,").append(colorInicio).append(",").append(colorFin).append(");padding:24px;text-align:center;'>");
+            html.append("<h1 style='color:#fff;margin:0;font-size:1.6rem;'>BoticaAnita</h1>");
+            html.append("<p style='color:#fff;opacity:.9;margin:4px 0 0;font-size:0.9rem;'>").append(titulo).append("</p>");
+            html.append("</div>");
+            html.append("<div style='padding:24px;'>");
+            html.append("<p style='color:#334155;font-size:1rem;'>Hola <strong>").append(dto.getNombreCliente()).append("</strong>,</p>");
+            html.append("<p style='color:#64748b;font-size:0.95rem;'>").append(motivo).append("</p>");
+
+            html.append("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;'>");
+            html.append("<table style='width:100%;border-collapse:collapse;font-size:0.9rem;color:#334155;'>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Boleta / Pedido:</td><td style='padding:4px 0;text-align:right;'>#").append(dto.getNumeroPedido()).append("</td></tr>");
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Motivo:</td><td style='padding:4px 0;text-align:right;'>").append(motivoCorto).append("</td></tr>");
+            if (dto.getDireccionEnvio() != null && !dto.getDireccionEnvio().isBlank()) {
+                html.append("<tr><td style='padding:4px 0;font-weight:600;'>Direccion:</td><td style='padding:4px 0;text-align:right;'>").append(dto.getDireccionEnvio()).append("</td></tr>");
+            }
+            html.append("<tr><td style='padding:4px 0;font-weight:600;'>Total:</td><td style='padding:4px 0;text-align:right;font-weight:700;color:#e85d04;'>S/ ").append(textoTotal(dto.getTotal())).append("</td></tr>");
+            html.append("</table></div>");
+
+            html.append("<p style='color:#64748b;font-size:0.85rem;margin-top:16px;'>Si tienes alguna duda, escribenos a <strong>").append(CORREO_CONTACTO).append("</strong>.</p>");
+            html.append("<p style='color:#64748b;font-size:0.85rem;'>Saludos,<br><strong>Equipo BoticaAnita</strong></p>");
+            html.append("</div>");
+            html.append("<div style='background:#f1f5f9;padding:16px;text-align:center;font-size:0.75rem;color:#94a3b8;'>");
+            html.append("BoticaAnita (c) 2026 - ").append(titulo).append(".");
+            html.append("</div></div></body></html>");
+
+            helper.setText(html.toString(), true);
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            log.error("Error enviando email '{}' del pedido {}: {}", titulo,
+                    dto != null ? dto.getNumeroPedido() : "-", e.getMessage(), e);
         }
     }
 

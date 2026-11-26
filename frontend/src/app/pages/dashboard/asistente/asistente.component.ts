@@ -6,6 +6,7 @@ import { AsistenteService } from '../../../services/asistente.service';
 import { ToastService } from '../../../services/toast.service';
 import { AuthService } from '../../../services/auth.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
+import { CONTACTO } from '../../soporte/contacto';
 import { environment } from '../../../../environments/environment';
 
 interface ProductoPOS {
@@ -58,6 +59,9 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   menuAbierto = signal(false);
   usuario: any = null;
 
+  /** Correo de contacto que se muestra en las acciones de suspendido/cancelado. */
+  readonly correoContacto = CONTACTO.correo;
+
   fechaActual = signal('');
   horaActual = signal('');
 
@@ -96,11 +100,25 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
 
   // Pedidos
   pedidos = signal<PedidoPendiente[]>([]);
-  pedidosEntregados = signal<PedidoPendiente[]>([]);
-  subTabPedidos = signal<'pendientes' | 'entregados'>('pendientes');
+  pedidosFinalizados = signal<PedidoPendiente[]>([]);
+  subTabPedidos = signal<'pendientes' | 'finalizados'>('pendientes');
   busquedaPedidos = signal('');
   pedidosVisibles = computed(() =>
-    this.subTabPedidos() === 'pendientes' ? this.pedidos() : this.pedidosEntregados()
+    this.subTabPedidos() === 'pendientes' ? this.pedidos() : this.pedidosFinalizados()
+  );
+  pedidosNoEntregados = computed(
+    () =>
+      this.pedidosFinalizados().filter((p) => {
+        const e = (p.estado || '').toUpperCase();
+        return e.includes('SUSPENDID') || e.includes('CANCELAD');
+      }).length
+  );
+  pedidosEntregadosCount = computed(
+    () =>
+      this.pedidosFinalizados().filter((p) => {
+        const e = (p.estado || '').toUpperCase();
+        return e.includes('COMPLETAD') || e.includes('ENTREGAD');
+      }).length
   );
   pedidosFiltrados = computed(() => {
     const q = this.busquedaPedidos().toLowerCase().trim();
@@ -127,7 +145,39 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   );
   pedidoDetalle = signal<PedidoPendiente | null>(null);
   pedidoAConfirmar = signal<PedidoPendiente | null>(null);
+  /** Acción que se está confirmando: entregado, suspendido o cancelado. */
+  accionPendiente = signal<'entregado' | 'suspendido' | 'cancelado'>('entregado');
   procesandoEntrega = signal(false);
+
+  /** Textos e iconos del modal de confirmación según la acción elegida. */
+  accionInfo = computed(() => {
+    switch (this.accionPendiente()) {
+      case 'suspendido':
+        return {
+          titulo: '¿Marcar como suspendido?',
+          descripcion: 'se marcará como suspendido (no entregado) y se notificará al cliente por correo.',
+          boton: 'Sí, suspender',
+          icono: 'bi-exclamation-triangle',
+          clase: 'warn',
+        };
+      case 'cancelado':
+        return {
+          titulo: '¿Cancelar este pedido?',
+          descripcion: 'se marcará como cancelado por receta médica incorrecta y se notificará al cliente por correo.',
+          boton: 'Sí, cancelar',
+          icono: 'bi-x-octagon',
+          clase: 'danger',
+        };
+      default:
+        return {
+          titulo: '¿Confirmar entrega?',
+          descripcion: 'se marcará como entregado y se notificará al cliente por correo.',
+          boton: 'Sí, entregar',
+          icono: 'bi-check2-circle',
+          clase: 'ok',
+        };
+    }
+  });
 
   // Historial
   ventasHoy = signal<any[]>([]);
@@ -197,7 +247,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     this.refreshId = setInterval(() => {
       if (this.tabActiva() === 'pedidos') {
         this.cargarPedidos();
-        this.cargarPedidosEntregados();
+        this.cargarPedidosFinalizados();
       } else if (this.tabActiva() === 'historial') {
         this.cargarHistorial();
       }
@@ -248,7 +298,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     if (tab === 'venta') this.cargarProductos();
     else if (tab === 'pedidos') {
       this.cargarPedidos();
-      this.cargarPedidosEntregados();
+      this.cargarPedidosFinalizados();
     } else {
       this.cargarHistorial();
     }
@@ -370,15 +420,17 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  cargarPedidosEntregados(): void {
-    this.asistenteService.listarPedidosEntregados().subscribe({
-      next: (data: any) => this.pedidosEntregados.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido)),
-      error: () => this.toast.mostrar('Error al cargar pedidos entregados', 'error'),
+  cargarPedidosFinalizados(): void {
+    this.asistenteService.listarPedidosFinalizados().subscribe({
+      next: (data: any) => this.pedidosFinalizados.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido)),
+      error: () => this.toast.mostrar('Error al cargar pedidos finalizados', 'error'),
     });
   }
 
-  solicitarEntregado(p: PedidoPendiente): void {
+  /** Abre el modal de confirmación para la acción elegida. */
+  solicitarAccion(p: PedidoPendiente, accion: 'entregado' | 'suspendido' | 'cancelado'): void {
     this.pedidoDetalle.set(null);
+    this.accionPendiente.set(accion);
     this.pedidoAConfirmar.set(p);
   }
 
@@ -387,21 +439,37 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     this.pedidoAConfirmar.set(null);
   }
 
-  confirmarEntrega(): void {
+  /** Ejecuta la acción confirmada (entregado / suspendido / cancelado). */
+  confirmarAccion(): void {
     const p = this.pedidoAConfirmar();
     if (!p || this.procesandoEntrega()) return;
+    const accion = this.accionPendiente();
     this.procesandoEntrega.set(true);
-    this.asistenteService.marcarEntregado(p.idPedido).subscribe({
+
+    const peticion =
+      accion === 'suspendido'
+        ? this.asistenteService.marcarSuspendido(p.idPedido)
+        : accion === 'cancelado'
+          ? this.asistenteService.marcarCancelado(p.idPedido)
+          : this.asistenteService.marcarEntregado(p.idPedido);
+
+    peticion.subscribe({
       next: () => {
-        this.toast.mostrar(`Pedido #${p.idPedido} marcado como entregado`, 'exito');
+        const mensaje =
+          accion === 'suspendido'
+            ? `Pedido #${p.idPedido} marcado como suspendido`
+            : accion === 'cancelado'
+              ? `Pedido #${p.idPedido} marcado como cancelado`
+              : `Pedido #${p.idPedido} marcado como entregado`;
+        this.toast.mostrar(mensaje, 'exito');
         this.pedidoAConfirmar.set(null);
         this.procesandoEntrega.set(false);
         this.cargarPedidos();
-        this.cargarPedidosEntregados();
+        this.cargarPedidosFinalizados();
         this.cargarHistorial();
       },
       error: (err: any) => {
-        this.toast.mostrar(err?.error?.error || 'Error al marcar entregado', 'error');
+        this.toast.mostrar(err?.error?.error || 'Error al actualizar el pedido', 'error');
         this.procesandoEntrega.set(false);
       },
     });
@@ -417,12 +485,15 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
 
   puedeEntregar(p: PedidoPendiente): boolean {
     const e = (p.estado || '').toUpperCase();
-    return !e.includes('COMPLETAD') && !e.includes('ENTREGAD') && !e.includes('CANCELAD');
+    return !e.includes('COMPLETAD') && !e.includes('ENTREGAD') && !e.includes('CANCELAD')
+      && !e.includes('SUSPENDID') && !e.includes('RECHAZAD');
   }
 
   estadoLegible(estado: string): string {
     const e = (estado || '').toUpperCase();
     if (e.includes('COMPLETAD') || e.includes('ENTREGAD')) return 'Entregado';
+    if (e.includes('SUSPENDID')) return 'Suspendido';
+    if (e.includes('CANCELAD')) return 'Cancelado';
     if (e.includes('EN_CAMINO')) return 'En camino';
     if (e.includes('LISTO')) return 'Listo para recojo';
     if (e.includes('PAGAD') || e.includes('CONFIRMAD')) return 'Pendiente';
@@ -433,6 +504,8 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   estadoClase(estado: string): string {
     const e = (estado || '').toUpperCase();
     if (e.includes('COMPLETAD') || e.includes('ENTREGAD')) return 'entregado';
+    if (e.includes('SUSPENDID')) return 'suspendido';
+    if (e.includes('CANCELAD')) return 'cancelado';
     if (e.includes('EN_CAMINO')) return 'encamino';
     if (e.includes('LISTO')) return 'listo';
     if (e.includes('PAGAD') || e.includes('CONFIRMAD')) return 'pendiente';
@@ -520,14 +593,14 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     if (tab === 'pedidos') {
       this.busquedaPedidos.set('');
       this.cargarPedidos();
-      this.cargarPedidosEntregados();
+      this.cargarPedidosFinalizados();
     }
     if (tab === 'historial') this.cargarHistorial();
   }
 
-  cambiarSubTabPedidos(sub: 'pendientes' | 'entregados'): void {
+  cambiarSubTabPedidos(sub: 'pendientes' | 'finalizados'): void {
     this.subTabPedidos.set(sub);
     this.busquedaPedidos.set('');
-    if (sub === 'entregados') this.cargarPedidosEntregados();
+    if (sub === 'finalizados') this.cargarPedidosFinalizados();
   }
 }

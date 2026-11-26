@@ -26,12 +26,24 @@ export class AsistenteService {
     return this.http.get<any>(`${this.apiUrl}/pedidos`, { headers: this.headers() });
   }
 
+  listarPedidosFinalizados(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/pedidos/finalizados`, { headers: this.headers() });
+  }
+
   listarPedidosEntregados(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/pedidos/entregados`, { headers: this.headers() });
   }
 
   marcarEntregado(idPedido: number): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/pedidos/${idPedido}/entregar`, {}, { headers: this.headers() });
+  }
+
+  marcarSuspendido(idPedido: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/pedidos/${idPedido}/suspender`, {}, { headers: this.headers() });
+  }
+
+  marcarCancelado(idPedido: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/pedidos/${idPedido}/cancelar`, {}, { headers: this.headers() });
   }
 
   historialVentasHoy(): Observable<any> {

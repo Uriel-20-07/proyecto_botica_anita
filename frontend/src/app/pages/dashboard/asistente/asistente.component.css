@@ -1131,6 +1131,11 @@
   color: #047857;
 }
 
+.stat-icon.noentregado {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .stat-icon.ventas {
   background: #ede9fe;
   color: #6d28d9;
@@ -1400,6 +1405,16 @@
   color: #166534;
 }
 
+.estado-badge.suspendido {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.estado-badge.cancelado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .estado-badge.encamino {
   background: #fef3c7;
   color: #92400e;
@@ -1494,6 +1509,85 @@
   background: #047857;
 }
 
+/* Acciones de estado en la tabla de pedidos */
+.acciones-pedido {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 104px;
+}
+
+.acciones-pedido button {
+  justify-content: center;
+}
+
+.btn-suspender {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 11px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.btn-suspender:hover {
+  background: #fef3c7;
+  transform: translateY(-1px);
+}
+
+.btn-suspender.solid {
+  border-color: #d97706;
+  background: #d97706;
+  color: #fff;
+  padding: 9px 16px;
+  font-size: 0.82rem;
+}
+
+.btn-suspender.solid:hover {
+  background: #b45309;
+}
+
+.btn-cancelar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 11px;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.btn-cancelar:hover {
+  background: #fee2e2;
+  transform: translateY(-1px);
+}
+
+.btn-cancelar.solid {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+  padding: 9px 16px;
+  font-size: 0.82rem;
+}
+
+.btn-cancelar.solid:hover {
+  background: #b91c1c;
+}
+
 .btn-ver {
   display: inline-flex;
   align-items: center;
@@ -1563,6 +1657,56 @@
 }
 
 .btn-success:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-warn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #d97706;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-warn:hover:not(:disabled) {
+  background: #b45309;
+}
+
+.btn-warn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1820,6 +1964,16 @@
   margin-bottom: 4px;
 }
 
+.confirm-icon.warn {
+  background: #ffedd5;
+  color: #b45309;
+}
+
+.confirm-icon.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .confirm-card h3 {
   margin: 0;
   font-size: 1.1rem;
@@ -1836,6 +1990,31 @@
 
 .confirm-card p strong {
   color: var(--navy-700);
+}
+
+.confirm-contacto {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2px !important;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--slate-50);
+  color: var(--slate-500);
+  font-size: 0.76rem !important;
+}
+
+.confirm-contacto a {
+  color: var(--orange-600);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.confirm-contacto a:hover {
+  color: #c2410c;
 }
 
 .confirm-summary {

@@ -5,6 +5,7 @@ import { AuthService } from '../../services/auth.service';
 import { PedidoService } from '../../services/pedido.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { fechaComoDate } from '../../services/fecha-util';
+import { CONTACTO } from '../soporte/contacto';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -42,6 +43,9 @@ export class PedidosComponent implements OnInit {
   
   /** Set de IDs de pedidos actualmente expandidos en la UI */
   pedidosExpandidos = signal<Set<number>>(new Set());
+
+  /** Correo de contacto de la botica para los avisos de suspendido/cancelado. */
+  readonly correoContacto = CONTACTO.correo;
 
   constructor(
     private readonly authService: AuthService,

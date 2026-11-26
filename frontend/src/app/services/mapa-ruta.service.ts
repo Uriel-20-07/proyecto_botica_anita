@@ -18,8 +18,8 @@ export const VELOCIDAD_KMH = 25;
 
 /** Tiempos fijos de etapa antes del viaje (minutos). */
 export const MIN_CONFIRMADO = 0;
-export const MIN_DESPACHO = 1;
-export const MIN_MOTORIZADO = 1;
+export const MIN_DESPACHO = 0.5;   // 30 segundos
+export const MIN_MOTORIZADO = 0.5; // 30 segundos
 export const MIN_ENTREGA_EXTRA = 1 / 60; // 10 segundos
 
 /**

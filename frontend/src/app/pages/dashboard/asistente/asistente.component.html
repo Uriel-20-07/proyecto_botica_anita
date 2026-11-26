@@ -307,7 +307,14 @@
             <span class="stat-icon entregado"><i class="bi bi-bag-check"></i></span>
             <div>
               <span class="stat-label">Entregados</span>
-              <span class="stat-value">{{ pedidosEntregados().length }}</span>
+              <span class="stat-value">{{ pedidosEntregadosCount() }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon noentregado"><i class="bi bi-exclamation-octagon"></i></span>
+            <div>
+              <span class="stat-label">No entregados</span>
+              <span class="stat-value">{{ pedidosNoEntregados() }}</span>
             </div>
           </div>
         </div>
@@ -340,10 +347,10 @@
             Pendientes
             <span class="sub-tab-count">{{ pedidos().length }}</span>
           </button>
-          <button class="sub-tab" [class.active]="subTabPedidos() === 'entregados'" (click)="cambiarSubTabPedidos('entregados')">
+          <button class="sub-tab" [class.active]="subTabPedidos() === 'finalizados'" (click)="cambiarSubTabPedidos('finalizados')">
             <i class="bi bi-bag-check"></i>
-            Entregados
-            <span class="sub-tab-count">{{ pedidosEntregados().length }}</span>
+            Finalizados
+            <span class="sub-tab-count">{{ pedidosFinalizados().length }}</span>
           </button>
         </div>
 
@@ -409,9 +416,17 @@
                     <td class="td-fecha">{{ formatFecha(p.fecha) }}</td>
                     <td class="text-right">
                       @if (subTabPedidos() === 'pendientes') {
-                        <button class="btn-entregar" (click)="solicitarEntregado(p); $event.stopPropagation()">
-                          <i class="bi bi-check2"></i> Entregado
-                        </button>
+                        <div class="acciones-pedido">
+                          <button class="btn-entregar" (click)="solicitarAccion(p, 'entregado'); $event.stopPropagation()" title="El cliente recibió el pedido">
+                            <i class="bi bi-check2"></i> Entregado
+                          </button>
+                          <button class="btn-suspender" (click)="solicitarAccion(p, 'suspendido'); $event.stopPropagation()" title="No había nadie en la dirección">
+                            <i class="bi bi-exclamation-triangle"></i> Suspendido
+                          </button>
+                          <button class="btn-cancelar" (click)="solicitarAccion(p, 'cancelado'); $event.stopPropagation()" title="Receta médica incorrecta">
+                            <i class="bi bi-x-octagon"></i> Cancelado
+                          </button>
+                        </div>
                       } @else {
                         <button class="btn-ver" (click)="verDetalle(p); $event.stopPropagation()">
                           <i class="bi bi-receipt"></i> Ver boleta
@@ -481,8 +496,14 @@
               <div class="modal-footer">
                 <button class="btn-secondary" type="button" (click)="cerrarDetalle()">Cerrar</button>
                 @if (puedeEntregar(pd)) {
-                  <button class="btn-entregar solid" type="button" (click)="solicitarEntregado(pd)">
-                    <i class="bi bi-check2-circle"></i> Marcar como entregado
+                  <button class="btn-suspender solid" type="button" (click)="solicitarAccion(pd, 'suspendido')">
+                    <i class="bi bi-exclamation-triangle"></i> Suspender
+                  </button>
+                  <button class="btn-cancelar solid" type="button" (click)="solicitarAccion(pd, 'cancelado')">
+                    <i class="bi bi-x-octagon"></i> Cancelar
+                  </button>
+                  <button class="btn-entregar solid" type="button" (click)="solicitarAccion(pd, 'entregado')">
+                    <i class="bi bi-check2-circle"></i> Entregado
                   </button>
                 }
               </div>
@@ -490,26 +511,39 @@
           </div>
         }
 
-        <!-- Confirmación de entrega -->
+        <!-- Confirmación de la acción sobre el pedido -->
         @if (pedidoAConfirmar(); as pc) {
           <div class="modal-overlay" (click)="cancelarConfirmacion()">
             <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
-              <span class="confirm-icon"><i class="bi bi-check2-circle"></i></span>
-              <h3>¿Confirmar entrega?</h3>
+              <span class="confirm-icon" [class]="'confirm-icon ' + accionInfo().clase">
+                <i [class]="'bi ' + accionInfo().icono"></i>
+              </span>
+              <h3>{{ accionInfo().titulo }}</h3>
               <p>
-                El pedido <strong>#{{ pc.idPedido }}</strong> se marcará como entregado y se notificará al cliente por correo.
+                El pedido <strong>#{{ pc.idPedido }}</strong> {{ accionInfo().descripcion }}
               </p>
+              @if (accionPendiente() !== 'entregado') {
+                <p class="confirm-contacto">
+                  <i class="bi bi-envelope"></i>
+                  Correo de contacto:
+                  <a [href]="'mailto:' + correoContacto">{{ correoContacto }}</a>
+                </p>
+              }
               <div class="confirm-summary">
                 <span>{{ pc.usuario?.nombre || 'Cliente' }}</span>
                 <strong>S/ {{ pc.total }}</strong>
               </div>
               <div class="confirm-actions">
-                <button class="btn-secondary" type="button" (click)="cancelarConfirmacion()">Cancelar</button>
-                <button class="btn-success" type="button" (click)="confirmarEntrega()" [disabled]="procesandoEntrega()">
+                <button class="btn-secondary" type="button" (click)="cancelarConfirmacion()">Volver</button>
+                <button
+                  type="button"
+                  [class]="accionPendiente() === 'entregado' ? 'btn-success' : (accionPendiente() === 'suspendido' ? 'btn-warn' : 'btn-danger')"
+                  (click)="confirmarAccion()"
+                  [disabled]="procesandoEntrega()">
                   @if (procesandoEntrega()) {
                     <span class="spinner"></span> Procesando...
                   } @else {
-                    <i class="bi bi-check2"></i> Sí, entregar
+                    <i [class]="'bi ' + accionInfo().icono"></i> {{ accionInfo().boton }}
                   }
                 </button>
               </div>

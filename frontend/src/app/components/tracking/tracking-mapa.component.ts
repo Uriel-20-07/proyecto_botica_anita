@@ -75,7 +75,11 @@ const SVG_MOTO = `
             }
           </div>
         </div>
-        <span class="estado-badge" [class.entregado]="estadoFinal()" [class.en-vivo]="!estadoFinal()">
+        <span class="estado-badge"
+          [class.entregado]="estadoFinal() && !estadoNoEntregado()"
+          [class.suspendido]="esSuspendido()"
+          [class.cancelado]="esCancelado()"
+          [class.en-vivo]="!estadoFinal()">
           @if (!estadoFinal()) {
             <span class="pulse" aria-hidden="true"></span>
           }
@@ -334,6 +338,18 @@ const SVG_MOTO = `
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         color: #166534;
         border-color: #bbf7d0;
+      }
+
+      .estado-badge.suspendido {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+        color: #9a3412;
+        border-color: #fed7aa;
+      }
+
+      .estado-badge.cancelado {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        color: #991b1b;
+        border-color: #fecaca;
       }
 
       .pulse {
@@ -849,17 +865,25 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
       est.includes('COMPLETAD') ||
       est.includes('ENTREGAD') ||
       est.includes('CANCELAD') ||
+      est.includes('SUSPENDID') ||
       est.includes('RECHAZAD')
     );
   });
 
+  esSuspendido = computed(() => (this.pedido()?.estado || '').toUpperCase().includes('SUSPENDID'));
+
+  esCancelado = computed(() => (this.pedido()?.estado || '').toUpperCase().includes('CANCELAD'));
+
+  estadoNoEntregado = computed(() => this.esSuspendido() || this.esCancelado());
+
   mapaOculto = computed(() => {
-    // El mapa solo se oculta cuando el pedido ya se entregó/completó
+    // El mapa solo se oculta cuando el pedido ya terminó (entregado, suspendido o cancelado)
     const ped = this.pedido();
     if (!ped) return false;
     const est = (ped.estado || '').toUpperCase();
     if (this.tipoEntrega === 'recojo') return true;
-    const oculto = est.includes('COMPLETAD') || est.includes('ENTREGAD');
+    const oculto = est.includes('COMPLETAD') || est.includes('ENTREGAD')
+      || est.includes('SUSPENDID') || est.includes('CANCELAD');
     return oculto;
   });
 
@@ -874,7 +898,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     const ped = this.pedido();
     if (!ped) return false;
     const est = (ped.estado || '').toUpperCase();
-    if (est.includes('CANCELAD') || est.includes('RECHAZAD')) return false;
+    if (est.includes('CANCELAD') || est.includes('SUSPENDID') || est.includes('RECHAZAD')) return false;
     // La moto aparece a partir de "Motorizado asignado" (paso >= 2).
     return this.pasoEfectivo() >= 2;
   });
@@ -893,6 +917,10 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     // el badge coincida con el estado mostrado en la página de seguimiento.
     const paso = this.pasoEfectivo();
     const est = (ped.estado || '').toUpperCase();
+
+    // Estados finales no entregados: el badge debe reflejarlos tal cual.
+    if (est.includes('SUSPENDID')) return 'Suspendido';
+    if (est.includes('CANCELAD')) return 'Cancelado';
 
     // Si el pedido está en espera/verificación, no mostrar estados de entrega
     if (est.includes('EN_ESPERA') || est.includes('ESPERANDO') || est.includes('PENDIENTE_VERIFICACION')) {
@@ -945,6 +973,7 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     const est = (this.pedido()?.estado || '').toUpperCase();
     let backendPaso = 0;
     if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) backendPaso = 4;
+    else if (est.includes('SUSPENDID') || est.includes('CANCELAD')) backendPaso = 3;
     else if (est.includes('EN_CAMINO')) backendPaso = 3;
     else if (est.includes('LISTO')) backendPaso = 2;
     else if (est.includes('PAGAD') || est.includes('CONFIRMAD')) backendPaso = 1;
@@ -1389,12 +1418,14 @@ export class TrackingMapaComponent implements OnInit, OnDestroy, AfterViewInit {
     return !!p && !!p.latitudRepartidor && !!p.longitudRepartidor;
   }
 
-  /** Tope de progreso (%) según el estado real. */
+  /** Tope de progreso (%) según el estado real.
+   *  En camino la moto llega hasta el domicilio (100%), pero el estado final
+   *  solo cambia cuando el asistente lo confirma. */
   private topePorEstado(): number {
     const est = (this.pedido()?.estado || '').toUpperCase();
     if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 100;
-    if (est.includes('EN_CAMINO')) return 95;
-    if (est.includes('RECHAZAD') || est.includes('CANCELAD')) return 0;
+    if (est.includes('EN_CAMINO')) return 100;
+    if (est.includes('RECHAZAD') || est.includes('CANCELAD') || est.includes('SUSPENDID')) return 0;
     return 0;
   }
 
