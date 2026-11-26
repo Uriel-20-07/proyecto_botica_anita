@@ -157,6 +157,90 @@
     animation: badge-latido 1.9s ease-out infinite;
 }
 
+/* Badge de estado final no entregado */
+.estado-badge.suspendido {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 10px 24px -8px rgba(217, 119, 6, .7);
+}
+
+.estado-badge.cancelado {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 10px 24px -8px rgba(220, 38, 38, .7);
+}
+
+.estado-badge.suspendido .badge-dot,
+.estado-badge.cancelado .badge-dot {
+    animation: none;
+}
+
+/* ===========================
+   AVISO SUSPENDIDO / CANCELADO
+=========================== */
+
+.aviso-estado {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    border-radius: 18px;
+    border: 1px solid transparent;
+    box-shadow: 0 14px 30px -24px rgba(26, 46, 74, .6);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.aviso-estado.suspendido {
+    background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.aviso-estado.cancelado {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.aviso-icono {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .8);
+}
+
+.aviso-icono svg { width: 21px; height: 21px; }
+
+.aviso-texto h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+}
+
+.aviso-texto p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.55;
+    opacity: .9;
+}
+
+.aviso-texto a {
+    color: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.aviso-texto a:hover { opacity: .75; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes badge-latido {
     0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .55); }
     70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }

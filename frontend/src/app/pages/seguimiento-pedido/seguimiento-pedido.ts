@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { interval, Subject } from 'rxjs';
@@ -15,6 +15,7 @@ import {
   MIN_ENTREGA_EXTRA,
 } from '../../services/mapa-ruta.service';
 import { msDesdeFecha, fechaComoDate } from '../../services/fecha-util';
+import { CONTACTO } from '../soporte/contacto';
 
 @Component({
   selector: 'app-seguimiento-pedido',
@@ -32,6 +33,17 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   numeroPedido = signal('');
 
   idPedidoRuta = 0;
+
+  /** Correo de contacto de la botica para los avisos de suspendido/cancelado. */
+  readonly correoContacto = CONTACTO.correo;
+
+  /** Aviso especial cuando el pedido terminó como suspendido o cancelado. */
+  especial = computed<'suspendido' | 'cancelado' | ''>(() => {
+    const est = (this.pedido()?.estado || '').toUpperCase();
+    if (est.includes('SUSPENDID')) return 'suspendido';
+    if (est.includes('CANCELAD')) return 'cancelado';
+    return '';
+  });
 
   /** Minutos estimados de viaje tienda -> entrega (se calcula al cargar el pedido). */
   tripMin = 20;
@@ -275,13 +287,14 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     return ped?.esUrgente === false ? 'recojo' : 'delivery';
   }
 
-  /** El mapa de delivery solo existe para delivery y se oculta cuando ya se entregó/completó.
+  /** El mapa de delivery solo existe para delivery y se oculta cuando ya se entregó, suspendió o canceló.
        Se oculta con clase CSS (no con *ngIf) para no romper el WebGL de Mapbox. */
   mapaVisible(): boolean {
     const ped = this.pedido();
     if (this.tipoEntrega() === 'recojo') return false;
     const est = (ped?.estado || '').toUpperCase();
-    return !(est.includes('COMPLETAD') || est.includes('ENTREGAD'));
+    return !(est.includes('COMPLETAD') || est.includes('ENTREGAD')
+      || est.includes('SUSPENDID') || est.includes('CANCELAD'));
   }
   /** Tope de paso según el estado real: el timeline nunca corre más rápido que el pedido. */
   private topeEstadoPedido(): number {
@@ -289,6 +302,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
     const urgente = ped?.esUrgente !== false;
     const est = (ped?.estado || '').toUpperCase();
     if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return urgente ? 4 : 3;
+    if (est.includes('SUSPENDID') || est.includes('CANCELAD')) return urgente ? 3 : 2;
     if (est.includes('EN_CAMINO')) return 3;
     if (est.includes('LISTO')) return 2;
     if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return urgente ? 2 : 1;
@@ -299,6 +313,9 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
   private pasoMinimoBackend(): number {
     const est = (this.pedido()?.estado || '').toUpperCase();
     if (est.includes('COMPLETAD') || est.includes('ENTREGAD')) return 4;
+    if (est.includes('SUSPENDID') || est.includes('CANCELAD')) {
+      return this.tipoEntrega() === 'delivery' ? 3 : 2;
+    }
     if (est.includes('EN_CAMINO')) return 3;
     if (est.includes('LISTO')) return 2;
     if (est.includes('PAGAD') || est.includes('CONFIRMAD')) return 1;
@@ -318,10 +335,10 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
 
     let paso: number;
     // Tiempos por etapa + viaje según distancia (igual que el mapa).
-    // Recojo: 1 + 5 fijos, listo a los 6 y cierre a los 66.
+    // Recojo: 0.5 min fijos, listo a los 0.5 y cierre a los 60.5.
     const urgente = ped?.esUrgente !== false;
-    const t0 = MIN_CONFIRMADO; // 1
-    const t1 = t0 + MIN_DESPACHO; // 6
+    const t0 = MIN_CONFIRMADO; // 0
+    const t1 = t0 + MIN_DESPACHO; // 0.5 min
     if (!urgente) {
       const tRecojo = t1 + 60;
       if (minutos < t0) {
@@ -337,7 +354,7 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
       this.estadoActual.set(Math.min(paso, this.topeEstadoPedido()));
       return;
     }
-    const t2 = t1 + MIN_MOTORIZADO; // 11
+    const t2 = t1 + MIN_MOTORIZADO; // 1 min
     const t3 = t2 + this.tripMin + MIN_ENTREGA_EXTRA;
     // Pedido confirmado
     if (minutos < t0) {
@@ -365,6 +382,9 @@ export class SeguimientoPedidoComponent implements OnInit, OnDestroy {
 
   estadoTexto(): string {
     const ped = this.pedido();
+    const especial = this.especial();
+    if (especial === 'suspendido') return 'Suspendido';
+    if (especial === 'cancelado') return 'Cancelado';
     if (ped && (ped.estado === 'EN_ESPERA' || ped.estado === 'ESPERANDO' || ped.estado === 'PENDIENTE_VERIFICACION')) {
       return ped.estado === 'PENDIENTE_VERIFICACION' ? 'verificando tu pago Plin' : 'esperando a que el pedido se confirme';
     }

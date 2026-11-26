@@ -152,7 +152,9 @@ public class AsistenteController {
         List<Pedido> pedidos = pedidoRepository.findAll().stream()
                 .filter(p -> {
                     String est = p.getEstado() != null ? p.getEstado().toUpperCase() : "";
-                    if (est.contains("COMPLETAD") || est.contains("ENTREGAD") || est.contains("CANCELAD") || est.contains("RECHAZAD")) return false;
+                    if (est.contains("COMPLETAD") || est.contains("ENTREGAD")
+                            || est.contains("CANCELAD") || est.contains("RECHAZAD")
+                            || est.contains("SUSPENDID")) return false;
                     // Excluir ventas presenciales (solo pedidos de clientes: delivery y recojo)
                     if ("Venta en tienda".equalsIgnoreCase(p.getDireccionEnvio())) return false;
                     return true;
@@ -163,7 +165,7 @@ public class AsistenteController {
     }
 
     /**
-     * Marca un pedido como entregado.
+     * Marca un pedido como entregado (el cliente recibió el pedido).
      */
     @PutMapping("/pedidos/{id}/entregar")
     public ResponseEntity<?> marcarEntregado(@PathVariable Integer id) {
@@ -172,38 +174,99 @@ public class AsistenteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Pedido no encontrado"));
         }
         Pedido pedido = pedidoOpt.get();
-        String est = pedido.getEstado() != null ? pedido.getEstado().toUpperCase() : "";
-        if (est.contains("COMPLETAD") || est.contains("ENTREGAD")) {
-            return ResponseEntity.ok(Map.of("ok", true, "estado", "COMPLETADO", "mensaje", "Ya estaba entregado"));
+        String est = estadoActual(pedido);
+        if (esEstadoFinal(est)) {
+            return ResponseEntity.ok(Map.of("ok", true, "estado", est,
+                    "mensaje", "El pedido ya tiene un estado final"));
         }
         pedido.setEstado("COMPLETADO");
         pedidoRepository.save(pedido);
-
-        // El estado ya quedó persistido de forma síncrona. El correo se envía
-        // en segundo plano con datos planos, sin tocar entidades JPA.
-        User u = pedido.getUsuario();
-        if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
-            String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
-            PedidoEmailDTO emailDto = PedidoEmailDTO.from(pedido, u, null, null, nro);
-            emailService.sendEntregadoEmail(emailDto);
-        }
-
+        notificarCliente(pedido, emailService::sendEntregadoEmail);
         return ResponseEntity.ok(Map.of("ok", true, "estado", "COMPLETADO"));
     }
 
     /**
-     * Lista de pedidos ya entregados (COMPLETADO/ENTREGADO).
+     * Marca un pedido como suspendido / no entregado (no había nadie en la
+     * dirección al momento de la entrega).
      */
-    @GetMapping("/pedidos/entregados")
-    public ResponseEntity<?> listarPedidosEntregados() {
+    @PutMapping("/pedidos/{id}/suspender")
+    public ResponseEntity<?> marcarSuspendido(@PathVariable Integer id) {
+        Optional<Pedido> pedidoOpt = pedidoRepository.findById(id);
+        if (pedidoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Pedido no encontrado"));
+        }
+        Pedido pedido = pedidoOpt.get();
+        String est = estadoActual(pedido);
+        if (esEstadoFinal(est)) {
+            return ResponseEntity.ok(Map.of("ok", true, "estado", est,
+                    "mensaje", "El pedido ya tiene un estado final"));
+        }
+        pedido.setEstado("SUSPENDIDO");
+        pedidoRepository.save(pedido);
+        notificarCliente(pedido, emailService::sendPedidoSuspendidoEmail);
+        return ResponseEntity.ok(Map.of("ok", true, "estado", "SUSPENDIDO"));
+    }
+
+    /**
+     * Marca un pedido como cancelado (la receta médica entregada al motorizado
+     * no era la correcta).
+     */
+    @PutMapping("/pedidos/{id}/cancelar")
+    public ResponseEntity<?> marcarCancelado(@PathVariable Integer id) {
+        Optional<Pedido> pedidoOpt = pedidoRepository.findById(id);
+        if (pedidoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Pedido no encontrado"));
+        }
+        Pedido pedido = pedidoOpt.get();
+        String est = estadoActual(pedido);
+        if (esEstadoFinal(est)) {
+            return ResponseEntity.ok(Map.of("ok", true, "estado", est,
+                    "mensaje", "El pedido ya tiene un estado final"));
+        }
+        pedido.setEstado("CANCELADO");
+        pedidoRepository.save(pedido);
+        notificarCliente(pedido, emailService::sendPedidoCanceladoEmail);
+        return ResponseEntity.ok(Map.of("ok", true, "estado", "CANCELADO"));
+    }
+
+    /**
+     * Lista de pedidos finalizados: entregados, suspendidos y cancelados.
+     * Conserva el nombre "entregados" como alias por compatibilidad.
+     */
+    @GetMapping({"/pedidos/finalizados", "/pedidos/entregados"})
+    public ResponseEntity<?> listarPedidosFinalizados() {
         List<Pedido> pedidos = pedidoRepository.findAll().stream()
                 .filter(p -> {
                     String est = p.getEstado() != null ? p.getEstado().toUpperCase() : "";
-                    return est.contains("COMPLETAD") || est.contains("ENTREGAD");
+                    return est.contains("COMPLETAD") || est.contains("ENTREGAD")
+                            || est.contains("SUSPENDID") || est.contains("CANCELAD");
                 })
                 .sorted((a, b) -> b.getIdPedido().compareTo(a.getIdPedido()))
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(pedidos);
+    }
+
+    private String estadoActual(Pedido pedido) {
+        return pedido.getEstado() != null ? pedido.getEstado().toUpperCase() : "";
+    }
+
+    private boolean esEstadoFinal(String estado) {
+        return estado.contains("COMPLETAD") || estado.contains("ENTREGAD")
+                || estado.contains("CANCELAD") || estado.contains("SUSPENDID")
+                || estado.contains("RECHAZAD");
+    }
+
+    /**
+     * Extrae los datos planos del pedido dentro de la transacción y delega el
+     * envío asíncrono del correo (sin tocar entidades JPA en el otro hilo).
+     */
+    private void notificarCliente(Pedido pedido, java.util.function.Consumer<PedidoEmailDTO> envio) {
+        User u = pedido.getUsuario();
+        if (u != null && u.getEmail() != null && !u.getEmail().isBlank()) {
+            String nro = pedido.getIdPedido() != null ? String.format("%06d", pedido.getIdPedido()) : "";
+            PedidoEmailDTO emailDto = PedidoEmailDTO.from(pedido, u, null, null, nro);
+            envio.accept(emailDto);
+        }
     }
 
     /**

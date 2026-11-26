@@ -32,10 +32,11 @@ public class PedidoTrackingService {
     public static final double TIENDA_LNG = -77.04735384172724;
 
     // Minutos fijos por etapa antes del viaje (igual que el frontend).
+    // "Motorizado asignado" -> "En camino" debe ser breve: 1 minuto en total.
     public static final long MIN_CONFIRMADO = 0;
-    public static final long MIN_DESPACHO = 1;
+    public static final long MIN_DESPACHO = 0;
     public static final long MIN_MOTORIZADO = 1;
-    public static final long MIN_PREVIOS = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO; // 2 min
+    public static final long MIN_PREVIOS = MIN_CONFIRMADO + MIN_DESPACHO + MIN_MOTORIZADO; // 1 min
 
     /** Minutos sin reintentar la geocodificacion de un pedido (evita el 429 de Nominatim). */
     private static final long REINTENTO_PEDIDO_MS = 60_000;
@@ -60,8 +61,10 @@ public class PedidoTrackingService {
 
     /**
      * Avanza el estado del pedido segun el tiempo transcurrido:
-     * PAGADO/CONFIRMADO -> EN_CAMINO (2 min) -> COMPLETADO (2 min + viaje + 10 s).
-     * En recojo: PAGADO -> LISTO_RECOJO (2 min) -> COMPLETADO (1 hora despues).
+     * PAGADO/CONFIRMADO -> EN_CAMINO (1 min) y luego espera a que el asistente
+     * confirme la entrega (no se completa automaticamente).
+     * En recojo: PAGADO -> LISTO_RECOJO (1 min) y tambien queda a la espera de
+     * la confirmacion del asistente.
      */
     @Transactional
     public Pedido avanzarEstado(Pedido pedido) {
@@ -78,7 +81,8 @@ public class PedidoTrackingService {
         if (pedido.getFecha() == null) return pedido;
         String estado = pedido.getEstado() != null ? pedido.getEstado().toUpperCase() : "";
         if (estado.contains("COMPLETAD") || estado.contains("ENTREGAD")
-                || estado.contains("CANCELAD") || estado.contains("RECHAZAD")) {
+                || estado.contains("CANCELAD") || estado.contains("RECHAZAD")
+                || estado.contains("SUSPENDID")) {
             return pedido;
         }
         long segundos = Duration.between(pedido.getFecha(), LocalDateTime.now(ZoneOffset.UTC)).getSeconds();
