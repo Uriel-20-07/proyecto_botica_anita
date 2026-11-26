@@ -1,8 +1,10 @@
 package com.example.demo.services;
 
+import com.example.demo.dto.ItemExpiradoDTO;
 import com.example.demo.exceptions.CarritoException;
 import com.example.demo.models.Carrito;
 import com.example.demo.models.DetalleCarrito;
+import com.example.demo.models.EstadoDetalleCarrito;
 import com.example.demo.models.Producto;
 import com.example.demo.models.User;
 import com.example.demo.repositories.CarritoRepository;
@@ -10,56 +12,54 @@ import com.example.demo.repositories.DetalleCarritoRepository;
 import com.example.demo.repositories.ProductoRepository;
 import com.example.demo.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Servicio que gestiona el carrito de compras de los usuarios.
- * 
+ *
  * Cada usuario tiene exactamente UN carrito (relación OneToOne).
- * El carrito contiene una lista de líneas de detalle (DetalleCarrito),
- * donde cada línea representa un producto con su cantidad.
- * 
- * Todas las operaciones son transaccionales para garantizar consistencia
- * en la base de datos (si alguna operación falla, se revierte todo).
+ * Cada línea de detalle reserva stock durante 2 horas. Si el usuario no
+ * compra en ese plazo, la reserva se libera y la línea se elimina en el
+ * siguiente GET del carrito (devolviendo la lista de expirados para avisar).
  */
 @Service
 public class CarritoService {
 
-    /** Repositorio del carrito (cabecera). */
+    /** Límite de unidades de un mismo producto por carrito. */
+    private static final int LIMITE_POR_PRODUCTO = 10;
+
     @Autowired
     private CarritoRepository carritoRepository;
 
-    /** Repositorio de las líneas de detalle del carrito. */
     @Autowired
     private DetalleCarritoRepository detalleCarritoRepository;
 
-    /** Repositorio de usuarios (para verificar existencia). */
     @Autowired
     private UserRepository userRepository;
 
-    /** Repositorio de productos (para verificar existencia y obtener datos). */
     @Autowired
     private ProductoRepository productoRepository;
 
+    @Autowired
+    private StockService stockService;
+
+    @Value("${app.carrito.reserva.horas:2}")
+    private long horasReserva;
+
     /**
      * Obtiene el carrito existente del usuario, o crea uno nuevo si no tiene.
-     * 
-     * Es el método "get or create" del patrón lazy initialization.
-     * Se llama antes de cualquier operación sobre el carrito para garantizar
-     * que siempre haya un carrito disponible.
-     *
-     * @param idUsuario ID del usuario propietario del carrito.
-     * @return el carrito del usuario (existente o recién creado).
-     * @throws RuntimeException si el usuario no existe.
      */
     @Transactional
     public Carrito obtenerOCrearCarrito(Integer idUsuario) {
-        return carritoRepository.findByUsuario_Id(idUsuario).orElseGet(() -> {
-            // Si el usuario no tiene carrito, crear uno vacío
+        return carritoRepository.findByUsuarioIdForUpdate(idUsuario).orElseGet(() -> {
             User usuario = userRepository.findById(idUsuario)
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             Carrito nuevoCarrito = new Carrito();
@@ -70,52 +70,46 @@ public class CarritoService {
     }
 
     /**
-     * Agrega un producto al carrito del usuario.
-     * 
-     * Comportamiento:
-     * - Si el producto YA está en el carrito: incrementa la cantidad.
-     * - Si el producto NO está en el carrito: crea una nueva línea de detalle.
-     *
-     * @param idUsuario  ID del usuario dueño del carrito.
-     * @param idProducto ID del producto a agregar.
-     * @param cantidad   número de unidades a agregar.
-     * @return el carrito actualizado con el producto agregado/incrementado.
-     * @throws RuntimeException si el producto no existe.
+     * Devuelve el carrito limpio: elimina las reservas vencidas y adjunta la
+     * lista de productos expirados para que el frontend notifique al usuario.
+     */
+    @Transactional
+    public Carrito obtenerCarritoConLimpieza(Integer idUsuario) {
+        Carrito carrito = obtenerOCrearCarrito(idUsuario);
+        carrito.setExpirados(limpiarExpiradas(carrito));
+        return carrito;
+    }
+
+    /**
+     * Agrega un producto al carrito reservando stock durante 2 horas.
      */
     @Transactional
     public Carrito agregarProductoAlCarrito(Integer idUsuario, Integer idProducto, Integer cantidad) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
+        List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
+        carrito.setExpirados(expirados);
+
         Producto producto = productoRepository.findById(idProducto)
                 .orElseThrow(() -> new CarritoException("Producto no encontrado.", 0));
 
-        // Productos agotados (sin stock o vencidos): no se pueden agregar.
-        if (producto.isAgotado()) {
-            throw new CarritoException("Este producto está agotado por ahora. Estamos trabajando para reabastecerlo.", 0);
-        }
-
-        // Stock disponible (protegido contra valores null en BD).
-        int stockDisponible = (producto.getStock() != null) ? producto.getStock() : 0;
-
-        // 1) La cantidad debe ser un número entero POSITIVO (ni 0, ni negativa, ni null).
         if (cantidad == null || cantidad <= 0) {
             throw new CarritoException("La cantidad debe ser un número entero mayor a cero.", 0);
         }
 
-        // 2) Buscar si el producto ya está en el carrito (para validar el acumulado).
-        Optional<DetalleCarrito> detalleExistente = carrito.getDetalles().stream()
-                .filter(d -> d.getProducto().getIdProducto().equals(idProducto))
-                .findFirst();
-        int cantidadActual = (detalleExistente.isPresent() && detalleExistente.get().getCantidad() != null)
-                ? detalleExistente.get().getCantidad()
-                : 0;
+        if (producto.isAgotadoOnline()) {
+            throw new CarritoException("Este producto está agotado por ahora. Estamos trabajando para reabastecerlo.", 0);
+        }
 
-        // 3) Cantidad máxima adicional permitida según la regla de negocio:
-        //    min(límite de 10 por producto, stock disponible) considerando lo ya en el carrito.
-        int limitePorProducto = 10 - cantidadActual;
-        int limitePorStock = stockDisponible - cantidadActual;
-        int maxAdicional = Math.max(0, Math.min(limitePorProducto, limitePorStock));
+        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
+        int cantidadActual = detalleExistente
+                .map(d -> d.getCantidad() != null ? d.getCantidad() : 0)
+                .orElse(0);
 
-        // Si no se puede agregar ninguna unidad más, informar por qué (límite o stock).
+        // El stock disponible ya descuenta TODAS las reservas, incluida la de este usuario.
+        int disponible = producto.getStockDisponible();
+        int limitePorProducto = LIMITE_POR_PRODUCTO - cantidadActual;
+        int maxAdicional = Math.max(0, Math.min(limitePorProducto, disponible));
+
         if (maxAdicional <= 0) {
             if (limitePorProducto <= 0) {
                 throw new CarritoException(
@@ -124,29 +118,35 @@ public class CarritoService {
             throw new CarritoException("Este producto no tiene stock disponible para agregar más unidades.", 0);
         }
 
-        // Si se pidió más de lo permitido, rechazar informando cuánto SÍ se puede agregar.
         if (cantidad > maxAdicional) {
-            boolean topeEsElLimite = (limitePorProducto <= limitePorStock);
+            boolean topeEsElLimite = limitePorProducto <= disponible;
             String motivo = topeEsElLimite
                     ? "el límite es de 10 unidades por producto"
-                    : "solo hay " + stockDisponible + " unidad(es) disponibles en stock";
+                    : "solo hay " + disponible + " unidad(es) disponibles en stock";
             throw new CarritoException(
                     "No se pueden agregar " + cantidad + " unidades porque " + motivo
                             + ". Puedes agregar " + maxAdicional + " unidad(es) más como máximo.",
                     maxAdicional);
         }
 
+        // Reserva atómica: bloquea el producto y valida el disponible otra vez.
+        stockService.reservar(idProducto, cantidad);
+
+        LocalDateTime ahora = LocalDateTime.now(ZoneOffset.UTC);
+
         if (detalleExistente.isPresent()) {
-            // El producto ya existe: se validó el acumulado, incrementar la cantidad.
+            // La fecha de expiración NO se extiende al aumentar la cantidad.
             DetalleCarrito detalle = detalleExistente.get();
             detalle.setCantidad(cantidadActual + cantidad);
             detalleCarritoRepository.save(detalle);
         } else {
-            // El producto es nuevo en el carrito: crear línea de detalle
             DetalleCarrito nuevoDetalle = new DetalleCarrito();
             nuevoDetalle.setCarrito(carrito);
             nuevoDetalle.setProducto(producto);
             nuevoDetalle.setCantidad(cantidad);
+            nuevoDetalle.setEstado(EstadoDetalleCarrito.ACTIVA);
+            nuevoDetalle.setFechaCreacion(ahora);
+            nuevoDetalle.setFechaExpiracion(ahora.plusHours(horasReserva));
             carrito.getDetalles().add(nuevoDetalle);
             detalleCarritoRepository.save(nuevoDetalle);
         }
@@ -155,77 +155,146 @@ public class CarritoService {
     }
 
     /**
-     * Disminuye en 1 la cantidad de un producto en el carrito.
-     * 
-     * Comportamiento:
-     * - Si cantidad > 1: disminuye en 1 la cantidad.
-     * - Si cantidad = 1: elimina la línea del carrito completamente.
-     *
-     * @param idUsuario  ID del usuario dueño del carrito.
-     * @param idProducto ID del producto a disminuir.
-     * @return el carrito actualizado.
+     * Disminuye en 1 la cantidad de un producto y libera esa unidad.
      */
     @Transactional
     public Carrito disminuirProductoDelCarrito(Integer idUsuario, Integer idProducto) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
+        List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
+        carrito.setExpirados(expirados);
 
-        Optional<DetalleCarrito> detalleExistente = carrito.getDetalles().stream()
-                .filter(d -> d.getProducto().getIdProducto().equals(idProducto))
-                .findFirst();
+        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
 
         if (detalleExistente.isPresent()) {
             DetalleCarrito detalle = detalleExistente.get();
-            if (detalle.getCantidad() > 1) {
-                // Aún quedan unidades: decrementar
+            if (detalle.getCantidad() != null && detalle.getCantidad() > 1) {
                 detalle.setCantidad(detalle.getCantidad() - 1);
                 detalleCarritoRepository.save(detalle);
             } else {
-                // Era la última unidad: eliminar la línea del carrito
                 carrito.getDetalles().remove(detalle);
                 detalleCarritoRepository.delete(detalle);
             }
+            stockService.liberar(idProducto, 1);
         }
 
         return carritoRepository.save(carrito);
     }
 
     /**
-     * Elimina completamente un producto del carrito (sin importar la cantidad).
-     *
-     * @param idUsuario  ID del usuario dueño del carrito.
-     * @param idProducto ID del producto a eliminar.
-     * @return el carrito actualizado sin el producto eliminado.
+     * Elimina completamente un producto del carrito y libera toda su reserva.
      */
     @Transactional
     public Carrito eliminarProductoDelCarrito(Integer idUsuario, Integer idProducto) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
+        List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
+        carrito.setExpirados(expirados);
 
-        Optional<DetalleCarrito> detalleExistente = carrito.getDetalles().stream()
-                .filter(d -> d.getProducto().getIdProducto().equals(idProducto))
-                .findFirst();
+        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
 
         if (detalleExistente.isPresent()) {
             DetalleCarrito detalle = detalleExistente.get();
-            carrito.getDetalles().remove(detalle); // Quita de la lista en memoria
-            detalleCarritoRepository.delete(detalle); // Elimina de la base de datos
+            int cantidad = detalle.getCantidad() != null ? detalle.getCantidad() : 0;
+            carrito.getDetalles().remove(detalle);
+            detalleCarritoRepository.delete(detalle);
+            stockService.liberar(idProducto, cantidad);
         }
 
         return carritoRepository.save(carrito);
     }
 
     /**
-     * Vacía completamente el carrito del usuario (elimina todas las líneas de
-     * detalle).
-     * Se usa después de completar un pago exitoso.
-     *
-     * @param idUsuario ID del usuario dueño del carrito.
-     * @return el carrito vacío (sin productos).
+     * Vacía completamente el carrito liberando todas las reservas activas.
      */
     @Transactional
     public Carrito vaciarCarrito(Integer idUsuario) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
-        detalleCarritoRepository.deleteAll(carrito.getDetalles()); // Elimina todas las líneas de la BD
-        carrito.getDetalles().clear(); // Limpia la lista en memoria
+        List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
+        carrito.setExpirados(expirados);
+
+        for (DetalleCarrito detalle : new ArrayList<>(carrito.getDetalles())) {
+            if (detalle.getEstado() == EstadoDetalleCarrito.ACTIVA) {
+                stockService.liberar(detalle.getProducto().getIdProducto(),
+                        detalle.getCantidad() != null ? detalle.getCantidad() : 0);
+            }
+        }
+
+        detalleCarritoRepository.deleteAll(carrito.getDetalles());
+        carrito.getDetalles().clear();
         return carritoRepository.save(carrito);
+    }
+
+    /**
+     * Vacía el carrito SIN liberar reservas.
+     * Se usa al confirmar el pago, porque StockService.confirmarVenta ya
+     * descontó la reserva y el stock físico.
+     */
+    @Transactional
+    public void vaciarCarritoSinLiberar(Integer idUsuario) {
+        Carrito carrito = obtenerOCrearCarrito(idUsuario);
+        detalleCarritoRepository.deleteAll(carrito.getDetalles());
+        carrito.getDetalles().clear();
+        carritoRepository.save(carrito);
+    }
+
+    /**
+     * Elimina las líneas vencidas del carrito.
+     * - Si la línea seguía ACTIVA (el scheduler no llegó), libera su stock.
+     * - Si ya estaba EXPIRADA, el stock ya fue liberado y solo se elimina.
+     *
+     * @return los productos expirados para notificar al usuario.
+     */
+    private List<ItemExpiradoDTO> limpiarExpiradas(Carrito carrito) {
+        LocalDateTime ahora = LocalDateTime.now(ZoneOffset.UTC);
+        List<ItemExpiradoDTO> expirados = new ArrayList<>();
+        List<DetalleCarrito> aEliminar = new ArrayList<>();
+
+        for (DetalleCarrito detalle : new ArrayList<>(carrito.getDetalles())) {
+            boolean vencida = detalle.getEstado() == EstadoDetalleCarrito.EXPIRADA
+                    || (detalle.getEstado() == EstadoDetalleCarrito.ACTIVA
+                    && detalle.getFechaExpiracion() != null
+                    && !detalle.getFechaExpiracion().isAfter(ahora));
+
+            if (!vencida) {
+                continue;
+            }
+
+            if (detalle.getEstado() == EstadoDetalleCarrito.ACTIVA) {
+                // Marca la línea como EXPIRADA de forma atómica: solo la ejecución
+                // que realmente la marca libera el stock (evita liberar dos veces).
+                int actualizadas = detalleCarritoRepository.marcarExpiradaSiActiva(
+                        detalle.getIdDetalleCarrito(), ahora,
+                        EstadoDetalleCarrito.EXPIRADA, EstadoDetalleCarrito.ACTIVA);
+                if (actualizadas > 0) {
+                    stockService.liberar(detalle.getProducto().getIdProducto(),
+                            detalle.getCantidad() != null ? detalle.getCantidad() : 0);
+                }
+            }
+
+            expirados.add(new ItemExpiradoDTO(
+                    detalle.getProducto().getIdProducto(),
+                    detalle.getProducto().getNombre(),
+                    detalle.getCantidad(),
+                    detalle.getFechaExpiracion(),
+                    "La reserva de 2 horas venció y el producto volvió al stock."));
+
+            carrito.getDetalles().remove(detalle);
+            aEliminar.add(detalle);
+        }
+
+        if (!aEliminar.isEmpty()) {
+            detalleCarritoRepository.deleteAll(aEliminar);
+            carritoRepository.save(carrito);
+        }
+
+        return expirados;
+    }
+
+    private Optional<DetalleCarrito> buscarDetalleActivo(Carrito carrito, Integer idProducto) {
+        return carrito.getDetalles().stream()
+                .filter(d -> d.getEstado() == EstadoDetalleCarrito.ACTIVA)
+                .filter(d -> d.getProducto() != null
+                        && d.getProducto().getIdProducto() != null
+                        && d.getProducto().getIdProducto().equals(idProducto))
+                .findFirst();
     }
 }

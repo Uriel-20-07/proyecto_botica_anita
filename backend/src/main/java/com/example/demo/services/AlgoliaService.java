@@ -62,9 +62,13 @@ public class AlgoliaService {
         record.put("precioConDescuento", producto.getPrecioConDescuento() != null ? producto.getPrecioConDescuento().doubleValue() : (producto.getPrecioVenta() != null ? producto.getPrecioVenta().doubleValue() : 0.0));
         record.put("descuentoPorcentaje", producto.getDescuentoPorcentaje() != null ? producto.getDescuentoPorcentaje().doubleValue() : 0.0);
         record.put("stock", producto.getStock() != null ? producto.getStock() : 0);
+        record.put("stockEnCarrito", producto.getStockEnCarrito() != null ? producto.getStockEnCarrito() : 0);
+        record.put("stockDisponible", producto.getStockDisponible());
+        record.put("estadoStock", producto.getEstadoStock());
         record.put("imgUrl", producto.getImgUrl() != null ? producto.getImgUrl() : "");
         record.put("fechaCaducidad", producto.getFechaCaducidad() != null ? producto.getFechaCaducidad().toString() : "");
         record.put("agotado", producto.isAgotado());
+        record.put("agotadoOnline", producto.isAgotadoOnline());
         if (producto.getSubcategoria() != null) {
             record.put("subcategoriaId", producto.getSubcategoria().getIdSubcategoria());
             record.put("subcategoriaNombre", producto.getSubcategoria().getNombre());

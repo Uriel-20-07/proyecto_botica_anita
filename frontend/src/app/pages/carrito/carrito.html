@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Tu carrito</p>
       <h1>Revisa tus productos y continúa al pago</h1>
-      <p class="subtitle">Los productos que agregaste se guardan en esta sesión del navegador.</p>
+      <p class="subtitle">Los productos quedan reservados 2 horas. Si no completas la compra, vuelven al stock automáticamente.</p>
     </div>
     <a routerLink="/catalogo" class="volver-link">Seguir comprando</a>
   </section>
@@ -25,6 +25,14 @@
           <p>{{ item.producto.descripcion }}</p>
           <span class="item-category">{{ item.producto.categoria?.nombre || 'General' }}</span>
 
+          <div class="reserva-badge" *ngIf="!esReservaVencida(item)" [class.reserva-por-vencer]="reservaPorVencer(item)">
+            <span class="reserva-icon">⏱</span>
+            Reservado por {{ getTiempoTexto(item) }}
+          </div>
+          <div class="reserva-badge reserva-vencida" *ngIf="esReservaVencida(item)">
+            Reserva vencida · el producto vuelve al stock
+          </div>
+
           <div *ngIf="getDiscountInfo(item.producto).message" class="promo-badge"
             [class.expired-badge]="getDiscountInfo(item.producto).isExpired">
             {{ getDiscountInfo(item.producto).message }}
@@ -32,7 +40,7 @@
         </div>
 
         <div class="item-actions">
-          <div class="qty-control" *ngIf="!getDiscountInfo(item.producto).isExpired">
+          <div class="qty-control" *ngIf="!getDiscountInfo(item.producto).isExpired && !esReservaVencida(item)">
             <button type="button" (click)="decrease(item.producto.idProducto)">-</button>
             <span>{{ item.cantidad }}</span>
             <button type="button" (click)="increase(item.producto.idProducto)"
@@ -61,8 +69,8 @@
 
       <div *ngIf="hasExpiredProducts" class="alert-box"
         style="background-color: #fee2e2; color: #991b1b; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9em;">
-        <strong>Atención:</strong> Algunos productos de tu carrito están agotados por ahora. Elimínalos para continuar
-        con tu compra.
+        <strong>Atención:</strong> La reserva de 2 horas de algunos productos venció y volvieron al stock.
+        Actualiza el carrito para continuar con tu compra.
       </div>
 
       <div class="summary-row">

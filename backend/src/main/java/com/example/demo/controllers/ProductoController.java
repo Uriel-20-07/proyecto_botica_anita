@@ -1,5 +1,6 @@
 package com.example.demo.controllers;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.dto.ConteosDTO;
+import com.example.demo.dto.FiltrosCatalogo;
+import com.example.demo.dto.PageDTO;
 import com.example.demo.models.Producto;
 import com.example.demo.services.ProductoService;
 
@@ -23,8 +27,10 @@ import com.example.demo.services.ProductoService;
  * visitante pueda ver el catálogo sin necesidad de registrarse.
  * 
  * Endpoints disponibles:
- * - GET /api/productos               → Listar todos los productos.
- * - GET /api/productos?nombre=xxx    → Buscar productos por nombre.
+ * - GET /api/productos                → Listar todos los productos.
+ * - GET /api/productos?nombre=xxx     → Buscar productos por nombre.
+ * - GET /api/productos/paginado       → Catálogo paginado + filtros (30 por página).
+ * - GET /api/productos/conteos        → Conteos por subcategoría/marca (menú lateral).
  * - GET /api/productos/categoria/{id} → Filtrar productos por categoría.
  */
 @RestController
@@ -51,6 +57,61 @@ public class ProductoController {
             return productoService.buscarPorNombre(nombre);
         }
         return productoService.listarTodos();
+    }
+
+    /**
+     * Catálogo paginado con filtros: PostgreSQL filtra PRIMERO sobre todos los
+     * productos y recién después pagina de 30 en 30.
+     *
+     * Todos los filtros son opcionales; los que vienen vacíos no agregan
+     * condición, así que la misma llamada sirve para todo el catálogo.
+     *
+     * Ejemplo: GET /api/productos/paginado?page=0&size=30&categoriaId=5&marcaId=2&precioMax=150
+     *
+     * @param page           índice de página, base 0 (default 0).
+     * @param size           cantidad de productos por página (default 30).
+     * @param categoriaId    categoría (null = todas).
+     * @param subcategoriaId una o varias subcategorías (?subcategoriaId=1&subcategoriaId=2).
+     * @param marcaId        una o varias marcas (?marcaId=3&marcaId=4).
+     * @param search         texto de búsqueda (nombre, descripción o categoría).
+     * @param enOferta       true = solo productos en oferta vigente.
+     * @param precioMax      precio efectivo máximo (sin tope si no se envía).
+     * @param orden          relevancia | precio_asc | precio_desc | nombre_asc.
+     * @return DTO paginado con content, totalPages, totalElements, number y size.
+     */
+    @GetMapping("/paginado")
+    public PageDTO<Producto> listarPaginado(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            @RequestParam(required = false) Integer categoriaId,
+            @RequestParam(required = false) List<Integer> subcategoriaId,
+            @RequestParam(required = false) List<Integer> marcaId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean enOferta,
+            @RequestParam(required = false) BigDecimal precioMax,
+            @RequestParam(required = false) String orden) {
+
+        FiltrosCatalogo filtros = new FiltrosCatalogo(
+                categoriaId, subcategoriaId, marcaId, search, enOferta, precioMax, orden);
+        return PageDTO.from(productoService.listarPaginado(filtros, page, size));
+    }
+
+    /**
+     * Conteos reales del catálogo para el menú lateral: cuántos productos hay
+     * en cada subcategoría y en cada marca (de la categoría elegida si se pasa
+     * ?categoriaId=), más el precio más alto del catálogo para el slider.
+     *
+     * Se calcula con GROUP BY en la BD para que los contadores no dependan de
+     * la página de 30 productos que tenga cargada el frontend.
+     *
+     * Ejemplo: GET /api/productos/conteos?categoriaId=5
+     *
+     * @param categoriaId categoría opcional para acotar los conteos de marcas.
+     * @return subcategorias[], marcas[] y precioMaximo.
+     */
+    @GetMapping("/conteos")
+    public ConteosDTO conteos(@RequestParam(required = false) Integer categoriaId) {
+        return productoService.contarProductos(categoriaId);
     }
 
     /**

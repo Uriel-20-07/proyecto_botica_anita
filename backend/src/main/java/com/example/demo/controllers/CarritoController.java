@@ -60,7 +60,8 @@ public class CarritoController {
             return ResponseEntity.status(401).build(); // No autenticado
         }
         User usuario = authService.obtenerUsuarioPorEmail(principal.getName());
-        Carrito carrito = carritoService.obtenerOCrearCarrito(usuario.getId());
+        // Limpia reservas vencidas y devuelve la lista de expirados para avisar.
+        Carrito carrito = carritoService.obtenerCarritoConLimpieza(usuario.getId());
         return ResponseEntity.ok(carrito);
     }
 

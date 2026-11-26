@@ -13,6 +13,8 @@ interface ProductoPOS {
   nombre: string;
   precioVenta: number;
   stock: number;
+  stockEnCarrito?: number;
+  stockDisponible?: number;
   imgUrl?: string;
   categoria?: { nombre: string };
 }
@@ -278,18 +280,24 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Unidades que el POS puede vender: stock físico menos reservas online. */
+  stockVendible(p: ProductoPOS): number {
+    if (!p) return 0;
+    return p.stockDisponible != null ? Number(p.stockDisponible) : Number(p.stock) || 0;
+  }
+
   agregarAlCarrito(p: ProductoPOS): void {
     const carrito = [...this.carrito()];
     const idx = carrito.findIndex((i) => i.producto.idProducto === p.idProducto);
     if (idx >= 0) {
-      if (carrito[idx].cantidad + 1 > p.stock) {
-        this.toast.mostrar('Stock insuficiente', 'error');
+      if (carrito[idx].cantidad + 1 > this.stockVendible(p)) {
+        this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
         return;
       }
       carrito[idx].cantidad++;
     } else {
-      if (p.stock < 1) {
-        this.toast.mostrar('Producto sin stock', 'error');
+      if (this.stockVendible(p) < 1) {
+        this.toast.mostrar('Producto sin stock disponible', 'error');
         return;
       }
       carrito.push({ producto: p, cantidad: 1 });
@@ -306,8 +314,8 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
       if (i.producto.idProducto === idProducto) {
         const nueva = i.cantidad + delta;
         if (nueva < 1) return i;
-        if (nueva > i.producto.stock) {
-          this.toast.mostrar('Stock insuficiente', 'error');
+        if (nueva > this.stockVendible(i.producto)) {
+          this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
           return i;
         }
         return { ...i, cantidad: nueva };

@@ -375,7 +375,9 @@ public class PromocionService {
     }
 
     private int stock(Producto p) {
-        return p.getStock() != null ? p.getStock() : 0;
+        // Para ofrecer promociones solo cuenta el stock que se puede vender,
+        // no las unidades ya reservadas en carritos.
+        return p.getStockDisponible();
     }
 
     private BigDecimal precioEfectivo(Producto p) {

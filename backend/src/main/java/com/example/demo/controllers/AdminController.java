@@ -44,6 +44,7 @@ import com.example.demo.repositories.UserRepository;
 import com.example.demo.repositories.CuponRepository;
 import com.example.demo.services.JwtService;
 import com.example.demo.services.EmailService;
+import com.example.demo.services.StockService;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -74,6 +75,9 @@ public class AdminController {
 
     @Autowired
     private JwtService jwtService;
+
+    @Autowired
+    private StockService stockService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -142,11 +146,14 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Producto no encontrado"));
         }
 
-        Producto producto = prodOpt.get();
-        producto.setStock(nuevoStock);
-        Producto guardado = productoRepository.save(producto);
-
-        return ResponseEntity.ok(guardado);
+        try {
+            // Valida que no se deje el stock por debajo de lo reservado y,
+            // si el producto tiene lotes, ajusta el lote correspondiente.
+            Producto guardado = stockService.ajustarStock(id, nuevoStock);
+            return ResponseEntity.ok(guardado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/productos/{id}/oferta")

@@ -3,12 +3,11 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { CartService } from '../../services/cart.service';
-import { CatalogoService, CategoriaApi, ProductoApi } from '../../services/catalogo.service';
-import { AlgoliaService, AlgoliaProducto } from '../../services/algolia.service';
+import { CatalogoService, CategoriaApi, ProductoApi, ConteosApi, FiltroCatalogo } from '../../services/catalogo.service';
 import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, debounceTime } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ToastService } from '../../services/toast.service';
 import { PromoCarouselComponent } from '../../components/promo-carousel/promo-carousel';
@@ -42,12 +41,14 @@ interface ProductoVista {
 /**
  * Componente del catálogo.
  *
- * La barra de búsqueda con autocomplete de Algolia vive ahora en el navbar
+ * La barra de búsqueda con autocomplete de Algolia vive en el navbar
  * (ver NavbarComponent). Este componente:
- * - Recibe el término de búsqueda vía query param `?q=` y lo consulta en
- *   Algolia para mostrar los resultados correspondientes.
- * - Mantiene los filtros propios del catálogo: categoría, precio máximo
- *   y ordenamiento (relevancia, precio asc/desc, nombre A-Z).
+ * - Recibe los query params `?q=`, `?categoria=` y `?marca=` desde la URL.
+ * - Pide la página al backend con TODOS los filtros activos (categoría,
+ *   subcategorías, marcas, búsqueda, ofertas, precio y orden): el backend
+ *   filtra sobre los 400+ productos y recién después pagina de 30 en 30.
+ * - Muestra los contadores del menú lateral con GET /api/productos/conteos
+ *   (conteos reales de la BD, no de la página cargada).
  * - Resalta el término buscado en los nombres de los resultados.
  */
 @Component({
@@ -62,7 +63,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   readonly mostrarRecetas = environment.mostrarRecetas ?? false;
   // ─── Estado principal ─────────────────────────────────────────────────────
   categorias: CategoriaApi[] = [];
-  productos: ProductoVista[] = [];
+  /** Productos de la página actual, ya filtrados por el backend. */
   productosFiltrados: ProductoVista[] = [];
   categoriaSeleccionadaId: number | null = null;
   /** Subcategorías marcadas con casilla (vacío = se muestran todas las de la categoría). */
@@ -73,6 +74,25 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   busqueda = '';
   cargando = true;
   mensaje = '';
+
+  // ─── Paginación del catálogo (30 productos por página) ────────────────────
+  /** Índice de la página actual (base 0). */
+  paginaActual = 0;
+  /** Productos por página (el backend los devuelve de a 30). */
+  readonly tamanoPagina = 30;
+  /** Total de páginas disponibles en el backend. */
+  totalPaginas = 1;
+  /** Total de productos que cumplen los filtros (sin paginar). */
+  totalElementos = 0;
+  /** Para inicializar el slider de precio solo con la primera carga. */
+  private precioMaximoInicializado = false;
+
+  /** Contadores reales del menú lateral (subcategorías y marcas) + precio máximo global. */
+  conteos: ConteosApi = { subcategorias: [], marcas: [], precioMaximo: 0 };
+  /** Id de la última petición: descarta respuestas que llegaron tarde. */
+  private peticionId = 0;
+  /** Dispara la recarga (en página 0) cuando se suelta el slider de precio. */
+  private readonly precioChange$ = new Subject<void>();
 
   // ─── Filtros avanzados ────────────────────────────────────────────────────
   ordenamiento: 'relevancia' | 'precio_asc' | 'precio_desc' | 'nombre_asc' = 'relevancia';
@@ -107,7 +127,6 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     private readonly catalogoService: CatalogoService,
     private readonly cartService: CartService,
     private readonly route: ActivatedRoute,
-    private readonly algoliaService: AlgoliaService,
     private readonly favoritosService: FavoritosService,
     private readonly authService: AuthService,
     private readonly authModalService: AuthModalService,
@@ -115,7 +134,13 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Suscripción a query params (búsqueda y categoría llegan desde el navbar)
+    // El slider de precio dispara muchas veces mientras se arrastra:
+    // se agrupan en una sola recarga al dejar de moverlo.
+    this.precioChange$
+      .pipe(debounceTime(400), takeUntil(this.destroy$))
+      .subscribe(() => this.recargar());
+
+    // Suscripción a query params (búsqueda, categoría y marca llegan desde el navbar)
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       this.queryBusqueda = params.get('q') ?? '';
       this.queryCategoria = params.get('categoria') ?? '';
@@ -131,25 +156,19 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
   // ─── Carga de datos desde el backend ─────────────────────────────────────
 
+  /**
+   * Carga inicial: categorías (necesarias para traducir ?categoria= de la URL
+   * a un id), luego aplica los filtros de la URL, los contadores del menú
+   * lateral y la primera página del catálogo.
+   */
   cargarDatos(): void {
     this.cargando = true;
     this.catalogoService.getCategorias().subscribe({
       next: (categorias) => {
         this.categorias = categorias;
-        this.catalogoService.getProductos().subscribe({
-          next: (productos) => {
-            this.productos = productos.map((p) => this.mapProducto(p));
-            // Calcular el precio máximo del catálogo para el slider
-            this.precioMaximoTotal = Math.ceil(Math.max(...this.productos.map(p => p.precio), 500));
-            this.precioMaximo = this.precioMaximoTotal;
-            this.aplicarFiltrosDesdeUrl();
-            this.cargando = false;
-          },
-          error: () => {
-            this.mensaje = 'No se pudieron cargar los productos.';
-            this.cargando = false;
-          }
-        });
+        this.aplicarStateDesdeUrl();
+        this.cargarConteos();
+        this.cargarPagina(0);
       },
       error: () => {
         this.mensaje = 'No se pudieron cargar las categorías.';
@@ -158,60 +177,163 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Búsqueda con Algolia (vía ?q= desde el navbar) ───────────────────────
-
   /**
-   * Ejecuta la búsqueda completa con Algolia para el término actual.
-   * Reemplaza la lista de productos visibles con los resultados de Algolia,
-   * filtrados por precio y ordenados según el criterio seleccionado.
+   * Contadores reales del menú lateral (subcategorías, marcas) y precio
+   * máximo del catálogo. Se piden al backend para que los números no
+   * dependan de la página de 30 productos cargada en memoria.
    */
-  buscar(): void {
-    if (!this.busqueda.trim()) {
-      // Sin texto: mostrar todos los productos locales
-      this.productosFiltrados = [...this.productos];
-      this.aplicarFiltros();
-      return;
-    }
-
-    this.cargando = true;
-    this.algoliaService.buscar(this.busqueda, {
-      hitsPerPage: 100,
-      categoriaId: this.categoriaSeleccionadaId ?? undefined
-    }).subscribe({
-      next: (resultados) => {
-        // Convertir AlgoliaProducto → ProductoVista
-        const productosAlgolia = resultados.map((hit) => this.mapAlgoliaHit(hit));
-        let filtrados = this.filtrarPorPrecio(productosAlgolia.filter((p) => this.coincideSubcategoria(p) && this.coincideMarca(p)));
-        if (this.soloOfertas) {
-          filtrados = filtrados.filter(p => p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
+  private cargarConteos(): void {
+    this.catalogoService.getConteos(this.categoriaSeleccionadaId).subscribe({
+      next: (conteos) => {
+        this.conteos = conteos;
+        const maximoGlobal = Math.max(1, Math.ceil(conteos.precioMaximo || 500));
+        const topeAnterior = this.precioMaximoTotal;
+        this.precioMaximoTotal = maximoGlobal;
+        // El slider sigue al tope salvo que el usuario lo haya bajado antes.
+        if (!this.precioMaximoInicializado || this.precioMaximo >= topeAnterior) {
+          this.precioMaximo = this.precioMaximoTotal;
+          this.precioMaximoInicializado = true;
         }
-        this.productosFiltrados = filtrados;
-        this.ordenarProductos();
-        this.cargando = false;
       },
       error: () => {
-        // Fallback: búsqueda local si Algolia falla
-        this.aplicarFiltros();
-        this.cargando = false;
+        // Sin conteos se mantienen los valores por defecto de la vista.
       }
     });
   }
 
-  // ─── Filtros avanzados ────────────────────────────────────────────────────
+  /** Filtros activos, tal como los espera el backend. */
+  private construirFiltros(): FiltroCatalogo {
+    const filtros: FiltroCatalogo = {
+      categoriaId: this.categoriaSeleccionadaId,
+      subcategoriaIds: this.subcategoriasSeleccionadas,
+      marcaIds: this.marcasSeleccionadas,
+      orden: this.ordenamiento
+    };
+    if (this.busqueda.trim()) {
+      filtros.search = this.busqueda.trim();
+    }
+    if (this.soloOfertas) {
+      filtros.enOferta = true;
+    }
+    // Solo se envía el tope si el usuario lo bajó: si está en el máximo,
+    // no filtra nada (así no se esconden productos más caros).
+    if (this.precioMaximo < this.precioMaximoTotal) {
+      filtros.precioMax = this.precioMaximo;
+    }
+    return filtros;
+  }
+
+  /**
+   * Pide una página del catálogo al backend con los filtros activos.
+   * El backend filtra sobre TODOS los productos y recién después pagina,
+   * así que cambiar de filtro o de página siempre ve el listado correcto.
+   *
+   * @param page índice de página (base 0).
+   */
+  private cargarPagina(page: number): void {
+    const peticion = ++this.peticionId;
+    this.cargando = true;
+    this.catalogoService
+      .getProductosPaginado(page, this.tamanoPagina, this.construirFiltros())
+      .subscribe({
+        next: (pagina) => {
+          if (peticion !== this.peticionId) return; // respuesta obsoleta
+          this.paginaActual = pagina.number;
+          this.totalPaginas = Math.max(1, pagina.totalPages);
+          this.totalElementos = pagina.totalElements;
+          const items = pagina.content.map((p) => this.mapProducto(p));
+          this.productosFiltrados = items;
+          this.cargando = false;
+        },
+        error: () => {
+          if (peticion !== this.peticionId) return;
+          this.mensaje = 'No se pudieron cargar los productos.';
+          this.cargando = false;
+        }
+      });
+  }
+
+  /**
+   * Cualquier cambio de filtro reinicia la paginación en la página 0
+   * y vuelve a pedir el listado al backend.
+   */
+  private recargar(): void {
+    this.cargarPagina(0);
+    this.scrollAlInicio();
+  }
+
+  // ─── Controles de paginación ──────────────────────────────────────────────
+
+  /**
+   * Cambia de página: pide al backend los siguientes 30 productos y
+   * sube suavemente al inicio de la lista.
+   */
+  cambiarPagina(page: number): void {
+    if (this.cargando || page < 0 || page >= this.totalPaginas || page === this.paginaActual) {
+      return;
+    }
+    this.cargarPagina(page);
+    this.scrollAlInicio();
+  }
+
+  paginaAnterior(): void {
+    this.cambiarPagina(this.paginaActual - 1);
+  }
+
+  paginaSiguiente(): void {
+    this.cambiarPagina(this.paginaActual + 1);
+  }
+
+  /** Números de página visibles: ventana de 5 alrededor de la actual. */
+  get paginasVisibles(): number[] {
+    const total = this.totalPaginas;
+    const actual = this.paginaActual + 1; // la vista es base 1
+    let inicio = Math.max(1, actual - 2);
+    let fin = Math.min(total, inicio + 4);
+    inicio = Math.max(1, fin - 4);
+    const paginas: number[] = [];
+    for (let i = inicio; i <= fin; i++) {
+      paginas.push(i);
+    }
+    return paginas;
+  }
+
+  /**
+   * La paginación la calcula el backend para cualquier consulta (con o sin
+   * texto buscado), así que solo se oculta si no hay resultados o hay una sola página.
+   */
+  get mostrarPaginacion(): boolean {
+    return !this.cargando && this.productosFiltrados.length > 0 && this.totalPaginas > 1;
+  }
+
+  /** Texto del indicador: "Página X de Y". */
+  get paginaActualTexto(): number {
+    return this.paginaActual + 1;
+  }
+
+  private scrollAlInicio(): void {
+    if (typeof window !== 'undefined' && window.scrollTo) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  // ─── Filtros (todo se manda al backend, en página 0) ─────────────────────
+
+  /** Mueve el slider de precio: la recarga llega agrupada (debounce). */
+  onPrecioInput(): void {
+    this.precioChange$.next();
+  }
 
   seleccionarCategoria(idCategoria: number | null): void {
     this.categoriaSeleccionadaId = idCategoria;
     this.subcategoriasSeleccionadas = [];
     this.marcasSeleccionadas = [];
-    // Si hay texto buscado, relanzar búsqueda con filtro de categoría
-    if (this.busqueda.trim()) {
-      this.buscar();
-    } else {
-      this.aplicarFiltros();
-    }
+    // Los conteos del menú lateral dependen de la categoría elegida.
+    this.cargarConteos();
+    this.recargar();
   }
 
-  /** Marca o desmarca una subcategoría (casilla) y vuelve a filtrar. */
+  /** Marca o desmarca una subcategoría (casilla) y vuelve a pedir la página 0. */
   toggleSubcategoria(id: number): void {
     const i = this.subcategoriasSeleccionadas.indexOf(id);
     if (i >= 0) {
@@ -219,44 +341,36 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     } else {
       this.subcategoriasSeleccionadas = [...this.subcategoriasSeleccionadas, id];
     }
-    this.refiltrar();
+    this.recargar();
   }
 
   limpiarSubcategorias(): void {
     this.subcategoriasSeleccionadas = [];
-    this.refiltrar();
+    this.recargar();
   }
 
   estaSubcategoriaSeleccionada(id: number): boolean {
     return this.subcategoriasSeleccionadas.includes(id);
   }
 
-  /** Cantidad de productos de una subcategoría (para mostrar junto a la casilla). */
+  /**
+   * Cantidad de productos de una subcategoría, según los conteos reales
+   * que devuelve GET /api/productos/conteos (no según la página cargada).
+   */
   contarPorSubcategoria(id: number): number {
-    return this.productos.filter((p) => p.subcategoriaId === id).length;
+    return this.conteos.subcategorias.find((c) => c.id === id)?.cantidad ?? 0;
   }
 
   // ─── Filtro por marca ─────────────────────────────────────────────────────
 
-  /** Marcas con productos en la categoría elegida (o en todo el catálogo), con su cantidad. */
+  /**
+   * Marcas con productos en la categoría elegida (o en todo el catálogo),
+   * con su conteo real. Solo se filtra aquí el texto del buscador de marcas,
+   * que es una lista corta y no necesita viajar al backend.
+   */
   get marcasDisponibles(): { id: number; nombre: string; cantidad: number }[] {
-    const categoriaNombre =
-      this.categoriaSeleccionadaId === null
-        ? null
-        : (this.categorias.find((c) => c.idCategoria === this.categoriaSeleccionadaId)?.nombre ?? null);
-    const mapa = new Map<number, { id: number; nombre: string; cantidad: number }>();
-    for (const p of this.productos) {
-      if (p.marcaId == null || !p.marcaNombre) continue;
-      if (categoriaNombre !== null && p.categoriaNombre !== categoriaNombre) continue;
-      const actual = mapa.get(p.marcaId);
-      if (actual) {
-        actual.cantidad++;
-      } else {
-        mapa.set(p.marcaId, { id: p.marcaId, nombre: p.marcaNombre, cantidad: 1 });
-      }
-    }
     const termino = this.normalizarTexto(this.busquedaMarca);
-    return [...mapa.values()]
+    return this.conteos.marcas
       .filter((m) => !termino || this.normalizarTexto(m.nombre).includes(termino))
       .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre));
   }
@@ -265,57 +379,33 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     return m.id;
   }
 
-  /** Marca o desmarca una marca (casilla) y vuelve a filtrar. */
+  /** Marca o desmarca una marca (casilla) y vuelve a pedir la página 0. */
   toggleMarca(id: number): void {
     this.marcasSeleccionadas = this.marcasSeleccionadas.includes(id)
       ? this.marcasSeleccionadas.filter((m) => m !== id)
       : [...this.marcasSeleccionadas, id];
-    this.refiltrar();
+    this.recargar();
   }
 
   limpiarMarcas(): void {
     this.marcasSeleccionadas = [];
-    this.refiltrar();
+    this.recargar();
   }
 
   estaMarcaSeleccionada(id: number): boolean {
     return this.marcasSeleccionadas.includes(id);
   }
 
-  private coincideMarca(p: ProductoVista): boolean {
-    return (
-      this.marcasSeleccionadas.length === 0 || (p.marcaId != null && this.marcasSeleccionadas.includes(p.marcaId))
-    );
-  }
-
-  private coincideSubcategoria(p: ProductoVista): boolean {
-    return (
-      this.subcategoriasSeleccionadas.length === 0 ||
-      (p.subcategoriaId != null && this.subcategoriasSeleccionadas.includes(p.subcategoriaId))
-    );
-  }
-
-  private refiltrar(): void {
-    if (this.busqueda.trim()) {
-      this.buscar();
-    } else {
-      this.aplicarFiltros();
-    }
-  }
-
   aplicarOrdenamiento(): void {
-    this.ordenarProductos();
+    this.recargar();
   }
 
   toggleSoloOfertas(): void {
     this.soloOfertas = !this.soloOfertas;
-    if (this.busqueda.trim()) {
-      this.buscar();
-    } else {
-      this.aplicarFiltros();
-    }
+    this.recargar();
   }
 
+  /** "Ver ofertas" del carrusel: limpia todo y deja solo productos en oferta. */
   verOfertas(): void {
     this.busqueda = '';
     this.categoriaSeleccionadaId = null;
@@ -326,7 +416,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     this.queryMarca = '';
     this.soloOfertas = true;
     this.precioMaximo = this.precioMaximoTotal;
-    this.aplicarFiltros();
+    this.cargarConteos();
+    this.recargar();
   }
 
   limpiarFiltros(): void {
@@ -341,7 +432,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     this.ordenamiento = 'relevancia';
     this.precioMaximo = this.precioMaximoTotal;
     this.soloOfertas = false;
-    this.productosFiltrados = [...this.productos];
+    this.cargarConteos();
+    this.recargar();
   }
 
   hayFiltrosActivos(): boolean {
@@ -354,73 +446,6 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       this.ordenamiento !== 'relevancia' ||
       this.soloOfertas
     );
-  }
-
-  /**
-   * Aplica filtros locales (categoría + precio + ofertas) sobre la lista de productos.
-   * Se usa cuando no hay texto de búsqueda (Algolia no es necesario).
-   */
-  aplicarFiltros(): void {
-    const termino = this.busqueda.trim().toLowerCase();
-
-    let filtrados = this.productos.filter((p) => {
-      const coincideCategoria =
-        this.categoriaSeleccionadaId === null ||
-        this.categorias.find((c) => c.idCategoria === this.categoriaSeleccionadaId)?.nombre === p.categoriaNombre;
-
-      const coincideBusqueda =
-        !termino ||
-        p.nombre.toLowerCase().includes(termino) ||
-        p.descripcion.toLowerCase().includes(termino) ||
-        p.categoriaNombre.toLowerCase().includes(termino);
-
-      const coincideOferta =
-        !this.soloOfertas ||
-        (p.descuentoInfo && p.descuentoInfo.percentage > 0 && !p.descuentoInfo.isExpired);
-
-      const coincideSubcategoria = this.coincideSubcategoria(p);
-      const coincideMarca = this.coincideMarca(p);
-
-      return coincideCategoria && coincideSubcategoria && coincideMarca && coincideBusqueda && coincideOferta;
-    });
-
-    filtrados = this.filtrarPorPrecio(filtrados);
-    this.productosFiltrados = filtrados;
-    this.ordenarProductos();
-  }
-
-  private filtrarPorPrecio(lista: ProductoVista[]): ProductoVista[] {
-    return lista.filter((p) => {
-      const precioFinal = p.descuentoInfo && p.descuentoInfo.percentage > 0
-        ? p.precio * (1 - p.descuentoInfo.percentage)
-        : p.precio;
-      return precioFinal <= this.precioMaximo;
-    });
-  }
-
-  private ordenarProductos(): void {
-    switch (this.ordenamiento) {
-      case 'precio_asc':
-        this.productosFiltrados = [...this.productosFiltrados].sort((a, b) => {
-          const precioA = a.descuentoInfo && a.descuentoInfo.percentage > 0 ? a.precio * (1 - a.descuentoInfo.percentage) : a.precio;
-          const precioB = b.descuentoInfo && b.descuentoInfo.percentage > 0 ? b.precio * (1 - b.descuentoInfo.percentage) : b.precio;
-          return precioA - precioB;
-        });
-        break;
-      case 'precio_desc':
-        this.productosFiltrados = [...this.productosFiltrados].sort((a, b) => {
-          const precioA = a.descuentoInfo && a.descuentoInfo.percentage > 0 ? a.precio * (1 - a.descuentoInfo.percentage) : a.precio;
-          const precioB = b.descuentoInfo && b.descuentoInfo.percentage > 0 ? b.precio * (1 - b.descuentoInfo.percentage) : b.precio;
-          return precioB - precioA;
-        });
-        break;
-      case 'nombre_asc':
-        this.productosFiltrados = [...this.productosFiltrados].sort((a, b) => a.nombre.localeCompare(b.nombre));
-        break;
-      default:
-        // 'relevancia': el orden lo da Algolia, no se modifica
-        break;
-    }
   }
 
   // ─── Resaltado de texto buscado ───────────────────────────────────────────
@@ -506,33 +531,6 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     };
   }
 
-  private mapAlgoliaHit(hit: AlgoliaProducto): ProductoVista {
-    const categoriaKey = (hit.categoriaNombre ?? 'general').toLowerCase();
-    const imagen = hit.imgUrl || this.imagenPorCategoria[categoriaKey] || 'assets/img/placeholder-pill.png';
-    
-    const fechaCad = this.getFecha(hit);
-    const descuento = this.cartService.getDiscountInfo(hit);
-
-    return {
-      id: hit.idProducto,
-      nombre: hit.nombre,
-      descripcion: hit.descripcion ?? 'Producto del catálogo BoticaAnita',
-      precio: hit.precioConDescuento != null ? Number(hit.precioConDescuento) : Number(hit.precioVenta),
-      precioOriginal: Number(hit.precioVenta),
-      categoriaNombre: hit.categoriaNombre ?? 'General',
-      subcategoriaId: hit.subcategoriaId ?? null,
-      marcaId: hit.marcaId ?? null,
-      marcaNombre: hit.marcaNombre ?? null,
-      imagen,
-      etiquetaPromo: descuento.message || this.obtenerPromo(hit.nombre, hit.categoriaNombre ?? ''),
-      colorPromo: descuento.message ? 'red' : ((hit.categoriaNombre ?? '').toUpperCase() === 'MEDICAMENTOS' ? 'red' : 'orange'),
-      fechaCaducidad: fechaCad,
-      descuentoInfo: descuento,
-      requiereReceta: this.requiereRecetaMedica(hit.nombre),
-      agotado: this.cartService.estaAgotado(hit)
-    };
-  }
-
   private obtenerPromo(nombre: string, categoriaNombre: string): string | undefined {
     const etiqueta = categoriaNombre.toLowerCase();
     if (etiqueta.includes('medic')) return 'Oferta especial';
@@ -550,40 +548,28 @@ export class CatalogoComponent implements OnInit, OnDestroy {
 
 
   /**
-   * Lee `?q=` y `?categoria=` de la URL (provistos por el navbar) y
-   * dispara la búsqueda en Algolia o el filtrado local según corresponda.
+   * Lee `?q=`, `?categoria=` y `?marca=` de la URL (provistos por el navbar)
+   * y los deja cargados en el estado de filtros. No pide productos: eso lo
+   * hace `cargarPagina(0)` justo después, mandando estos filtros al backend.
    */
-  private aplicarFiltrosDesdeUrl(): void {
+  private aplicarStateDesdeUrl(): void {
+    this.busqueda = this.queryBusqueda;
+    this.subcategoriasSeleccionadas = [];
 
-  this.busqueda = this.queryBusqueda;
-  this.subcategoriasSeleccionadas = [];
+    // Marca que llega desde la página de Marcas (?marca=ID)
+    const idMarca = Number(this.queryMarca);
+    this.marcasSeleccionadas = this.queryMarca && !isNaN(idMarca) ? [idMarca] : [];
 
-  // Marca que llega desde la página de Marcas (?marca=ID)
-  const idMarca = Number(this.queryMarca);
-  this.marcasSeleccionadas = this.queryMarca && !isNaN(idMarca) ? [idMarca] : [];
-
-  if (this.queryCategoria) {
-
-    const categoriaNormalizada =
-      this.normalizarTexto(this.queryCategoria);
-
-    const encontrada = this.categorias.find(
-      c => this.normalizarTexto(c.nombre) === categoriaNormalizada
-    );
-
-    this.categoriaSeleccionadaId =
-      encontrada?.idCategoria ?? null;
-
-  } else {
-    this.categoriaSeleccionadaId = null;
+    if (this.queryCategoria) {
+      const categoriaNormalizada = this.normalizarTexto(this.queryCategoria);
+      const encontrada = this.categorias.find(
+        (c) => this.normalizarTexto(c.nombre) === categoriaNormalizada
+      );
+      this.categoriaSeleccionadaId = encontrada?.idCategoria ?? null;
+    } else {
+      this.categoriaSeleccionadaId = null;
+    }
   }
-
-  if (this.busqueda.trim()) {
-    this.buscar();
-  } else {
-    this.aplicarFiltros();
-  }
-}
 
   isFavorito(idProducto: number): boolean {
     return this.favoritosService.isFavorito(idProducto);

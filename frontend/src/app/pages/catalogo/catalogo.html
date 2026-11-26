@@ -101,7 +101,7 @@
                 <input type="range" class="filtro-range-sidebar"
                     min="0" [max]="precioMaximoTotal"
                     [(ngModel)]="precioMaximo"
-                    (input)="aplicarFiltros()" />
+                    (input)="onPrecioInput()" />
             </div>
         </aside>
 
@@ -118,7 +118,7 @@
                         <h2>
                             @if (busqueda) {
                                 Resultados para "{{ busqueda }}"
-                                <span class="resultados-count">({{ productosFiltrados.length }})</span>
+                                <span class="resultados-count">({{ totalElementos }})</span>
                             } @else {
                                 Elegidos para ti
                             }
@@ -209,6 +209,23 @@
                             </button>
                         </div>
                     </div>
+                }
+@if (mostrarPaginacion) {
+                    <nav class="paginacion" aria-label="Paginación del catálogo">
+                        <button type="button" class="pagina-btn" [disabled]="paginaActual === 0" (click)="paginaAnterior()">
+                            <i class="bi bi-chevron-left"></i> Anterior
+                        </button>
+                        <div class="pagina-numeros">
+                            @for (p of paginasVisibles; track p) {
+                                <button type="button" class="pagina-num" [class.activa]="p === paginaActualTexto"
+                                    (click)="cambiarPagina(p - 1)">{{ p }}</button>
+                            }
+                        </div>
+                        <button type="button" class="pagina-btn" [disabled]="paginaActual >= totalPaginas - 1" (click)="paginaSiguiente()">
+                            Siguiente <i class="bi bi-chevron-right"></i>
+                        </button>
+                        <span class="pagina-indicador">Página {{ paginaActualTexto }} de {{ totalPaginas }}</span>
+                    </nav>
                 }
             </section>
         </main>

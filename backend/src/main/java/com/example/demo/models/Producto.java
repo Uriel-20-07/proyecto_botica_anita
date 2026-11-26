@@ -85,6 +85,13 @@ public class Producto {
     @Column(name = "stock", nullable = false, columnDefinition = "integer default 0")
     private Integer stock = 0;
 
+    /**
+     * Unidades apartadas en carritos activos (reservas de 2 horas).
+     * El stock disponible para vender es {@code stock - stockEnCarrito}.
+     */
+    @Column(name = "stock_en_carrito", nullable = false, columnDefinition = "integer default 0")
+    private Integer stockEnCarrito = 0;
+
     // Añade esto si no lo tienes en Producto.java
     @Column(name = "fecha_caducidad")
     private java.time.LocalDate fechaCaducidad;
@@ -115,10 +122,59 @@ public class Producto {
         this.fechaCaducidad = fechaCaducidad;
     }
 
-    /** Agotado = sin stock O vencido. Jackson lo expone en el JSON como "agotado". */
+    /** Agotado físico = sin stock O vencido. Jackson lo expone en el JSON como "agotado". */
     public boolean isAgotado() {
         boolean sinStock = getStock() == null || getStock() <= 0;
-        boolean vencido = getFechaCaducidad() != null && getFechaCaducidad().isBefore(java.time.LocalDate.now());
-        return sinStock || vencido;
+        return sinStock || estaVencido();
+    }
+
+    /**
+     * Unidades que realmente se pueden vender ahora:
+     * stock físico menos lo que está reservado en carritos.
+     */
+    public Integer getStockDisponible() {
+        int fisico = getStock() != null ? getStock() : 0;
+        int enCarrito = getStockEnCarrito() != null ? getStockEnCarrito() : 0;
+        return Math.max(0, fisico - enCarrito);
+    }
+
+    /**
+     * Agotado para la venta online: no queda disponible o el producto venció.
+     * No confundir con {@link #isAgotado()}, que representa el stock físico.
+     */
+    public boolean isAgotadoOnline() {
+        return getStockDisponible() <= 0 || estaVencido();
+    }
+
+    /** true si hay al menos una unidad apartada en carritos. */
+    public boolean isReservado() {
+        return getStockEnCarrito() != null && getStockEnCarrito() > 0;
+    }
+
+    /**
+     * Estado derivado para mostrar en catálogo/panel:
+     * VENCIDO, AGOTADO, RESERVADO, PARCIALMENTE_RESERVADO o DISPONIBLE.
+     */
+    public String getEstadoStock() {
+        if (estaVencido()) {
+            return "VENCIDO";
+        }
+        int fisico = getStock() != null ? getStock() : 0;
+        int enCarrito = getStockEnCarrito() != null ? getStockEnCarrito() : 0;
+        int disponible = Math.max(0, fisico - enCarrito);
+        if (fisico <= 0) {
+            return "AGOTADO";
+        }
+        if (disponible <= 0) {
+            return "RESERVADO";
+        }
+        if (enCarrito > 0) {
+            return "PARCIALMENTE_RESERVADO";
+        }
+        return "DISPONIBLE";
+    }
+
+    private boolean estaVencido() {
+        return getFechaCaducidad() != null && getFechaCaducidad().isBefore(java.time.LocalDate.now());
     }
 }

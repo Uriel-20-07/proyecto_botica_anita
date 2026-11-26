@@ -32,8 +32,9 @@ public interface ChatbotCatalogoRepository extends Repository<Producto, Integer>
 
     // ---- Fragmentos JPQL reutilizados ----
 
-    /** Producto con stock y sin vencer. */
-    String DISPONIBLE = "(p.stock > 0 and (p.fechaCaducidad is null or p.fechaCaducidad >= :hoy))";
+    /** Producto con stock disponible (físico menos reservado) y sin vencer. */
+    String DISPONIBLE = "((p.stock - coalesce(p.stockEnCarrito, 0)) > 0 "
+            + "and (p.fechaCaducidad is null or p.fechaCaducidad >= :hoy))";
 
     /** Oferta vigente: marcada como oferta, con precio de oferta menor al regular. */
     String EN_OFERTA = "(p.enOferta = true and p.precioOferta is not null and p.precioOferta < p.precioVenta)";
@@ -108,7 +109,8 @@ public interface ChatbotCatalogoRepository extends Repository<Producto, Integer>
      *                        avisar amablemente que un producto está agotado.
      */
     @Query("select new com.example.demo.dto.chatbot.ProductoChatDTO("
-            + "p.idProducto, p.nombre, p.precioVenta, p.precioOferta, p.enOferta, p.stock, p.fechaCaducidad, p.imgUrl) "
+            + "p.idProducto, p.nombre, p.precioVenta, p.precioOferta, p.enOferta, "
+            + "(p.stock - coalesce(p.stockEnCarrito, 0)), p.fechaCaducidad, p.imgUrl) "
             + "from Producto p "
             + "where " + FILTRO_CATEGORIA + " and " + FILTRO_SUBCATEGORIA + " and " + FILTRO_MARCA + " and "
             + FILTRO_OFERTAS + " and (:soloDisponibles = false or " + DISPONIBLE + ") and "

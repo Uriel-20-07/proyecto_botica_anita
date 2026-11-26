@@ -138,6 +138,38 @@
   font-weight: 700;
 }
 
+/* Cuenta regresiva de la reserva de 24 horas */
+.reserva-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reserva-badge.reserva-por-vencer {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.reserva-badge.reserva-vencida {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.reserva-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
 .item-actions {
   display: flex;
   flex-direction: column;
