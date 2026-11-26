@@ -370,37 +370,20 @@ private Cupon obtenerCuponValido(Integer idUsuario, String codigo) {
     return cupon;
 }
 
-private BigDecimal calcularDescuentoCupon(
-        Carrito carrito, Cupon cupon) {
+private BigDecimal calcularDescuentoCupon(Carrito carrito, Cupon cupon) {
 
-    BigDecimal subtotalElegible = BigDecimal.ZERO;
-
+    // 1. Subtotal con el precio de oferta de cada producto
+    BigDecimal base = BigDecimal.ZERO;
     for (DetalleCarrito detalle : carrito.getDetalles()) {
-        Producto producto = detalle.getProducto();
-
-        BigDecimal precioVenta = producto.getPrecioVenta();
-        BigDecimal precioConDescuento = producto.getPrecioConDescuento();
-
-        boolean tieneDescuento = precioConDescuento != null
-                && precioConDescuento.compareTo(precioVenta) < 0;
-
-        // El cupón no se aplica a productos ya rebajados.
-        if (!tieneDescuento) {
-            BigDecimal precio = obtenerPrecioConDescuento(producto);
-
-            BigDecimal importe = precio.multiply(
-                    BigDecimal.valueOf(detalle.getCantidad()));
-
-            subtotalElegible = subtotalElegible.add(importe);
-        }
+        BigDecimal precio = obtenerPrecioConDescuento(detalle.getProducto());
+        base = base.add(precio.multiply(BigDecimal.valueOf(detalle.getCantidad())));
     }
 
-    if (subtotalElegible.compareTo(BigDecimal.ZERO) <= 0) {
-        throw new RuntimeException(
-                "El cupón solo se puede aplicar a productos sin descuento.");
-    }
+    // 2. Se restan las promociones (3x2, combos, etc.)
+    base = base.subtract(promocionService.calcularDescuento(carrito).total());
 
-    return subtotalElegible
+    // 3. El cupón se aplica sobre lo que queda
+    return base
             .multiply(cupon.getValorDescuento())
             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 }

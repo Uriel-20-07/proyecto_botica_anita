@@ -65,6 +65,7 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
   codigoCupon: string = '';
   cuponAplicado: boolean = false;
   codigoAplicado: string = '';
+  porcentajeCupon: number = 0;
 
   mensajeError: string = '';
   mensajeExito: string = '';
@@ -252,15 +253,14 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Si una reserva de 2 h vence mientras el usuario está aquí, el backend
     // elimina la línea, avisa con un toast y aquí se recalculan los totales.
     this.cartSub = this.cartService.items$.subscribe((items) => {
-      this.productosCarrito = items;
-      this.subtotal = this.cartService.getTotal();
-      this.subtotalOriginal = items.reduce((acc, item) => {
-        return acc + (item.producto.precioVenta * item.cantidad);
-      }, 0);
-      this.requiereReceta = this.mostrarRecetas
-        && items.some(item => this.requiereRecetaMedica(item.producto.nombre));
-      this.calcularTotales();
-    });
+    this.productosCarrito = items;
+    this.requiereReceta = this.mostrarRecetas
+      && items.some(item => this.requiereRecetaMedica(item.producto.nombre));
+    this.calcularTotales();
+  });
+
+  this.productosCarrito = this.cartService.getItems();
+  this.calcularTotales();
 
     this.subtotal = this.cartService.getTotal();
     this.productosCarrito = this.cartService.getItems();
@@ -489,99 +489,90 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  private calcularSubtotalElegibleCupon(): number {
-  return this.productosCarrito.reduce((acumulado, item) => {
-    const producto = item.producto;
-
-    const precioVenta = Number(producto.precioVenta) || 0;
-
-    const precioFinal = producto.precioConDescuento != null
-      ? Number(producto.precioConDescuento)
-      : precioVenta;
-
-    // Si el precio final es menor, el producto ya tiene descuento.
-    const tieneDescuento = precioFinal < precioVenta;
-
-    if (tieneDescuento) {
-      return acumulado;
-    }
-
-    return acumulado + precioFinal * item.cantidad;
-  }, 0);
-  }
-
-  aplicarCupon() {
-    const cod = this.codigoCupon.trim().toUpperCase();
-    if (!cod) {
-      this.mensajeError = 'Ingresa un código de cupón.';
-      return;
-    }
-    if (this.cuponAplicado) {
-      this.mensajeError = 'Ya has aplicado un cupón a este pedido.';
-      return;
-    }
-
-    this.pagoService.validarCupon(cod).subscribe({
-      next: (res) => {
-        if (res.valido) {
-          const valor = Number(res.valorDescuento) || 30;
-          const subtotalElegible = this.calcularSubtotalElegibleCupon();
-
-if (subtotalElegible <= 0) {
-  this.mensajeError =
-    'El cupón solo se puede aplicar a productos sin descuento.';
-  return;
+  private redondear(valor: number): number {
+  return Math.round(valor * 100) / 100;
 }
 
-this.descuento = subtotalElegible * (valor / 100);
-          this.cuponAplicado = true;
-          this.codigoAplicado = cod;
-          this.mensajeError = '';
-          this.calcularTotales();
-        } else {
-          this.mensajeError = 'Cupón no válido.';
-        }
-      },
-      error: (err) => {
-        this.mensajeError = err.error?.error || 'El cupón no es válido o ya fue usado.';
-        this.descuento = 0;
-        this.cuponAplicado = false;
-        this.codigoAplicado = '';
-        this.calcularTotales();
-      }
-    });
+/** Precio que paga el cliente: el de oferta si existe, si no el normal. */
+private precioFinal(producto: any): number {
+  const normal = Number(producto.precioVenta) || 0;
+  const oferta = Number(producto.precioConDescuento);
+  return oferta > 0 && oferta < normal ? oferta : normal;
+}
+
+
+private quitarCupon(): void {
+  this.cuponAplicado = false;
+  this.codigoAplicado = '';
+  this.porcentajeCupon = 0;
+  this.descuento = 0;
+}
+
+aplicarCupon() {
+  this.mensajeError = '';
+  const cod = this.codigoCupon.trim().toUpperCase();
+
+  if (!cod) {
+    this.mensajeError = 'Ingresa un código de cupón.';
+    return;
+  }
+  if (this.cuponAplicado) {
+    this.mensajeError = 'Ya has aplicado un cupón a este pedido.';
+    return;
   }
 
-  calcularTotales() {
-    if (!this.formPago.esUrgente) {
-      // Recojo en tienda siempre gratis y SIN costo de envío
-      this.costoEnvio = 0;
-    } else if (this.coordsSeleccionadas) {
-      const [lat, lng] = this.coordsSeleccionadas;
-      const distM = this.mapaService.distanciaM(
-        BOTICA_ANITA.lat,
-        BOTICA_ANITA.lng,
-        lat,
-        lng
-      );
-      const distKm = distM / 1000;
-      this.costoEnvio = this.mapaService.costoEnvio(distKm, true);
-      if (Number.isNaN(this.costoEnvio)) {
-        this.costoEnvio = 5; // fuera de cobertura: aún se cobra, el backend rechazará si aplica
+  this.pagoService.validarCupon(cod).subscribe({
+    next: (res) => {
+      if (!res.valido) {
+        this.mensajeError = 'Cupón no válido.';
+        return;
       }
-    } else {
-      // Delivery sin coords aún: valor por defecto, se valida cobertura al pagar.
-      this.costoEnvio = 5;
+      this.porcentajeCupon = Number(res.valorDescuento) || 15;
+      this.cuponAplicado = true;
+      this.codigoAplicado = cod;
+      this.calcularTotales();
+    },
+    error: (err) => {
+      this.mensajeError = err.error?.error || 'El cupón no es válido o ya fue usado.';
+      this.quitarCupon();
+      this.calcularTotales();
     }
-    const descuentoAutomatico = Math.max(0, this.subtotalOriginal - this.subtotal);
-    this.descuentoTotal = descuentoAutomatico + this.descuento;
+  });
+}
 
-    const subtotalNeto = this.subtotalOriginal - this.descuentoTotal;
-    this.subtotalBase = subtotalNeto / 1.18;
-    this.igv = subtotalNeto - this.subtotalBase;
-
-    this.total = subtotalNeto + this.costoEnvio;
+calcularTotales() {
+  // Envío
+  if (!this.formPago.esUrgente) {
+    this.costoEnvio = 0;
+  } else if (this.coordsSeleccionadas) {
+    const [lat, lng] = this.coordsSeleccionadas;
+    const distM = this.mapaService.distanciaM(BOTICA_ANITA.lat, BOTICA_ANITA.lng, lat, lng);
+    this.costoEnvio = this.mapaService.costoEnvio(distM / 1000, true);
+    if (Number.isNaN(this.costoEnvio)) this.costoEnvio = 5;
+  } else {
+    this.costoEnvio = 5;
   }
+
+  // 1. Precio normal y precio con ofertas
+  this.subtotalOriginal = this.redondear(this.productosCarrito.reduce(
+    (acc, item) => acc + Number(item.producto.precioVenta) * item.cantidad, 0));
+  this.subtotal = this.redondear(this.productosCarrito.reduce(
+    (acc, item) => acc + this.precioFinal(item.producto) * item.cantidad, 0));
+  const descuentoPromo = this.redondear(this.subtotalOriginal - this.subtotal);
+
+  // 2. El cupón se aplica sobre el precio que ya tiene las ofertas
+  this.descuento = this.cuponAplicado
+    ? this.redondear(this.subtotal * this.porcentajeCupon / 100)
+    : 0;
+
+  // 3. Ambos descuentos se suman
+  this.descuentoTotal = this.redondear(descuentoPromo + this.descuento);
+
+  const subtotalNeto = this.redondear(this.subtotalOriginal - this.descuentoTotal);
+  this.subtotalBase = this.redondear(subtotalNeto / 1.18);
+  this.igv = this.redondear(subtotalNeto - this.subtotalBase);
+  this.total = this.redondear(subtotalNeto + this.costoEnvio);
+}
 
   // --- PAGO PRINCIPAL ---
   async ejecutarPago() {
