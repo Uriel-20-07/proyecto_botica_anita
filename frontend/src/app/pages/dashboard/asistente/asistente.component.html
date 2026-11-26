@@ -332,7 +332,7 @@
                 class="search-input"
                 placeholder="Buscar por cliente, #pedido o dirección..."
                 [value]="busquedaPedidos()"
-                (input)="busquedaPedidos.set($any($event.target).value)"
+                (input)="actualizarBusquedaPedidos($any($event.target).value)"
               />
             </div>
             <button class="btn-secondary" type="button" (click)="refrescar()">
@@ -364,10 +364,10 @@
           <div class="empty-state">
             <i class="bi bi-search"></i>
             <p>No hay resultados para tu búsqueda.</p>
-            <button class="btn-secondary" type="button" (click)="busquedaPedidos.set('')">Limpiar búsqueda</button>
+            <button class="btn-secondary" type="button" (click)="limpiarBusquedaPedidos()">Limpiar búsqueda</button>
           </div>
         } @else {
-          <div class="table-card">
+          <div class="table-card" #inicioPedidos>
             <table class="data-table pedidos-table">
               <thead>
                 <tr>
@@ -382,7 +382,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (p of pedidosFiltrados(); track p.idPedido) {
+                @for (p of pedidosPaginados(); track p.idPedido) {
                   <tr (click)="verDetalle(p)" class="clickable-row">
                     <td class="td-id" data-label="Pedido">#{{ p.idPedido }}</td>
                     <td data-label="Cliente">
@@ -438,6 +438,62 @@
               </tbody>
             </table>
           </div>
+        }
+
+        <!-- Paginación de pedidos -->
+        @if (rangoPedidos().total > 0) {
+          <nav class="paginacion-pedidos" aria-label="Paginación de pedidos">
+            <span class="paginacion-info">
+              Mostrando <strong>{{ rangoPedidos().desde }}–{{ rangoPedidos().hasta }}</strong>
+              de <strong>{{ rangoPedidos().total }}</strong> pedidos
+            </span>
+
+            @if (totalPaginasPedidos() > 1) {
+              <div class="paginacion-control">
+                <button
+                  type="button"
+                  class="pagina-flecha"
+                  (click)="anteriorPaginaPedidos()"
+                  [disabled]="paginaPedidosActual() === 1"
+                  aria-label="Página anterior"
+                >
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+
+                <div class="paginacion-numeros">
+                  @for (p of paginasPedidos(); track $index) {
+                    @if (p.tipo === 'pagina') {
+                      <button
+                        type="button"
+                        class="pagina-num"
+                        [class.activa]="p.valor === paginaPedidosActual()"
+                        [attr.aria-current]="p.valor === paginaPedidosActual() ? 'page' : null"
+                        (click)="irAPaginaPedidos(p.valor)"
+                      >
+                        {{ p.valor }}
+                      </button>
+                    } @else {
+                      <span class="pagina-gap" aria-hidden="true">…</span>
+                    }
+                  }
+                </div>
+
+                <button
+                  type="button"
+                  class="pagina-flecha"
+                  (click)="siguientePaginaPedidos()"
+                  [disabled]="paginaPedidosActual() >= totalPaginasPedidos()"
+                  aria-label="Página siguiente"
+                >
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+
+                <span class="paginacion-movil">
+                  Página {{ paginaPedidosActual() }} de {{ totalPaginasPedidos() }}
+                </span>
+              </div>
+            }
+          </nav>
         }
 
         <!-- Modal de detalle -->
@@ -649,30 +705,6 @@
                   </tr>
                 }
               </tbody>
-<!-- Paginación de pedidos finalizados -->
-@if (subTabPedidos() === 'finalizados') {
-  <div class="paginacion-pedidos">
-    <div class="paginacion-info">
-      <span>Mostrando {{ rangoPedidos().desde }}-{{ rangoPedidos().hasta }} de {{ rangoPedidos().total }}</span>
-    </div>
-    <div class="paginacion-control">
-      <button class="btn-paginacion" [disabled]="paginaPedidos() === 1" (click)="anteriorPaginaPedidos()">
-        <i class="bi bi-chevron-left"></i>
-      </button>
-      @for (p of paginasPedidos(); track p.valor) {
-        <span class="btn-paginacion" [class.activo]="paginaPedidos() === p.valor" (click)="paginaPedidos.set(p.valor)">{{ p.valor }}</span>
-      }
-      @if (totalPaginasPedidos() > 7) {
-        @if (paginasPedidos()[1].tipo === 'gap') {
-          <span class="btn-paginacion disabled">...</span>
-        }
-      }
-      <button class="btn-paginacion" [disabled]="paginaPedidos() >= totalPaginasPedidos()" (click)="siguientePaginaPedidos()">
-        <i class="bi bi-chevron-right"></i>
-      </button>
-    </div>
-  </div>
-}
             </table>
           </div>
         }
