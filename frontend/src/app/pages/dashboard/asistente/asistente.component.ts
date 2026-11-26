@@ -112,6 +112,34 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   pedidosVisibles = computed(() =>
     this.subTabPedidos() === 'pendientes' ? this.pedidos() : this.pedidosFinalizados()
   );
+
+  /** Texto normalizado para comparar búsquedas (sin tildes ni mayúsculas). */
+  private normalizarPedido(valor: unknown): string {
+    return (valor ?? '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  /** Filtra una lista de pedidos con el término de búsqueda actual. */
+  private filtrarPedidos(lista: PedidoPendiente[]): PedidoPendiente[] {
+    const q = this.normalizarPedido(this.busquedaPedidos()).trim();
+    if (!q) return lista;
+    return lista.filter(
+      (p) =>
+        this.normalizarPedido(p.idPedido).includes(q) ||
+        this.normalizarPedido(p.fecha).includes(q) ||
+        this.normalizarPedido(p.distrito).includes(q) ||
+        this.normalizarPedido(p.direccionEnvio).includes(q) ||
+        this.normalizarPedido(p.metodoPago).includes(q) ||
+        this.normalizarPedido(p.usuario?.nombre).includes(q) ||
+        this.normalizarPedido(p.usuario?.correo).includes(q)
+    );
+  }
+
+  pedidosPendientesFiltrados = computed(() => this.filtrarPedidos(this.pedidos()));
+  pedidosFinalizadosFiltrados = computed(() => this.filtrarPedidos(this.pedidosFinalizados()));
   pedidosNoEntregados = computed(
     () =>
       this.pedidosFinalizados().filter((p) => {
@@ -126,22 +154,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
         return e.includes('COMPLETAD') || e.includes('ENTREGAD');
       }).length
   );
-  pedidosFiltrados = computed(() => {
-    const q = this.busquedaPedidos().toLowerCase().trim();
-    const base = this.pedidosVisibles();
-    if (!q) return base;
-    return base.filter((p) => {
-      const nombre = (p.usuario?.nombre || '').toLowerCase();
-      const correo = (p.usuario?.correo || '').toLowerCase();
-      const direccion = (p.direccionEnvio || '').toLowerCase();
-      return (
-        String(p.idPedido).includes(q) ||
-        nombre.includes(q) ||
-        correo.includes(q) ||
-        direccion.includes(q)
-      );
-    });
-  });
+
   pedidosEnCamino = computed(
     () =>
       this.pedidos().filter((p) => {
@@ -151,13 +164,19 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   );
 
   // Paginación de la lista de pedidos (se aplica después del filtro de búsqueda)
-  readonly tamanoPaginaPedidos = 8;
+  readonly tamanoPaginaPedidos = 20;
   paginaPedidos = signal(1);
+  /** Lista activa según la sub-pestaña, ya filtrada por la búsqueda. */
+  pedidosFiltrados = computed(() =>
+    this.subTabPedidos() === 'pendientes'
+      ? this.pedidosPendientesFiltrados()
+      : this.pedidosFinalizadosFiltrados()
+  );
   totalPaginasPedidos = computed(() =>
     Math.max(1, Math.ceil(this.pedidosFiltrados().length / this.tamanoPaginaPedidos))
   );
   paginaPedidosActual = computed(() =>
-    Math.min(this.paginaPedidos(), this.totalPaginasPedidos())
+    Math.min(Math.max(1, this.paginaPedidos()), this.totalPaginasPedidos())
   );
   pedidosPaginados = computed(() => {
     const pagina = this.paginaPedidosActual();
@@ -181,14 +200,40 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
       return Array.from({ length: total }, (_, i) => ({ tipo: 'pagina' as const, valor: i + 1 }));
     }
     const paginas: PaginaPedido[] = [{ tipo: 'pagina', valor: 1 }];
-    const desde = Math.max(2, actual - 2);
-    const hasta = Math.min(total - 1, actual + 2);
+    const desde = Math.max(2, actual - 1);
+    const hasta = Math.min(total - 1, actual + 1);
     if (desde > 2) paginas.push({ tipo: 'gap', valor: 0 });
     for (let i = desde; i <= hasta; i++) paginas.push({ tipo: 'pagina', valor: i });
     if (hasta < total - 1) paginas.push({ tipo: 'gap', valor: 0 });
     paginas.push({ tipo: 'pagina', valor: total });
     return paginas;
   });
+
+  /** Cambia de página y deja visible el inicio de la tabla. */
+  irAPaginaPedidos(pagina: number): void {
+    const destino = Math.min(Math.max(1, Math.trunc(pagina) || 1), this.totalPaginasPedidos());
+    if (destino === this.paginaPedidos()) return;
+    this.paginaPedidos.set(destino);
+    this.inicioPedidos?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  anteriorPaginaPedidos(): void {
+    this.irAPaginaPedidos(this.paginaPedidosActual() - 1);
+  }
+
+  siguientePaginaPedidos(): void {
+    this.irAPaginaPedidos(this.paginaPedidosActual() + 1);
+  }
+
+  actualizarBusquedaPedidos(valor: string): void {
+    this.busquedaPedidos.set(valor);
+    this.paginaPedidos.set(1);
+  }
+
+  limpiarBusquedaPedidos(): void {
+    this.busquedaPedidos.set('');
+    this.paginaPedidos.set(1);
+  }
   pedidoDetalle = signal<PedidoPendiente | null>(null);
   pedidoAConfirmar = signal<PedidoPendiente | null>(null);
   /** Acción que se está confirmando: entregado, suspendido o cancelado. */
@@ -461,14 +506,20 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   // ---------- Pedidos ----------
   cargarPedidos(): void {
     this.asistenteService.listarPedidosPendientes().subscribe({
-      next: (data: any) => this.pedidos.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido)),
+      next: (data: any) => {
+        this.pedidos.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido));
+        this.paginaPedidos.update((p) => Math.min(p, this.totalPaginasPedidos()));
+      },
       error: () => this.toast.mostrar('Error al cargar pedidos', 'error'),
     });
   }
 
   cargarPedidosFinalizados(): void {
     this.asistenteService.listarPedidosFinalizados().subscribe({
-      next: (data: any) => this.pedidosFinalizados.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido)),
+      next: (data: any) => {
+        this.pedidosFinalizados.set((data || []).sort((a: any, b: any) => b.idPedido - a.idPedido));
+        this.paginaPedidos.update((p) => Math.min(p, this.totalPaginasPedidos()));
+      },
       error: () => this.toast.mostrar('Error al cargar pedidos finalizados', 'error'),
     });
   }
@@ -638,6 +689,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     this.menuAbierto.set(false);
     if (tab === 'pedidos') {
       this.busquedaPedidos.set('');
+      this.paginaPedidos.set(1);
       this.cargarPedidos();
       this.cargarPedidosFinalizados();
     }
@@ -647,6 +699,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   cambiarSubTabPedidos(sub: 'pendientes' | 'finalizados'): void {
     this.subTabPedidos.set(sub);
     this.busquedaPedidos.set('');
+    this.paginaPedidos.set(1);
     if (sub === 'finalizados') this.cargarPedidosFinalizados();
   }
 }
