@@ -368,7 +368,7 @@
           </div>
         } @else {
           <div class="table-card">
-            <table class="data-table">
+            <table class="data-table pedidos-table">
               <thead>
                 <tr>
                   <th>Pedido</th>
@@ -384,8 +384,8 @@
               <tbody>
                 @for (p of pedidosFiltrados(); track p.idPedido) {
                   <tr (click)="verDetalle(p)" class="clickable-row">
-                    <td class="td-id">#{{ p.idPedido }}</td>
-                    <td>
+                    <td class="td-id" data-label="Pedido">#{{ p.idPedido }}</td>
+                    <td data-label="Cliente">
                       <div class="client-cell">
                         <span class="client-avatar">{{ iniciales(p.usuario?.nombre) }}</span>
                         <div class="client-info">
@@ -394,27 +394,27 @@
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Estado">
                       <span [class]="'estado-badge ' + estadoClase(p.estado)">
                         <span class="dot"></span>
                         {{ estadoLegible(p.estado) }}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Entrega">
                       <span class="tipo-badge" [class.delivery]="p.esUrgente">
                         <i [class]="p.esUrgente ? 'bi bi-truck' : 'bi bi-shop'"></i>
                         {{ p.esUrgente ? 'Delivery' : 'Recojo' }}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Método">
                       <span class="metodo-pill">
                         <i [class]="'bi ' + iconoMetodo(p.metodoPago)"></i>
                         {{ p.metodoPago }}
                       </span>
                     </td>
-                    <td class="td-total text-right">S/ {{ p.total }}</td>
-                    <td class="td-fecha">{{ formatFecha(p.fecha) }}</td>
-                    <td class="text-right">
+                    <td class="td-total text-right" data-label="Total">S/ {{ p.total }}</td>
+                    <td class="td-fecha" data-label="Fecha">{{ formatFecha(p.fecha) }}</td>
+                    <td class="td-accion text-right" data-label="Acción">
                       @if (subTabPedidos() === 'pendientes') {
                         <div class="acciones-pedido">
                           <button class="btn-entregar" (click)="solicitarAccion(p, 'entregado'); $event.stopPropagation()" title="El cliente recibió el pedido">
@@ -637,18 +637,42 @@
               <tbody>
                 @for (v of ventasHoy(); track v.idPedido) {
                   <tr>
-                    <td class="td-id">#{{ v.idPedido }}</td>
-                    <td class="td-fecha">{{ formatFecha(v.fecha) }}</td>
-                    <td>
+                    <td class="td-id" data-label="Boleta">#{{ v.idPedido }}</td>
+                    <td class="td-fecha" data-label="Fecha y hora">{{ formatFecha(v.fecha) }}</td>
+                    <td data-label="Método">
                       <span class="metodo-pill">
                         <i [class]="'bi ' + iconoMetodo(v.metodoPago)"></i>
                         {{ v.metodoPago }}
                       </span>
                     </td>
-                    <td class="td-total text-right">S/ {{ v.total }}</td>
+                    <td class="td-total text-right" data-label="Total">S/ {{ v.total }}</td>
                   </tr>
                 }
               </tbody>
+<!-- Paginación de pedidos finalizados -->
+@if (subTabPedidos() === 'finalizados') {
+  <div class="paginacion-pedidos">
+    <div class="paginacion-info">
+      <span>Mostrando {{ rangoPedidos().desde }}-{{ rangoPedidos().hasta }} de {{ rangoPedidos().total }}</span>
+    </div>
+    <div class="paginacion-control">
+      <button class="btn-paginacion" [disabled]="paginaPedidos() === 1" (click)="anteriorPaginaPedidos()">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      @for (p of paginasPedidos(); track p.valor) {
+        <span class="btn-paginacion" [class.activo]="paginaPedidos() === p.valor" (click)="paginaPedidos.set(p.valor)">{{ p.valor }}</span>
+      }
+      @if (totalPaginasPedidos() > 7) {
+        @if (paginasPedidos()[1].tipo === 'gap') {
+          <span class="btn-paginacion disabled">...</span>
+        }
+      }
+      <button class="btn-paginacion" [disabled]="paginaPedidos() >= totalPaginasPedidos()" (click)="siguientePaginaPedidos()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+}
             </table>
           </div>
         }

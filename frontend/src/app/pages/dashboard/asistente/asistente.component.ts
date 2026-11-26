@@ -37,6 +37,11 @@ interface PedidoPendiente {
   usuario?: { nombre: string; correo: string };
 }
 
+interface PaginaPedido {
+  tipo: 'pagina' | 'gap';
+  valor: number;
+}
+
 const METODOS_PAGO = [
   { valor: 'EFECTIVO', label: 'Efectivo', icono: 'bi-cash-coin' },
   { valor: 'TARJETA', label: 'Tarjeta', icono: 'bi-credit-card-2-front' },
@@ -53,6 +58,7 @@ const METODOS_PAGO = [
 })
 export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   @ViewChild('inputBusqueda') inputBusqueda?: ElementRef<HTMLInputElement>;
+  @ViewChild('inicioPedidos') inicioPedidos?: ElementRef<HTMLElement>;
 
   tabActiva = signal<'venta' | 'pedidos' | 'historial'>('venta');
   cargando = signal(false);
@@ -143,6 +149,46 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
         return e.includes('EN_CAMINO') || e.includes('LISTO');
       }).length
   );
+
+  // Paginación de la lista de pedidos (se aplica después del filtro de búsqueda)
+  readonly tamanoPaginaPedidos = 8;
+  paginaPedidos = signal(1);
+  totalPaginasPedidos = computed(() =>
+    Math.max(1, Math.ceil(this.pedidosFiltrados().length / this.tamanoPaginaPedidos))
+  );
+  paginaPedidosActual = computed(() =>
+    Math.min(this.paginaPedidos(), this.totalPaginasPedidos())
+  );
+  pedidosPaginados = computed(() => {
+    const pagina = this.paginaPedidosActual();
+    const inicio = (pagina - 1) * this.tamanoPaginaPedidos;
+    return this.pedidosFiltrados().slice(inicio, inicio + this.tamanoPaginaPedidos);
+  });
+  rangoPedidos = computed(() => {
+    const total = this.pedidosFiltrados().length;
+    if (total === 0) return { desde: 0, hasta: 0, total };
+    const pagina = this.paginaPedidosActual();
+    return {
+      desde: (pagina - 1) * this.tamanoPaginaPedidos + 1,
+      hasta: Math.min(pagina * this.tamanoPaginaPedidos, total),
+      total,
+    };
+  });
+  paginasPedidos = computed<PaginaPedido[]>(() => {
+    const total = this.totalPaginasPedidos();
+    const actual = this.paginaPedidosActual();
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => ({ tipo: 'pagina' as const, valor: i + 1 }));
+    }
+    const paginas: PaginaPedido[] = [{ tipo: 'pagina', valor: 1 }];
+    const desde = Math.max(2, actual - 2);
+    const hasta = Math.min(total - 1, actual + 2);
+    if (desde > 2) paginas.push({ tipo: 'gap', valor: 0 });
+    for (let i = desde; i <= hasta; i++) paginas.push({ tipo: 'pagina', valor: i });
+    if (hasta < total - 1) paginas.push({ tipo: 'gap', valor: 0 });
+    paginas.push({ tipo: 'pagina', valor: total });
+    return paginas;
+  });
   pedidoDetalle = signal<PedidoPendiente | null>(null);
   pedidoAConfirmar = signal<PedidoPendiente | null>(null);
   /** Acción que se está confirmando: entregado, suspendido o cancelado. */
