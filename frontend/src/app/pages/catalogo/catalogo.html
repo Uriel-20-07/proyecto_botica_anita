@@ -177,7 +177,11 @@
                                 <div class="producto-info">
                                     <span class="producto-marca">BOTICAANITA</span>
                                     <h3 class="producto-nombre" [innerHTML]="resaltarTexto(producto.nombre)"></h3>
-                                    <p class="producto-unidad">{{ producto.descripcion }}</p>
+                                    @if (producto.esGrupo) {
+                                        <p class="producto-unidad producto-tallas"><i class="bi bi-rulers"></i> Todas las tallas</p>
+                                    } @else {
+                                        <p class="producto-unidad">{{ producto.descripcion }}</p>
+                                    }
                                     <div class="producto-precios">
                                         <div class="precios-wrapper">
                                             @if (producto.descuentoInfo && producto.descuentoInfo.percentage > 0) {
@@ -202,8 +206,8 @@
                             }
                             <button type="button" class="btn-agregar" [class.btn-agotado]="producto.agotado"
                                 [disabled]="producto.agotado" (click)="agregarProducto(producto)">
-                                <span>{{ producto.agotado ? 'Agotado' : 'Agregar' }}</span>
-                                @if (!producto.agotado) {
+                                <span>{{ producto.esGrupo ? 'Elegir talla' : (producto.agotado ? 'Agotado' : 'Agregar') }}</span>
+                                @if (!producto.agotado && !producto.esGrupo) {
                                     <i class="bi bi-plus-lg" style="font-size:18px"></i>
                                 }
                             </button>

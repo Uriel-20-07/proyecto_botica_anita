@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { CatalogoService, ProductoApi } from '../../services/catalogo.service';
+import { CatalogoService, ProductoApi, VarianteApi } from '../../services/catalogo.service';
 import { CartService, PresentacionApi } from '../../services/cart.service';
 import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
@@ -30,6 +30,9 @@ export class ProductoDetalleComponent implements OnInit {
   /** Presentaciones (blíster, caja...) del producto. Lista vacía = se vende normalmente, sin presentaciones. */
   presentaciones: PresentacionApi[] = [];
   presentacionSeleccionada: PresentacionApi | null = null;
+
+  /** Tallas de la línea del producto (pañales...). Vacía = el producto no tiene variantes. Cada talla es un producto aparte. */
+  variantes: VarianteApi[] = [];
 
   private readonly imagenPorCategoria: Record<string, string> = {
     medicamentos: 'assets/img/producto1.png',
@@ -161,9 +164,8 @@ export class ProductoDetalleComponent implements OnInit {
 
   cargarProducto(id: number): void {
     this.cargando = true;
-    this.catalogoService.getProductos().subscribe({
-      next: (productos) => {
-        const found = productos.find(p => p.idProducto === id);
+    this.catalogoService.getProducto(id).subscribe({
+      next: (found) => {
         if (found) {
           const catNombre = found.categoria?.nombre ?? 'General';
           const catKey = catNombre.toLowerCase();
@@ -175,6 +177,8 @@ export class ProductoDetalleComponent implements OnInit {
           this.producto = {
             id: found.idProducto,
             nombre: found.nombre,
+            grupoNombre: found.grupoNombre ?? null,
+            varianteEtiqueta: found.varianteEtiqueta ?? null,
             descripcion: found.descripcion ?? 'Producto de la farmacia BoticaAnita',
             precioVenta: found.precioVenta,
             precioConDescuento: found.precioConDescuento != null ? Number(found.precioConDescuento) : Number(found.precioVenta),
@@ -192,18 +196,36 @@ export class ProductoDetalleComponent implements OnInit {
           this.cantidad = 1;
           this.ajustarCantidadAlLimite();
           this.cargarPresentaciones(found.idProducto);
+          this.cargarVariantes(found.idProducto);
         } else {
           this.producto = null; // Limpiar datos previos si no se encuentra
           this.mensaje = 'Producto no encontrado.';
         }
         this.cargando = false;
       },
-      error: () => {
+      error: (err) => {
         this.producto = null;
-        this.mensaje = 'Error al cargar los detalles del producto.';
+        this.mensaje = err?.status === 404
+          ? 'Producto no encontrado.'
+          : 'Error al cargar los detalles del producto.';
         this.cargando = false;
       }
     });
+  }
+
+  /** Carga las tallas de la línea del producto. Si no tiene variantes la lista queda vacía. */
+  private cargarVariantes(idProducto: number): void {
+    this.variantes = [];
+    this.catalogoService.getVariantes(idProducto).subscribe((lista) => {
+      // Solo si el cliente sigue viendo este mismo producto (puede haber cambiado de talla mientras cargaba).
+      if (this.producto?.id === idProducto) this.variantes = lista.length > 1 ? lista : [];
+    });
+  }
+
+  /** El cliente elige otra talla: se abre el producto de esa talla (con su propio precio y stock). */
+  seleccionarVariante(v: VarianteApi): void {
+    if (!this.producto || v.idProducto === this.producto.id) return;
+    this.router.navigate(['/catalogo/producto'], { queryParams: { producto: v.idProducto } });
   }
 
   /**

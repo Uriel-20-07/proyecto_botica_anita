@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CartService } from '../../services/cart.service';
 import { CatalogoService, CategoriaApi, ProductoApi, ConteosApi, FiltroCatalogo } from '../../services/catalogo.service';
 import { FavoritosService } from '../../services/favoritos.service';
@@ -36,6 +36,8 @@ interface ProductoVista {
   };
   requiereReceta?: boolean;
   agotado?: boolean;
+  /** true = tarjeta de una línea con tallas (pañales...): se elige la talla en el detalle. */
+  esGrupo?: boolean;
 }
 
 /**
@@ -127,6 +129,7 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     private readonly catalogoService: CatalogoService,
     private readonly cartService: CartService,
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly favoritosService: FavoritosService,
     private readonly authService: AuthService,
     private readonly authModalService: AuthModalService,
@@ -471,6 +474,11 @@ export class CatalogoComponent implements OnInit, OnDestroy {
   }
 
   agregarProducto(producto: ProductoVista): void {
+    if (producto.esGrupo) {
+      // Una línea con tallas no se agrega a ciegas: primero se elige la talla en el detalle.
+      this.router.navigate(['/catalogo/producto'], { queryParams: { producto: producto.id } });
+      return;
+    }
     if (producto.agotado) {
       return;
     }
@@ -510,10 +518,13 @@ export class CatalogoComponent implements OnInit, OnDestroy {
     
     const fechaCad = this.getFecha(producto);
     const descuento = this.cartService.getDiscountInfo(producto);
+    const esGrupo = !!producto.grupoVariantes && !!producto.grupoNombre;
 
     return {
       id: producto.idProducto,
-      nombre: producto.nombre,
+      // En una línea con tallas la tarjeta lleva el nombre de la línea; la talla se elige en el detalle.
+      nombre: esGrupo ? producto.grupoNombre! : producto.nombre,
+      esGrupo,
       descripcion: producto.descripcion ?? 'Producto del catálogo BoticaAnita',
       precio: producto.precioConDescuento != null ? Number(producto.precioConDescuento) : Number(producto.precioVenta),
       precioOriginal: Number(producto.precioVenta),
@@ -527,7 +538,8 @@ export class CatalogoComponent implements OnInit, OnDestroy {
       fechaCaducidad: fechaCad,
       descuentoInfo: descuento,
       requiereReceta: this.requiereRecetaMedica(producto.nombre),
-      agotado: this.cartService.estaAgotado(producto)
+      // Una línea con tallas nunca se marca agotada en la tarjeta: puede haber stock en otra talla.
+      agotado: esGrupo ? false : this.cartService.estaAgotado(producto)
     };
   }
 

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import com.example.demo.dto.ConteoDTO;
 import com.example.demo.dto.ConteosDTO;
 import com.example.demo.dto.FiltrosCatalogo;
+import com.example.demo.dto.VarianteDTO;
 import com.example.demo.models.Producto;
 import com.example.demo.repositories.ProductoRepository;
 
@@ -45,7 +46,8 @@ public class ProductoService {
     // ─── Métodos originales (sin cambios) ────────────────────────────────────
 
     public List<Producto> listarTodos() {
-        return productoRepository.findAll();
+        // Solo los que dan la cara: de una línea con tallas aparece una sola tarjeta (ver Producto.esRepresentante).
+        return productoRepository.findByEsRepresentanteTrue();
     }
 
     /**
@@ -91,6 +93,36 @@ public class ProductoService {
         return new ConteosDTO(subcategorias, marcas, precioMaximo);
     }
 
+    // ─── Detalle y tallas de una línea ───────────────────────────────────────
+
+    /** Un producto por ID (cualquier talla, haya o no dado la cara en el catálogo). */
+    public java.util.Optional<Producto> buscarPorId(Integer id) {
+        return productoRepository.findById(id);
+    }
+
+    /**
+     * Tallas de la línea a la que pertenece el producto, de menor a mayor. Lista vacía si el producto no tiene
+     * variantes (o no existe), y el detalle se muestra como siempre.
+     */
+    public List<VarianteDTO> variantesDe(Integer idProducto) {
+        Producto actual = productoRepository.findById(idProducto).orElse(null);
+        if (actual == null || actual.getGrupoVariantes() == null || actual.getGrupoVariantes().isBlank()) {
+            return List.of();
+        }
+        return productoRepository
+                .findByGrupoVariantesOrderByVarianteOrdenAscIdProductoAsc(actual.getGrupoVariantes())
+                .stream()
+                .map(p -> new VarianteDTO(
+                        p.getIdProducto(),
+                        p.getVarianteEtiqueta() != null ? p.getVarianteEtiqueta() : p.getNombre(),
+                        p.getNombre(),
+                        p.getPrecioConDescuento() != null ? p.getPrecioConDescuento() : p.getPrecioVenta(),
+                        p.getPrecioVenta(),
+                        !p.isAgotadoOnline(),
+                        p.getImgUrl()))
+                .toList();
+    }
+
     // ─── Specifications (filtros dinámicos) ──────────────────────────────────
 
     /**
@@ -114,6 +146,9 @@ public class ProductoService {
             }
 
             List<Predicate> preds = new ArrayList<>();
+
+            // De una línea con tallas solo aparece su representante; las demás tallas se eligen en el detalle.
+            preds.add(cb.isTrue(root.get("esRepresentante")));
 
             if (filtros.categoriaId() != null) {
                 preds.add(cb.equal(root.get("categoria").get("idCategoria"), filtros.categoriaId()));
@@ -193,7 +228,11 @@ public class ProductoService {
      */
     public Producto guardar(Producto producto) {
         Producto guardado = productoRepository.save(producto);
-        algoliaService.indexarProducto(guardado); // Sincronizar con Algolia
+        if (Boolean.FALSE.equals(guardado.getEsRepresentante())) {
+            algoliaService.eliminarProducto(guardado.getIdProducto()); // las tallas no se buscan por separado
+        } else {
+            algoliaService.indexarProducto(guardado); // Sincronizar con Algolia
+        }
         return guardado;
     }
 
@@ -218,10 +257,18 @@ public class ProductoService {
     public void indexarTodosEnAlgolia() {
         try {
             List<Producto> todos = productoRepository.findAll();
-            if (!todos.isEmpty()) {
-                algoliaService.indexarTodos(todos);
-                System.out.println("[Algolia] Indexación inicial: " + todos.size() + " productos enviados.");
+            // En el buscador entra una sola sugerencia por línea (su representante), no una por talla.
+            List<Producto> visibles = todos.stream()
+                    .filter(p -> !Boolean.FALSE.equals(p.getEsRepresentante()))
+                    .toList();
+            if (!visibles.isEmpty()) {
+                algoliaService.indexarTodos(visibles);
+                System.out.println("[Algolia] Indexación inicial: " + visibles.size() + " productos enviados.");
             }
+            // Las tallas que no dan la cara se quitan del índice por si se habían indexado antes.
+            todos.stream()
+                    .filter(p -> Boolean.FALSE.equals(p.getEsRepresentante()))
+                    .forEach(p -> algoliaService.eliminarProducto(p.getIdProducto()));
         } catch (Exception e) {
             System.err.println("[Algolia] Error en indexación inicial: " + e.getMessage());
         }

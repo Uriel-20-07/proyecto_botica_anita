@@ -463,3 +463,16 @@
   cursor: not-allowed;
   text-decoration: line-through;
 }
+
+
+/* Selector de talla */
+.product-variant-name {
+  margin: -6px 0 10px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.chip.chip-agotado {
+  opacity: 0.6;
+  border-style: dashed;
+}

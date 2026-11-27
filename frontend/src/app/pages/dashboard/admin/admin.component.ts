@@ -8,6 +8,11 @@ import { RecetasService, RecetaMedica } from '../../../services/recetas.service'
 import { fechaComoDate } from '../../../services/fecha-util';
 import { environment } from '../../../../environments/environment';
 
+/** Fila de la tabla "Alertas de inventario": producto con poco stock o lote por vencer. */
+type AlertaInventario =
+  | { tipo: 'stock'; prod: any; categoria: string }
+  | { tipo: 'lote'; lote: any };
+
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
@@ -201,6 +206,33 @@ ocultarDemandaEstacional(): void {
   nextClientesPage() { if (this.clientesPage < this.totalClientesPages) this.clientesPage++; }
   prevClientesPage() { if (this.clientesPage > 1) this.clientesPage--; }
   setClientesPage(p: number) { this.clientesPage = Math.max(1, Math.min(p, this.totalClientesPages)); }
+
+  // Alertas de inventario (poco stock + lotes por vencer, 10 por página)
+  alertasPage = 1;
+  alertasPageSize = 10;
+
+  /** Lista unificada de alertas, en el mismo orden en que se mostraban antes. */
+  get alertasInventario(): AlertaInventario[] {
+    const alertas: AlertaInventario[] = [];
+    for (const grupo of this.productosPorCategoria) {
+      for (const prod of grupo.productos) {
+        if (this.stockVendible(prod) < 60) {
+          alertas.push({ tipo: 'stock', prod, categoria: grupo.categoria });
+        }
+      }
+    }
+    for (const lote of this.reporteData?.lotesProximosVencer || []) {
+      alertas.push({ tipo: 'lote', lote });
+    }
+    return alertas;
+  }
+  get alertasPaginado(): AlertaInventario[] {
+    const start = (this.alertasPage - 1) * this.alertasPageSize;
+    return this.alertasInventario.slice(start, start + this.alertasPageSize);
+  }
+  get totalAlertasPages(): number { return Math.ceil(this.alertasInventario.length / this.alertasPageSize) || 1; }
+  nextAlertasPage() { if (this.alertasPage < this.totalAlertasPages) this.alertasPage++; }
+  prevAlertasPage() { if (this.alertasPage > 1) this.alertasPage--; }
 
   // ===== FIN PAGINACIÓN =====
 
@@ -672,6 +704,7 @@ ocultarDemandaEstacional(): void {
    * (lotes próximos a vencer → filas "Por vencer").
    */
   recargarAlertas(): void {
+    this.alertasPage = 1;
     this.alertasCargando = true;
     let pendientes = 2;
     const terminar = () => {

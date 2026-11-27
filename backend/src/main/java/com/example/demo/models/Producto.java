@@ -96,6 +96,34 @@ public class Producto {
     @Column(name = "fecha_caducidad")
     private java.time.LocalDate fechaCaducidad;
 
+    // ─── Variantes (tallas) ────────────────────────────────────────────────────
+    // Una "línea" de producto con varias tallas (pañales, ortopedia) se guarda como VARIOS productos, uno por talla,
+    // cada uno con su propio stock, precio, lotes, carrito y pedidos. Estos campos solo los agrupan para mostrarlos
+    // como una sola tarjeta en el catálogo y con un selector de talla en el detalle.
+
+    /** Clave de la línea (ej. "huggies-active-sec"). Null = producto sin variantes. */
+    @Column(name = "grupo_variantes", length = 60)
+    private String grupoVariantes;
+
+    /** Nombre de la línea completa, para la tarjeta del catálogo (ej. "Pañales Huggies Active Sec"). */
+    @Column(name = "grupo_nombre", length = 120)
+    private String grupoNombre;
+
+    /** Talla de este producto dentro de su línea (ej. "G", "XG", "RN"). */
+    @Column(name = "variante_etiqueta", length = 30)
+    private String varianteEtiqueta;
+
+    /** Orden de la talla dentro de la línea (de menor a mayor). */
+    @Column(name = "variante_orden", nullable = false, columnDefinition = "integer default 0")
+    private Integer varianteOrden = 0;
+
+    /**
+     * true = este producto da la cara por su línea en el catálogo. Los productos sin variantes siempre son true;
+     * en una línea con tallas solo UNA es true y las demás no aparecen como tarjetas aparte.
+     */
+    @Column(name = "es_representante", nullable = false, columnDefinition = "boolean default true")
+    private Boolean esRepresentante = true;
+
     @Formula(
         "CASE " +
         "  WHEN en_oferta = true AND precio_oferta IS NOT NULL THEN precio_oferta " +

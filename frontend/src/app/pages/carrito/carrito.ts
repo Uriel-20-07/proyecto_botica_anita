@@ -82,7 +82,31 @@ export class CarritoComponent implements OnInit, OnDestroy {
         this.cartService.estaReservaVencida(item) ||
         this.getDiscountInfo(item.producto).isExpired,
     );
-    return items;
+    return this.agruparPorProducto(items);
+  }
+
+  /**
+   * Deja juntas las líneas de un mismo producto (por ejemplo, su blíster y su caja), en el orden en que
+   * apareció el producto en el carrito y con la presentación más chica primero. Así se ve la diferencia
+   * de presentación y de precio una al lado de la otra.
+   */
+  private agruparPorProducto(items: CartItem[]): CartItem[] {
+    const primeraPosicion = new Map<number, number>();
+    items.forEach((item, i) => {
+      const id = item?.producto?.idProducto;
+      if (id != null && !primeraPosicion.has(id)) primeraPosicion.set(id, i);
+    });
+    return items
+      .map((item, i) => ({ item, i }))
+      .sort((a, b) => {
+        const pa = primeraPosicion.get(a.item?.producto?.idProducto as number) ?? a.i;
+        const pb = primeraPosicion.get(b.item?.producto?.idProducto as number) ?? b.i;
+        if (pa !== pb) return pa - pb;
+        const ua = a.item.presentacion?.unidades ?? 1;
+        const ub = b.item.presentacion?.unidades ?? 1;
+        return ua !== ub ? ua - ub : a.i - b.i;
+      })
+      .map((x) => x.item);
   }
 
   /** Revisa reservas vencidas y pide al backend que libere las que correspondan. */
@@ -160,6 +184,25 @@ export class CarritoComponent implements OnInit, OnDestroy {
   /** Etiqueta de la presentación de la línea ("Blíster x10"), vacía si no tiene. */
   etiqueta(item: CartItem): string {
     return this.cartService.etiquetaDeLinea(item);
+  }
+
+  /** true si la línea es un blíster (presentación que no es la caja predeterminada). */
+  esBlister(item: CartItem): boolean {
+    const p = item?.presentacion;
+    if (!p) return false;
+    // Sin el dato de "predeterminada", un precio propio también identifica al blíster (la caja usa el del producto).
+    return p.esPredeterminada === false || (p.esPredeterminada == null && p.precioVenta != null);
+  }
+
+  /** Unidades sueltas (tabletas, cápsulas...) que trae UNA presentación; 0 si la línea no es una presentación múltiple. */
+  unidadesPorPresentacion(item: CartItem): number {
+    const u = item?.presentacion?.unidades ?? 1;
+    return u > 1 ? u : 0;
+  }
+
+  /** Parámetros para abrir el detalle del producto de la línea (misma URL que usa el catálogo). */
+  paramsDetalle(item: CartItem): { producto: number } {
+    return { producto: item?.producto?.idProducto ?? 0 };
   }
 
   /** Precio de UNA unidad de la línea (con oferta y presentación). */

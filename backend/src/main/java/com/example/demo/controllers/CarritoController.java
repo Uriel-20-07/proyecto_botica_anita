@@ -71,6 +71,7 @@ public class CarritoController {
      * Query params:
      * - idProducto: ID del producto a agregar.
      * - cantidad: número de unidades a agregar.
+     * - idPresentacion (opcional): presentación elegida (blíster, caja...). Sin ella se usa la predeterminada.
      *
      * @param idProducto ID del producto.
      * @param cantidad   cantidad de unidades.
@@ -81,13 +82,14 @@ public class CarritoController {
     public ResponseEntity<Carrito> agregarProducto(
             @RequestParam Integer idProducto,
             @RequestParam Integer cantidad,
+            @RequestParam(required = false) Integer idPresentacion,
             Principal principal) {
         
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
         User usuario = authService.obtenerUsuarioPorEmail(principal.getName());
-        Carrito carrito = carritoService.agregarProductoAlCarrito(usuario.getId(), idProducto, cantidad);
+        Carrito carrito = carritoService.agregarProductoAlCarrito(usuario.getId(), idProducto, cantidad, idPresentacion);
         return ResponseEntity.ok(carrito);
     }
 
@@ -105,13 +107,14 @@ public class CarritoController {
     @PostMapping("/disminuir")
     public ResponseEntity<Carrito> disminuirProducto(
             @RequestParam Integer idProducto,
+            @RequestParam(required = false) Integer idPresentacion,
             Principal principal) {
         
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
         User usuario = authService.obtenerUsuarioPorEmail(principal.getName());
-        Carrito carrito = carritoService.disminuirProductoDelCarrito(usuario.getId(), idProducto);
+        Carrito carrito = carritoService.disminuirProductoDelCarrito(usuario.getId(), idProducto, idPresentacion);
         return ResponseEntity.ok(carrito);
     }
 
@@ -128,13 +131,14 @@ public class CarritoController {
     @DeleteMapping("/eliminar")
     public ResponseEntity<Carrito> eliminarProducto(
             @RequestParam Integer idProducto,
+            @RequestParam(required = false) Integer idPresentacion,
             Principal principal) {
         
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
         User usuario = authService.obtenerUsuarioPorEmail(principal.getName());
-        Carrito carrito = carritoService.eliminarProductoDelCarrito(usuario.getId(), idProducto);
+        Carrito carrito = carritoService.eliminarProductoDelCarrito(usuario.getId(), idProducto, idPresentacion);
         return ResponseEntity.ok(carrito);
     }
 

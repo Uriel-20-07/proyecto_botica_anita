@@ -33,6 +33,12 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
     // Filtrar por categoría
     List<Producto> findByCategoria_IdCategoria(Integer idCategoria);
 
+    /** Productos que dan la cara en el catálogo (los de una línea con tallas, solo su representante). */
+    List<Producto> findByEsRepresentanteTrue();
+
+    /** Todas las tallas de una línea, de menor a mayor. */
+    List<Producto> findByGrupoVariantesOrderByVarianteOrdenAscIdProductoAsc(String grupoVariantes);
+
     /**
      * Carga el producto bloqueando la fila hasta el final de la transacción.
      * Se usa para reservar/liberar stock sin que dos usuarios se pisen.
@@ -49,6 +55,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
      */
     @Query("select new com.example.demo.dto.ConteoDTO(s.idSubcategoria, s.nombre, count(p)) "
             + "from Producto p join p.subcategoria s "
+            + "where p.esRepresentante = true "
             + "group by s.idSubcategoria, s.nombre")
     List<ConteoDTO> contarPorSubcategoria();
 
@@ -57,6 +64,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
      */
     @Query("select new com.example.demo.dto.ConteoDTO(m.idMarca, m.nombre, count(p)) "
             + "from Producto p join p.marca m "
+            + "where p.esRepresentante = true "
             + "group by m.idMarca, m.nombre")
     List<ConteoDTO> contarPorMarca();
 
@@ -65,7 +73,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
      */
     @Query("select new com.example.demo.dto.ConteoDTO(m.idMarca, m.nombre, count(p)) "
             + "from Producto p join p.marca m "
-            + "where p.categoria.idCategoria = :categoriaId "
+            + "where p.categoria.idCategoria = :categoriaId and p.esRepresentante = true "
             + "group by m.idMarca, m.nombre")
     List<ConteoDTO> contarPorMarcaEnCategoria(@Param("categoriaId") Integer categoriaId);
 
@@ -73,7 +81,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
      * Precio más alto del catálogo (toma el precio de oferta si existe),
      * para el tope del slider de precio del frontend.
      */
-    @Query("select max(p.precioConDescuento) from Producto p")
+    @Query("select max(p.precioConDescuento) from Producto p where p.esRepresentante = true")
     BigDecimal findPrecioMaximoGlobal();
 
     // La paginación del catálogo NO vive en un @Query fijo: se arma con

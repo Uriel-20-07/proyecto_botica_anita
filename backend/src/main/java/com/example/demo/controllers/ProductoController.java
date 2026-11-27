@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.dto.ConteosDTO;
 import com.example.demo.dto.FiltrosCatalogo;
 import com.example.demo.dto.PageDTO;
+import com.example.demo.dto.VarianteDTO;
 import com.example.demo.models.Producto;
 import com.example.demo.services.ProductoService;
 
@@ -32,6 +34,8 @@ import com.example.demo.services.ProductoService;
  * - GET /api/productos/paginado       → Catálogo paginado + filtros (30 por página).
  * - GET /api/productos/conteos        → Conteos por subcategoría/marca (menú lateral).
  * - GET /api/productos/categoria/{id} → Filtrar productos por categoría.
+ * - GET /api/productos/{id}           → Un producto (cualquier talla).
+ * - GET /api/productos/{id}/variantes → Tallas de la línea del producto (vacío si no tiene).
  */
 @RestController
 @RequestMapping("/api/productos")
@@ -125,5 +129,26 @@ public class ProductoController {
     @GetMapping("/categoria/{id}")
     public List<Producto> filtrarPorCategoria(@PathVariable Integer id) {
         return productoService.filtrarPorCategoria(id);
+    }
+
+    /**
+     * Un producto por ID. Sirve para el detalle: devuelve cualquier talla, aunque no dé la cara en el catálogo.
+     *
+     * @return 200 con el producto, o 404 si no existe.
+     */
+    @GetMapping("/{id:\\d+}")
+    public ResponseEntity<Producto> obtener(@PathVariable Integer id) {
+        return productoService.buscarPorId(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Tallas de la línea a la que pertenece el producto (de menor a mayor), con su precio y disponibilidad.
+     * Lista vacía si el producto no tiene variantes.
+     */
+    @GetMapping("/{id:\\d+}/variantes")
+    public List<VarianteDTO> variantes(@PathVariable Integer id) {
+        return productoService.variantesDe(id);
     }
 }

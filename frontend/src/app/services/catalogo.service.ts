@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 /**
@@ -54,6 +55,25 @@ export interface ProductoApi {
   stockDisponible?: number;  // stock que realmente se puede vender (stock - stockEnCarrito)
   agotadoOnline?: boolean;   // true si no hay stock disponible para la venta online
   estadoStock?: 'DISPONIBLE' | 'PARCIALMENTE_RESERVADO' | 'RESERVADO' | 'AGOTADO' | 'VENCIDO';
+  /** Línea con tallas a la que pertenece (null/undefined = producto sin variantes). */
+  grupoVariantes?: string | null;
+  /** Nombre de la línea completa, p. ej. "Pañales Huggies Active Sec". */
+  grupoNombre?: string | null;
+  /** Talla de este producto dentro de su línea ("G", "XG"...). */
+  varianteEtiqueta?: string | null;
+  /** true = es el producto que da la cara por su línea en el catálogo. */
+  esRepresentante?: boolean;
+}
+
+/** Una talla de una línea de producto (GET /api/productos/{id}/variantes). Cada talla es un producto con su propio stock. */
+export interface VarianteApi {
+  idProducto: number;
+  etiqueta: string;
+  nombre: string;
+  precio: number;         // lo que paga el cliente (con oferta)
+  precioRegular: number;  // sin oferta
+  disponible: boolean;    // false si esa talla está agotada o vencida
+  imgUrl?: string | null;
 }
 
 /**
@@ -141,6 +161,18 @@ export class CatalogoService {
    */
   getProductos(): Observable<ProductoApi[]> {
     return this.http.get<ProductoApi[]>(this.productosUrl);
+  }
+
+  /** Un producto por ID (cualquier talla, haya o no dado la cara en el catálogo). */
+  getProducto(id: number): Observable<ProductoApi> {
+    return this.http.get<ProductoApi>(`${this.productosUrl}/${id}`);
+  }
+
+  /** Tallas de la línea del producto, de menor a mayor. Lista vacía si el producto no tiene variantes. */
+  getVariantes(id: number): Observable<VarianteApi[]> {
+    return this.http
+      .get<VarianteApi[]>(`${this.productosUrl}/${id}/variantes`)
+      .pipe(catchError(() => of([] as VarianteApi[])));
   }
 
   /**

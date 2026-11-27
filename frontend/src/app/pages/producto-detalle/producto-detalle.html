@@ -40,7 +40,8 @@
       </div>
 
       <span class="brand-tag">{{ producto.categoriaNombre | uppercase }}</span>
-      <h1 class="product-name">{{ producto.nombre }}</h1>
+      <h1 class="product-name">{{ variantes.length > 1 && producto.grupoNombre ? producto.grupoNombre : producto.nombre }}</h1>
+      <p class="product-variant-name" *ngIf="variantes.length > 1 && producto.grupoNombre">{{ producto.nombre }}</p>
 
       <!-- Requiere receta warning -->
       <div *ngIf="mostrarRecetas && producto.requiereReceta" style="margin: 10px 0 15px; display: inline-flex; align-items: center; gap: 8px; background-color: #f3e8ff; border: 1.5px dashed #8b5cf6; border-radius: 10px; padding: 10px 16px; color: #6d28d9; font-weight: 700; font-size: 0.85rem;">
@@ -61,8 +62,22 @@
         </div>
       </div>
 
+      <!-- TALLA (líneas con varias tallas: cada talla es un producto con su propio precio y stock) -->
+      <div class="section-presentation" *ngIf="variantes.length > 1">
+        <span class="label-section">Talla</span>
+        <div class="presentation-chips">
+          <button type="button" class="chip" *ngFor="let v of variantes"
+            [class.active]="v.idProducto === producto.id"
+            [class.chip-agotado]="!v.disponible"
+            [title]="v.disponible ? v.nombre + ' · S/ ' + (v.precio | number:'1.2-2') : v.nombre + ' · agotada'"
+            (click)="seleccionarVariante(v)">
+            {{ v.etiqueta }} · S/ {{ v.precio | number:'1.2-2' }}<ng-container *ngIf="!v.disponible"> · Agotada</ng-container>
+          </button>
+        </div>
+      </div>
+
       <!-- PRESENTACIÓN -->
-      <div class="section-presentation">
+      <div class="section-presentation" *ngIf="presentaciones.length > 0 || variantes.length <= 1">
         <span class="label-section">Presentación</span>
         <div class="presentation-chips">
           <!-- Producto sin presentaciones: se vende como siempre -->

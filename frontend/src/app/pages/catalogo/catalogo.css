@@ -1039,3 +1039,8 @@ mark {
         margin-left: 0;
     }
 }
+/* Tarjeta de una línea con tallas */
+.producto-tallas {
+  color: #1d4ed8;
+  font-weight: 600;
+}
