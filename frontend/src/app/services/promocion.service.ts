@@ -106,6 +106,7 @@ export class PromocionService {
     const cantidades = new Map<number, number>();
     for (const it of items) {
       if (this.cartService.getDiscountInfo(it.producto).isExpired) continue;
+      if (it.presentacion) continue; // las promos cuentan unidades sueltas (igual que el backend)
       const id = it.producto.idProducto;
       cantidades.set(id, (cantidades.get(id) ?? 0) + it.cantidad);
     }

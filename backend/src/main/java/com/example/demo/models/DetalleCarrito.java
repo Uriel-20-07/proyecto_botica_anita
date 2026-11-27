@@ -74,4 +74,12 @@ public class DetalleCarrito {
         return fechaExpiracion != null
                 && !fechaExpiracion.isAfter(LocalDateTime.now(ZoneOffset.UTC));
     }
+
+    /**
+     * Presentación elegida (blíster, caja...). Es null en productos que se venden sin presentaciones y en líneas
+     * anteriores a las presentaciones: en ese caso se usa la presentación predeterminada del producto, si la tiene.
+     */
+    @ManyToOne
+    @JoinColumn(name = "id_presentacion")
+    private PresentacionProducto presentacion;
 }

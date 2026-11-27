@@ -29,6 +29,9 @@ public class PagoService {
     private CarritoService carritoService;
     @Autowired
     private StockService stockService;
+    // Presentaciones (blíster, caja...) con stock compartido
+    @Autowired
+    private PresentacionService presentacionService;
     @Autowired
     private PromocionService promocionService;
     @Autowired
@@ -142,7 +145,7 @@ public class PagoService {
 
         double subtotal = 0.0;
         for (DetalleCarrito d : carrito.getDetalles()) {
-            subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
+            subtotal += precioDeLinea(d).doubleValue() * d.getCantidad();
         }
 
         // Promociones (3x2, combos, etc.): se derivan de lo que hay en el carrito
@@ -195,7 +198,7 @@ public class PagoService {
 
             if (d.getEstado() == EstadoDetalleCarrito.EXPIRADA) {
                 try {
-                    stockService.reservar(d.getProducto().getIdProducto(), d.getCantidad());
+                    stockService.reservar(d.getProducto().getIdProducto(), presentacionService.unidadesDeLinea(d));
                     d.setEstado(EstadoDetalleCarrito.ACTIVA);
                     d.setFechaExpiracion(ahora.plusHours(horasReserva));
                     detalleCarritoRepository.save(d);
@@ -251,7 +254,7 @@ public class PagoService {
 
         double subtotal = 0.0;
         for (DetalleCarrito d : carrito.getDetalles()) {
-            subtotal += obtenerPrecioConDescuento(d.getProducto()).doubleValue() * d.getCantidad();
+            subtotal += precioDeLinea(d).doubleValue() * d.getCantidad();
         }
         BigDecimal totalFinal = BigDecimal.valueOf(subtotal)
                 .subtract(promocionService.calcularDescuento(carrito).total());
@@ -315,13 +318,20 @@ public class PagoService {
             int cantidadComprada = detCart.getCantidad();
 
             // Confirma la reserva y descuenta el stock físico (FEFO) una sola vez.
-            stockService.confirmarVenta(producto, cantidadComprada);
+            // Con presentaciones se descuentan UNIDADES BASE (tabletas): 2 cajas de 100 = 200 tabletas.
+            PresentacionProducto presentacion = presentacionService.presentacionDeLinea(detCart);
+            stockService.confirmarVenta(producto, presentacionService.unidadesDeLinea(detCart));
 
             DetallePedido detPed = new DetallePedido();
             detPed.setPedido(pedido);
             detPed.setProducto(producto);
             detPed.setCantidad(cantidadComprada);
-            detPed.setPrecioHistorico(obtenerPrecioConDescuento(producto));
+            detPed.setPrecioHistorico(precioDeLinea(detCart));
+            if (presentacion != null) {
+                detPed.setPresentacion(presentacion);
+                detPed.setEtiquetaPresentacion(presentacion.getEtiqueta());
+                detPed.setUnidadesPresentacion(presentacionService.unidadesDe(presentacion));
+            }
             detallesGuardados.add(detPed);
         }
         // Un solo guardado por lote de filas en vez de un INSERT por producto.
@@ -370,20 +380,37 @@ private Cupon obtenerCuponValido(Integer idUsuario, String codigo) {
     return cupon;
 }
 
-private BigDecimal calcularDescuentoCupon(Carrito carrito, Cupon cupon) {
+private BigDecimal calcularDescuentoCupon(
+        Carrito carrito, Cupon cupon) {
 
-    // 1. Subtotal con el precio de oferta de cada producto
-    BigDecimal base = BigDecimal.ZERO;
+    BigDecimal subtotalElegible = BigDecimal.ZERO;
+
     for (DetalleCarrito detalle : carrito.getDetalles()) {
-        BigDecimal precio = obtenerPrecioConDescuento(detalle.getProducto());
-        base = base.add(precio.multiply(BigDecimal.valueOf(detalle.getCantidad())));
+        Producto producto = detalle.getProducto();
+
+        BigDecimal precioVenta = producto.getPrecioVenta();
+        BigDecimal precioConDescuento = producto.getPrecioConDescuento();
+
+        boolean tieneDescuento = precioConDescuento != null
+                && precioConDescuento.compareTo(precioVenta) < 0;
+
+        // El cupón no se aplica a productos ya rebajados.
+        if (!tieneDescuento) {
+            BigDecimal precio = precioDeLinea(detalle);
+
+            BigDecimal importe = precio.multiply(
+                    BigDecimal.valueOf(detalle.getCantidad()));
+
+            subtotalElegible = subtotalElegible.add(importe);
+        }
     }
 
-    // 2. Se restan las promociones (3x2, combos, etc.)
-    base = base.subtract(promocionService.calcularDescuento(carrito).total());
+    if (subtotalElegible.compareTo(BigDecimal.ZERO) <= 0) {
+        throw new RuntimeException(
+                "El cupón solo se puede aplicar a productos sin descuento.");
+    }
 
-    // 3. El cupón se aplica sobre lo que queda
-    return base
+    return subtotalElegible
             .multiply(cupon.getValorDescuento())
             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 }
@@ -424,5 +451,13 @@ private BigDecimal calcularDescuentoCupon(Carrito carrito, Cupon cupon) {
             return producto.getPrecioConDescuento();
         }
         return producto.getPrecioVenta();
+    }
+
+    /**
+     * Precio de UNA unidad de una línea del carrito: el de su presentación (blíster, caja...) si la tiene; si no,
+     * el del producto, igual que siempre.
+     */
+    private BigDecimal precioDeLinea(DetalleCarrito linea) {
+        return presentacionService.precioUnitario(linea.getProducto(), presentacionService.presentacionDeLinea(linea));
     }
 }

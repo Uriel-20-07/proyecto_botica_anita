@@ -18,6 +18,11 @@ export class AsistenteService {
     return this.http.get<any>(`${this.apiUrl}/productos`, { headers: this.headers() });
   }
 
+  /** Presentaciones (blíster, caja...) de un producto para el selector del POS. Lista vacía = sin presentaciones. */
+  listarPresentaciones(idProducto: number): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/api/productos/${idProducto}/presentaciones`);
+  }
+
   crearVenta(body: any): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/venta`, body, { headers: this.headers() });
   }

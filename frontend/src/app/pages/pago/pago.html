@@ -419,11 +419,21 @@
         <p class="productos-titulo">Productos</p>
         <div class="producto-item" *ngFor="let item of productosCarrito">
           <div class="producto-info">
-            <span class="producto-nombre">{{ item.producto.nombre }}</span>
+            <span class="producto-nombre">{{ item.producto.nombre }}<ng-container *ngIf="$any(item).presentacion"> · {{ $any(item).presentacion.etiqueta }}</ng-container></span>
             <span class="producto-cantidad">× {{ item.cantidad }}</span>
+            <!-- Etiqueta de la promoción por conjunto aplicada a esta fila. -->
+            <span class="producto-oferta-badge" *ngIf="promoDeLinea(item)">{{ promoDeLinea(item) }}</span>
+            <!-- Etiqueta de oferta de catálogo cuando no hay promoción por conjunto. -->
+            <span class="producto-oferta-badge"
+              *ngIf="!promoDeLinea(item) && getDiscountInfo(item.producto).message && !getDiscountInfo(item.producto).isExpired">
+              {{ getDiscountInfo(item.producto).message }}
+            </span>
           </div>
           <span class="producto-precio">
-            S/ {{ (item.producto.precioVenta * item.cantidad) | number:'1.2-2' }}
+            <s class="precio-tachado" *ngIf="hayDescuentoLinea(item)">
+              S/ {{ (precioRegularLinea(item) * item.cantidad) | number:'1.2-2' }}
+            </s>
+            <strong class="precio-oferta">S/ {{ precioNetoLinea(item) | number:'1.2-2' }}</strong>
           </span>
         </div>
         <div *ngIf="productosCarrito.length === 0" class="sin-productos">
@@ -441,10 +451,13 @@
           <span>IGV (18%)</span>
           <span>S/ {{ igv | number:'1.2-2' }}</span>
         </div>
-        
-        <div class="resumen-linea descuento" *ngIf="descuentoTotal > 0">
-          <span>Descuento</span>
-          <span style="color: #dc2626; font-weight: 700;">− S/ {{ descuentoTotal | number:'1.2-2' }}</span>
+
+        <!-- El descuento de las promociones por conjunto ya está en el precio neto de cada fila. -->
+
+        <!-- Cupón canjeado: única promoción extra que se resta (solo productos sin oferta). -->
+        <div class="resumen-linea descuento" *ngIf="descuento > 0">
+          <span>Cupón {{ codigoAplicado }}</span>
+          <span style="color: #dc2626; font-weight: 700;">− S/ {{ descuento | number:'1.2-2' }}</span>
         </div>
 
         <div class="resumen-linea">
@@ -462,14 +475,19 @@
             <button (click)="aplicarCupon()" [disabled]="cuponAplicado" class="btn-aplicar">Canjear</button>
           </div>
         </div>
-        <p class="cupon-exito-msg" *ngIf="cuponAplicado"> Cupón {{ codigoAplicado }} aplicado (−{{ (descuento /
-          subtotal) * 100 | number:'1.0-0' }}%)</p>
+        <p class="cupon-exito-msg" *ngIf="cuponAplicado && descuento > 0"> Cupón {{ codigoAplicado }} aplicado: − S/ {{ descuento | number:'1.2-2' }}</p>
+        <p class="cupon-aviso-msg" *ngIf="avisoCupon">{{ avisoCupon }}</p>
       </div>
 
       <div class="boleta-footer">
         <div class="total-linea">
           <span>Total a pagar</span>
           <span class="precio-final">S/ {{ total | number:'1.2-2' }}</span>
+        </div>
+        <!-- Resumen destacado del ahorro: informativo, no es una fila de la suma. -->
+        <div class="ahorro-total" *ngIf="ahorroTotal > 0">
+          <span>Ahorro total en tu compra</span>
+          <strong>− S/ {{ ahorroTotal | number:'1.2-2' }}</strong>
         </div>
         <button class="btn-pagar-checkout" (click)="ejecutarPago()" [disabled]="procesandoPago || (requiereReceta && !recetaSubidaExito)"
           [style.opacity]="procesandoPago || (requiereReceta && !recetaSubidaExito) ? '0.5' : '1'">

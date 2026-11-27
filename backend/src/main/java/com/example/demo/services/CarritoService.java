@@ -5,6 +5,7 @@ import com.example.demo.exceptions.CarritoException;
 import com.example.demo.models.Carrito;
 import com.example.demo.models.DetalleCarrito;
 import com.example.demo.models.EstadoDetalleCarrito;
+import com.example.demo.models.PresentacionProducto;
 import com.example.demo.models.Producto;
 import com.example.demo.models.User;
 import com.example.demo.repositories.CarritoRepository;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -51,6 +53,10 @@ public class CarritoService {
     @Autowired
     private StockService stockService;
 
+    /** Presentaciones (blíster, caja...) de los productos que comparten stock. */
+    @Autowired
+    private PresentacionService presentacionService;
+
     @Value("${app.carrito.reserva.horas:2}")
     private long horasReserva;
 
@@ -81,10 +87,24 @@ public class CarritoService {
     }
 
     /**
-     * Agrega un producto al carrito reservando stock durante 2 horas.
+     * Agrega un producto al carrito (sin elegir presentación: usa la predeterminada si el producto la tiene).
      */
     @Transactional
     public Carrito agregarProductoAlCarrito(Integer idUsuario, Integer idProducto, Integer cantidad) {
+        return agregarProductoAlCarrito(idUsuario, idProducto, cantidad, null);
+    }
+
+    /**
+     * Agrega un producto al carrito reservando stock durante 2 horas, opcionalmente en una presentación
+     * concreta (blíster, caja...).
+     *
+     * El stock y las reservas se cuentan en UNIDADES BASE (tabletas): 2 cajas de 100 reservan 200. Una caja y un
+     * blíster del mismo medicamento comparten el mismo stock disponible. Un producto sin presentaciones se
+     * comporta exactamente como antes (1 presentación = 1 unidad).
+     */
+    @Transactional
+    public Carrito agregarProductoAlCarrito(Integer idUsuario, Integer idProducto, Integer cantidad,
+                                            Integer idPresentacion) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
         List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
         carrito.setExpirados(expirados);
@@ -100,37 +120,64 @@ public class CarritoService {
             throw new CarritoException("Este producto está agotado por ahora. Estamos trabajando para reabastecerlo.", 0);
         }
 
-        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
+        // Presentación elegida (la predeterminada si no se eligió; null si el producto no tiene presentaciones).
+        PresentacionProducto presentacion = presentacionService.resolver(producto, idPresentacion);
+        int unidadesPorPresentacion = presentacionService.unidadesDe(presentacion);
+
+        Optional<DetalleCarrito> detalleExistente = lineaActivaDe(carrito, idProducto, presentacion);
         int cantidadActual = detalleExistente
                 .map(d -> d.getCantidad() != null ? d.getCantidad() : 0)
                 .orElse(0);
 
-        // El stock disponible ya descuenta TODAS las reservas, incluida la de este usuario.
+        // Unidades base que ya reservan las OTRAS líneas de este producto en el carrito (otra presentación).
+        int unidadesEnOtrasLineas = carrito.getDetalles().stream()
+                .filter(d -> d.getEstado() == EstadoDetalleCarrito.ACTIVA)
+                .filter(d -> d.getProducto() != null && idProducto.equals(d.getProducto().getIdProducto()))
+                .filter(d -> detalleExistente.isEmpty() || d != detalleExistente.get())
+                .mapToInt(presentacionService::unidadesDeLinea)
+                .sum();
+
+        // El stock disponible ya descuenta TODAS las reservas, incluida la de este usuario. Las reglas de
+        // presentaciones parten del stock total y restan las líneas propias, así que se las devolvemos aquí
+        // para no descontarlas dos veces.
         int disponible = producto.getStockDisponible();
-        int limitePorProducto = LIMITE_POR_PRODUCTO - cantidadActual;
-        int maxAdicional = Math.max(0, Math.min(limitePorProducto, disponible));
+        int stockParaReglas = disponible + unidadesEnOtrasLineas + cantidadActual * unidadesPorPresentacion;
+
+        ReglasPresentacion.LimiteAgregar limite = ReglasPresentacion.limiteParaAgregar(
+                stockParaReglas, unidadesPorPresentacion, cantidadActual, unidadesEnOtrasLineas);
+        int limitePorProducto = limite.limitePorProducto();
+        int maxAdicional = limite.maxAdicional();
 
         if (maxAdicional <= 0) {
             if (limitePorProducto <= 0) {
-                throw new CarritoException(
-                        "Ya tienes el máximo permitido de 10 unidades de este producto en el carrito.", 0);
+                throw new CarritoException(presentacion == null
+                        ? "Ya tienes el máximo permitido de 10 unidades de este producto en el carrito."
+                        : "Ya tienes el máximo permitido de 10 de esta presentación en el carrito.", 0);
             }
-            throw new CarritoException("Este producto no tiene stock disponible para agregar más unidades.", 0);
+            throw new CarritoException(presentacion == null
+                    ? "Este producto no tiene stock disponible para agregar más unidades."
+                    : "No hay stock suficiente de esta presentación para agregar más.", 0);
         }
 
         if (cantidad > maxAdicional) {
-            boolean topeEsElLimite = limitePorProducto <= disponible;
-            String motivo = topeEsElLimite
-                    ? "el límite es de 10 unidades por producto"
-                    : "solo hay " + disponible + " unidad(es) disponibles en stock";
+            String motivo;
+            if (limite.topeEsElLimite()) {
+                motivo = presentacion == null
+                        ? "el límite es de 10 unidades por producto"
+                        : "el límite es de 10 por presentación";
+            } else {
+                motivo = presentacion == null
+                        ? "solo hay " + disponible + " unidad(es) disponibles en stock"
+                        : "el stock disponible solo alcanza para " + maxAdicional + " más de esta presentación";
+            }
             throw new CarritoException(
                     "No se pueden agregar " + cantidad + " unidades porque " + motivo
                             + ". Puedes agregar " + maxAdicional + " unidad(es) más como máximo.",
                     maxAdicional);
         }
 
-        // Reserva atómica: bloquea el producto y valida el disponible otra vez.
-        stockService.reservar(idProducto, cantidad);
+        // Reserva atómica en unidades base: bloquea el producto y valida el disponible otra vez.
+        stockService.reservar(idProducto, cantidad * unidadesPorPresentacion);
 
         LocalDateTime ahora = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -143,6 +190,7 @@ public class CarritoService {
             DetalleCarrito nuevoDetalle = new DetalleCarrito();
             nuevoDetalle.setCarrito(carrito);
             nuevoDetalle.setProducto(producto);
+            nuevoDetalle.setPresentacion(presentacion);
             nuevoDetalle.setCantidad(cantidad);
             nuevoDetalle.setEstado(EstadoDetalleCarrito.ACTIVA);
             nuevoDetalle.setFechaCreacion(ahora);
@@ -155,18 +203,28 @@ public class CarritoService {
     }
 
     /**
-     * Disminuye en 1 la cantidad de un producto y libera esa unidad.
+     * Disminuye en 1 la cantidad de un producto (primera línea del producto) y libera esa unidad.
      */
     @Transactional
     public Carrito disminuirProductoDelCarrito(Integer idUsuario, Integer idProducto) {
+        return disminuirProductoDelCarrito(idUsuario, idProducto, null);
+    }
+
+    /**
+     * Disminuye en 1 la cantidad de una línea y libera lo que esa unidad tenía reservado. Con "idPresentacion" se
+     * elige la línea de esa presentación; sin ella, la primera línea activa del producto.
+     */
+    @Transactional
+    public Carrito disminuirProductoDelCarrito(Integer idUsuario, Integer idProducto, Integer idPresentacion) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
         List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
         carrito.setExpirados(expirados);
 
-        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
+        Optional<DetalleCarrito> detalleExistente = buscarLineaActiva(carrito, idProducto, idPresentacion);
 
         if (detalleExistente.isPresent()) {
             DetalleCarrito detalle = detalleExistente.get();
+            int unidadesPorUnaPresentacion = presentacionService.unidadesDe(presentacionService.presentacionDeLinea(detalle));
             if (detalle.getCantidad() != null && detalle.getCantidad() > 1) {
                 detalle.setCantidad(detalle.getCantidad() - 1);
                 detalleCarritoRepository.save(detalle);
@@ -174,29 +232,38 @@ public class CarritoService {
                 carrito.getDetalles().remove(detalle);
                 detalleCarritoRepository.delete(detalle);
             }
-            stockService.liberar(idProducto, 1);
+            stockService.liberar(idProducto, unidadesPorUnaPresentacion);
         }
 
         return carritoRepository.save(carrito);
     }
 
     /**
-     * Elimina completamente un producto del carrito y libera toda su reserva.
+     * Elimina completamente un producto del carrito (primera línea del producto) y libera su reserva.
      */
     @Transactional
     public Carrito eliminarProductoDelCarrito(Integer idUsuario, Integer idProducto) {
+        return eliminarProductoDelCarrito(idUsuario, idProducto, null);
+    }
+
+    /**
+     * Elimina una línea completa y libera toda su reserva. Con "idPresentacion" se elige la línea de esa
+     * presentación; sin ella, la primera línea activa del producto.
+     */
+    @Transactional
+    public Carrito eliminarProductoDelCarrito(Integer idUsuario, Integer idProducto, Integer idPresentacion) {
         Carrito carrito = obtenerOCrearCarrito(idUsuario);
         List<ItemExpiradoDTO> expirados = limpiarExpiradas(carrito);
         carrito.setExpirados(expirados);
 
-        Optional<DetalleCarrito> detalleExistente = buscarDetalleActivo(carrito, idProducto);
+        Optional<DetalleCarrito> detalleExistente = buscarLineaActiva(carrito, idProducto, idPresentacion);
 
         if (detalleExistente.isPresent()) {
             DetalleCarrito detalle = detalleExistente.get();
-            int cantidad = detalle.getCantidad() != null ? detalle.getCantidad() : 0;
+            int unidades = presentacionService.unidadesDeLinea(detalle);
             carrito.getDetalles().remove(detalle);
             detalleCarritoRepository.delete(detalle);
-            stockService.liberar(idProducto, cantidad);
+            stockService.liberar(idProducto, unidades);
         }
 
         return carritoRepository.save(carrito);
@@ -214,7 +281,7 @@ public class CarritoService {
         for (DetalleCarrito detalle : new ArrayList<>(carrito.getDetalles())) {
             if (detalle.getEstado() == EstadoDetalleCarrito.ACTIVA) {
                 stockService.liberar(detalle.getProducto().getIdProducto(),
-                        detalle.getCantidad() != null ? detalle.getCantidad() : 0);
+                        presentacionService.unidadesDeLinea(detalle));
             }
         }
 
@@ -266,7 +333,7 @@ public class CarritoService {
                         EstadoDetalleCarrito.EXPIRADA, EstadoDetalleCarrito.ACTIVA);
                 if (actualizadas > 0) {
                     stockService.liberar(detalle.getProducto().getIdProducto(),
-                            detalle.getCantidad() != null ? detalle.getCantidad() : 0);
+                            presentacionService.unidadesDeLinea(detalle));
                 }
             }
 
@@ -289,12 +356,38 @@ public class CarritoService {
         return expirados;
     }
 
-    private Optional<DetalleCarrito> buscarDetalleActivo(Carrito carrito, Integer idProducto) {
+    /**
+     * Línea ACTIVA del carrito que corresponde a un producto y a la presentación efectiva indicada. Una línea
+     * anterior a las presentaciones (sin presentación guardada) equivale a la presentación predeterminada.
+     */
+    private Optional<DetalleCarrito> lineaActivaDe(Carrito carrito, Integer idProducto, PresentacionProducto presentacion) {
+        Integer idBuscado = presentacion == null ? null : presentacion.getIdPresentacion();
         return carrito.getDetalles().stream()
                 .filter(d -> d.getEstado() == EstadoDetalleCarrito.ACTIVA)
                 .filter(d -> d.getProducto() != null
                         && d.getProducto().getIdProducto() != null
                         && d.getProducto().getIdProducto().equals(idProducto))
+                .filter(d -> {
+                    PresentacionProducto deLinea = presentacionService.presentacionDeLinea(d);
+                    return Objects.equals(deLinea == null ? null : deLinea.getIdPresentacion(), idBuscado);
+                })
+                .findFirst();
+    }
+
+    /** Sin presentación indicada: la primera línea activa del producto; con ella, la línea de esa presentación. */
+    private Optional<DetalleCarrito> buscarLineaActiva(Carrito carrito, Integer idProducto, Integer idPresentacion) {
+        return carrito.getDetalles().stream()
+                .filter(d -> d.getEstado() == EstadoDetalleCarrito.ACTIVA)
+                .filter(d -> d.getProducto() != null
+                        && d.getProducto().getIdProducto() != null
+                        && d.getProducto().getIdProducto().equals(idProducto))
+                .filter(d -> {
+                    if (idPresentacion == null) {
+                        return true;
+                    }
+                    PresentacionProducto deLinea = presentacionService.presentacionDeLinea(d);
+                    return deLinea != null && idPresentacion.equals(deLinea.getIdPresentacion());
+                })
                 .findFirst();
     }
 }

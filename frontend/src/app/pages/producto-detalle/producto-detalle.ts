@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CatalogoService, ProductoApi } from '../../services/catalogo.service';
-import { CartService } from '../../services/cart.service';
+import { CartService, PresentacionApi } from '../../services/cart.service';
 import { FavoritosService } from '../../services/favoritos.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
@@ -26,6 +26,10 @@ export class ProductoDetalleComponent implements OnInit {
   cantidad = 1;
   descuentoInfo: any = null;
   agotado = false;
+
+  /** Presentaciones (blíster, caja...) del producto. Lista vacía = se vende normalmente, sin presentaciones. */
+  presentaciones: PresentacionApi[] = [];
+  presentacionSeleccionada: PresentacionApi | null = null;
 
   private readonly imagenPorCategoria: Record<string, string> = {
     medicamentos: 'assets/img/producto1.png',
@@ -59,7 +63,8 @@ export class ProductoDetalleComponent implements OnInit {
    */
   get cantidadEnCarrito(): number {
     if (!this.producto) return 0;
-    return this.cartService.cantidadEnCarrito(this.producto.id);
+    // Con presentación elegida, el límite de 10 se cuenta sobre la línea de esa presentación.
+    return this.cartService.cantidadEnCarrito(this.producto.id, this.presentacionSeleccionada?.idPresentacion ?? null);
   }
 
   /**
@@ -69,9 +74,18 @@ export class ProductoDetalleComponent implements OnInit {
    */
   get maxPermitido(): number {
     if (!this.producto) return 0;
+    if (this.presentacionSeleccionada) {
+      // El backend ya calcula cuántas se pueden pedir según el stock (en unidades base) y el tope de 10.
+      return Math.max(0, Math.min(this.presentacionSeleccionada.maxPorPedido, 10 - this.cantidadEnCarrito));
+    }
     const disponible = this.cartService.stockVendible(this.producto);
     const stock = disponible != null ? disponible : Number.POSITIVE_INFINITY;
     return Math.max(0, Math.min(stock, 10 - this.cantidadEnCarrito));
+  }
+
+  /** true si lo elegido no se puede comprar ahora (producto agotado o presentación sin stock suficiente). */
+  get noDisponible(): boolean {
+    return this.agotado || (!!this.presentacionSeleccionada && !this.presentacionSeleccionada.disponible);
   }
 
   /** true cuando ya no se puede agregar nada más de este producto. */
@@ -81,9 +95,11 @@ export class ProductoDetalleComponent implements OnInit {
 
   /** Mensaje claro cuando se alcanzó el máximo del carrito (no por stock agotado). */
   get mensajeLimite(): string {
-    if (this.agotado || this.maxPermitido > 0) return '';
+    if (this.noDisponible || this.maxPermitido > 0) return '';
     if (this.cantidadEnCarrito >= 10) {
-      return 'Ya tienes el máximo de 10 unidades de este producto en tu carrito';
+      return this.presentacionSeleccionada
+        ? 'Ya tienes el máximo de 10 de esta presentación en tu carrito'
+        : 'Ya tienes el máximo de 10 unidades de este producto en tu carrito';
     }
     return 'No hay más unidades disponibles de este producto para agregar al carrito';
   }
@@ -175,6 +191,7 @@ export class ProductoDetalleComponent implements OnInit {
           // Respetar el límite de 10 por producto según lo que ya esté en el carrito
           this.cantidad = 1;
           this.ajustarCantidadAlLimite();
+          this.cargarPresentaciones(found.idProducto);
         } else {
           this.producto = null; // Limpiar datos previos si no se encuentra
           this.mensaje = 'Producto no encontrado.';
@@ -187,6 +204,43 @@ export class ProductoDetalleComponent implements OnInit {
         this.cargando = false;
       }
     });
+  }
+
+  /**
+   * Carga las presentaciones del producto. Conserva la que el cliente tenía elegida; si no, usa la
+   * predeterminada (la caja) o la primera disponible.
+   */
+  private cargarPresentaciones(idProducto: number): void {
+    const anterior = this.presentacionSeleccionada?.idPresentacion ?? null;
+    this.cartService.getPresentaciones(idProducto).subscribe((lista) => {
+      this.presentaciones = lista;
+      this.presentacionSeleccionada =
+        lista.find((p) => p.idPresentacion === anterior)
+        ?? lista.find((p) => p.esPredeterminada && p.disponible)
+        ?? lista.find((p) => p.disponible)
+        ?? lista[0]
+        ?? null;
+      this.ajustarCantidadAlLimite();
+    });
+  }
+
+  /** El cliente elige otra presentación (blíster / caja). */
+  seleccionarPresentacion(p: PresentacionApi): void {
+    if (!p.disponible) return;
+    this.presentacionSeleccionada = p;
+    this.cantidad = 1;
+    this.ajustarCantidadAlLimite();
+  }
+
+  /** Precio regular (sin oferta) a mostrar: el de la presentación elegida o el del producto. */
+  get precioRegularMostrado(): number {
+    if (!this.producto) return 0;
+    return this.presentacionSeleccionada ? this.presentacionSeleccionada.precioRegular : Number(this.producto.precioVenta);
+  }
+
+  /** true si hay descuento sobre lo elegido (para mostrar el precio regular tachado). */
+  get hayDescuentoMostrado(): boolean {
+    return this.getPrecioFinal() < this.precioRegularMostrado;
   }
 
   getFecha(producto: any): string {
@@ -202,32 +256,37 @@ export class ProductoDetalleComponent implements OnInit {
 
   getPrecioFinal(): number {
     if (!this.producto) return 0;
+    if (this.presentacionSeleccionada) return this.presentacionSeleccionada.precio;
     return this.producto.precioConDescuento != null ? this.producto.precioConDescuento : this.producto.precioVenta;
   }
 
   incrementar(): void {
-    if (this.agotado || this.limiteAlcanzado) return;
+    if (this.noDisponible || this.limiteAlcanzado) return;
     if (this.cantidad >= this.maxPermitido) return;
     this.cantidad++;
   }
 
   decrementar(): void {
-    if (this.agotado) return;
+    if (this.noDisponible) return;
     if (this.cantidad > 1) {
       this.cantidad--;
     }
   }
 
   agregarAlCarrito(): void {
-  if (!this.producto || this.agotado || this.limiteAlcanzado) return;
+  if (!this.producto || this.noDisponible || this.limiteAlcanzado) return;
   const { id, nombre } = this.producto;
+  const presentacion = this.presentacionSeleccionada;
+  const textoItem = presentacion ? `${nombre} · ${presentacion.etiqueta}` : nombre;
   // Nunca enviar más de lo que permite el límite (10 en total - lo ya en el carrito)
   const cantidad = Math.max(1, Math.min(this.cantidad, this.maxPermitido));
 
-  this.cartService.addWithQty(id, cantidad).subscribe({
+  this.cartService.addWithQty(id, cantidad, presentacion?.idPresentacion ?? null).subscribe({
     next: () => {
-      this.toastService.mostrar(`${nombre} (x${cantidad}) agregado al carrito`);
-      this.mensaje = `${nombre} (x${cantidad}) agregado al carrito.`;
+      this.toastService.mostrar(`${textoItem} (x${cantidad}) agregado al carrito`);
+      this.mensaje = `${textoItem} (x${cantidad}) agregado al carrito.`;
+      // El stock disponible cambió (la reserva descuenta unidades): se vuelve a pedir para el selector.
+      if (presentacion) this.cargarPresentaciones(id);
       // El carrito ya se actualizó (tap emite antes del next): reiniciar el
       // selector sin superar el nuevo máximo restante (puede ser 0).
       this.cantidad = this.maxPermitido >= 1 ? 1 : 0;

@@ -210,7 +210,7 @@
                 <!-- Descuento por cupón (si aplica, calculado dinámicamente) -->
                 @if (tieneDescuento(pedido)) {
                 <div class="summary-row discount-row">
-                  <span class="row-label">Descuento de cupón</span>
+                  <span class="row-label">Descuento</span>
                   <span class="row-val text-danger">- S/ {{ calcularDescuento(pedido).toFixed(2) }}</span>
                 </div>
                 }

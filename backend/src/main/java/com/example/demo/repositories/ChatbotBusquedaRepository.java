@@ -22,6 +22,7 @@ import jakarta.persistence.TypedQuery;
  *
  * Qué hace la búsqueda:
  * - Busca en nombre + descripción + categoría + subcategoría, sin importar mayúsculas ni tildes.
+ * - Puede limitarse a ciertas categorías o subcategorías (por ejemplo, solo "digestivo").
  * - Basta que coincida UNO de los términos; se muestran primero los productos que coinciden con más términos.
  * - Permite excluir productos (los que ya se mostraron).
  *
@@ -42,6 +43,9 @@ public class ChatbotBusquedaRepository {
             "concat(coalesce(p.nombre, ''), ' ', coalesce(p.descripcion, ''), ' ', "
                     + "coalesce(c.nombre, ''), ' ', coalesce(s.nombre, ''))");
 
+    private static final String NOMBRE_CATEGORIA = sinAcentos("coalesce(c.nombre, '')");
+    private static final String NOMBRE_SUBCATEGORIA = sinAcentos("coalesce(s.nombre, '')");
+
     @PersistenceContext
     private EntityManager em;
 
@@ -49,11 +53,14 @@ public class ChatbotBusquedaRepository {
      * Productos que coinciden con alguno de los patrones y cumplen los filtros.
      *
      * @param patrones  patrones LIKE ya normalizados (ver TextoChat.patrones). Vacío = sin condición de texto.
-     * @param excluir   ids de productos que no deben aparecer.
-     * @param ofertas   true = solo productos con oferta vigente.
+     * @param excluir    ids de productos que no deben aparecer.
+     * @param ofertas    true = solo productos con oferta vigente.
+     * @param categorias nombres de categorías o subcategorías (normalizados: minúsculas y sin tildes) donde buscar.
+     *                   Vacío = en todo el catálogo.
      */
     public List<ProductoChatDTO> buscar(List<String> patrones, int idCategoria, int idSubcategoria, int idMarca,
-                                        boolean ofertas, Collection<Integer> excluir, LocalDate hoy, int limite) {
+                                        boolean ofertas, Collection<Integer> excluir, Collection<String> categorias,
+                                        LocalDate hoy, int limite) {
         StringBuilder q = new StringBuilder(SELECT_DTO)
                 .append("from Producto p left join p.categoria c left join p.subcategoria s ")
                 .append("where p.idProducto not in (:excluir)");
@@ -69,6 +76,11 @@ public class ChatbotBusquedaRepository {
         }
         if (ofertas) {
             q.append(" and ").append(ChatbotCatalogoRepository.EN_OFERTA);
+        }
+        boolean hayCategorias = categorias != null && !categorias.isEmpty();
+        if (hayCategorias) {
+            q.append(" and (").append(NOMBRE_CATEGORIA).append(" in (:categorias) or ")
+                    .append(NOMBRE_SUBCATEGORIA).append(" in (:categorias))");
         }
         if (!patrones.isEmpty()) {
             q.append(" and (");
@@ -103,6 +115,9 @@ public class ChatbotBusquedaRepository {
         if (idMarca != SIN_FILTRO) {
             query.setParameter("idMarca", idMarca);
         }
+        if (hayCategorias) {
+            query.setParameter("categorias", List.copyOf(categorias));
+        }
         for (int i = 0; i < patrones.size(); i++) {
             query.setParameter("t" + i, patrones.get(i));
         }
@@ -128,6 +143,19 @@ public class ChatbotBusquedaRepository {
         query.setParameter("mostrados", listaNoVacia(mostrados));
         query.setParameter("hoy", hoy);
         query.setMaxResults(limite);
+        return query.getResultList();
+    }
+
+    /**
+     * Categorías y subcategorías que tienen al menos un producto disponible, como filas [categoría, subcategoría]
+     * (la subcategoría puede ser null). Se usa para que SofIA conozca las secciones de la tienda.
+     */
+    public List<Object[]> arbol(LocalDate hoy) {
+        String q = "select c.nombre, s.nombre from Producto p join p.categoria c left join p.subcategoria s "
+                + "where " + ChatbotCatalogoRepository.DISPONIBLE + " "
+                + "group by c.nombre, s.nombre, s.orden order by c.nombre, s.orden, s.nombre";
+        TypedQuery<Object[]> query = em.createQuery(q, Object[].class);
+        query.setParameter("hoy", hoy);
         return query.getResultList();
     }
 

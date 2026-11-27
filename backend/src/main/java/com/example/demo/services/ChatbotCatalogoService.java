@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -48,6 +50,8 @@ public class ChatbotCatalogoService {
     private static final int SIN_FILTRO = ChatbotCatalogoRepository.SIN_FILTRO;
     private static final int MAX_PATRONES = 8;
     private static final int MAX_MOSTRADOS = 30;
+    private static final long VIGENCIA_ARBOL_MS = 10 * 60_000L;
+    private static final long VIGENCIA_ARBOL_ERROR_MS = 60_000L;
     private static final int MAX_LARGO_NOMBRE = 80;
     private static final int MAX_LARGO_BUSQUEDA = 60;
     private static final int MAX_PAGINA = 50;
@@ -55,10 +59,24 @@ public class ChatbotCatalogoService {
     private final ChatbotCatalogoRepository repo;
     private final ChatbotBusquedaRepository busqueda;
 
-    public ChatbotCatalogoService(ChatbotCatalogoRepository repo, ChatbotBusquedaRepository busqueda) {
+    /** Categorías donde se buscan productos para un síntoma o malestar (configurable). */
+    private final List<String> categoriasSalud;
+
+    private record ArbolEnCache(ArbolCategorias arbol, long venceEn) { }
+
+    private volatile ArbolEnCache arbolEnCache;
+
+    public ChatbotCatalogoService(ChatbotCatalogoRepository repo, ChatbotBusquedaRepository busqueda,
+                                  @Value("${chatbot.categorias-salud:MEDICAMENTOS}") String categoriasSalud) {
         this.repo = repo;
         this.busqueda = busqueda;
+        this.categoriasSalud = Arrays.stream(categoriasSalud.split(","))
+                .map(String::trim).filter(t -> !t.isEmpty()).toList();
     }
+
+    /** Lo que SofIA pidió buscar. */
+    public record PedidoBusqueda(List<String> terminos, List<String> categorias, boolean esSintoma,
+                                 boolean soloOfertas, boolean otrasOpciones) { }
 
     /**
      * Resultado de una búsqueda por texto, con el motivo, para que el chatbot responda con el mensaje adecuado.
@@ -67,6 +85,8 @@ public class ChatbotCatalogoService {
         public enum Origen {
             /** Productos que coinciden con lo que se buscó. */
             COINCIDENCIAS,
+            /** Nada coincide con las palabras, pero sí hay productos en la sección (categoría) correcta. */
+            CATEGORIA,
             /** No hay más coincidencias, pero sí productos de la misma subcategoría que los ya mostrados. */
             SIMILARES,
             /** El cliente pidió más opciones y ya se le mostró todo lo que hay. */
@@ -161,29 +181,58 @@ public class ChatbotCatalogoService {
     // ------------------------------------------------------------------
 
     /**
-     * Busca productos a partir de los términos que SofIA dedujo de la conversación.
+     * Categorías y subcategorías de la tienda. Se guardan 10 minutos para no consultarlas en cada mensaje.
+     * Si no se pueden leer devuelve un árbol vacío (y SofIA busca sin restricción de categoría).
+     */
+    public ArbolCategorias arbolCategorias() {
+        ArbolEnCache enCache = arbolEnCache;
+        long ahora = System.currentTimeMillis();
+        if (enCache != null && ahora < enCache.venceEn()) {
+            return enCache.arbol();
+        }
+        try {
+            ArbolCategorias arbol = ArbolCategorias.desdeFilas(busqueda.arbol(LocalDate.now()));
+            arbolEnCache = new ArbolEnCache(arbol, ahora + VIGENCIA_ARBOL_MS);
+            return arbol;
+        } catch (RuntimeException e) {
+            log.error("[Chatbot] No se pudo leer el árbol de categorías; SofIA buscará sin restringir por categoría.", e);
+            arbolEnCache = new ArbolEnCache(ArbolCategorias.vacio(), ahora + VIGENCIA_ARBOL_ERROR_MS);
+            return ArbolCategorias.vacio();
+        }
+    }
+
+    /**
+     * Busca productos a partir de lo que SofIA dedujo de la conversación.
      *
      * - Coincide con el nombre, la descripción, la categoría o la subcategoría; sin importar tildes ni plurales.
-     * - Respeta lo que el cliente ya eligió con los botones. Si con esos filtros no hay nada, repite la búsqueda
-     *   en todo el catálogo: el cliente pudo cambiar de tema.
-     * - Con "otrasOpciones" excluye lo que ya se le mostró; si no queda nada, ofrece productos de la misma
-     *   subcategoría y, si tampoco los hay, avisa que ya vio todo lo que existe.
-     * - Si la búsqueda avanzada fallara por cualquier motivo, usa la búsqueda simple por nombre, de modo que el
-     *   chatbot nunca se quede sin buscar.
+     * - Si el pedido es por un síntoma, SOLO se busca en las categorías de salud (por defecto MEDICAMENTOS), sin
+     *   importar lo que haya pedido SofIA: así un biberón "anticólico" nunca aparece como remedio de un cólico.
+     * - Si con la subcategoría elegida no hay nada, se amplía a su categoría; y como último recurso se muestran
+     *   productos de esa sección aunque no coincidan las palabras exactas.
+     * - Respeta lo que el cliente eligió con los botones; si con eso no hay nada, repite sin esos filtros.
+     * - Con "otrasOpciones" excluye lo ya mostrado; si no queda nada, ofrece productos de la misma subcategoría
+     *   y, si tampoco los hay, avisa que ya vio todo lo que existe.
+     * - Si la búsqueda avanzada fallara, usa la búsqueda simple por nombre (salvo en síntomas, donde no hay forma
+     *   de garantizar que solo se muestren medicamentos).
      *
      * No es @Transactional a propósito (ver ChatbotBusquedaRepository).
      */
-    public ResultadoBusqueda buscarPorTexto(List<String> terminos, ChatbotFiltros filtros, boolean soloOfertas,
-                                            boolean otrasOpciones, Collection<Integer> yaMostrados) {
+    public ResultadoBusqueda buscarPorTexto(PedidoBusqueda pedido, ChatbotFiltros filtros, Collection<Integer> yaMostrados) {
         LocalDate hoy = LocalDate.now();
-        List<String> patrones = TextoChat.patrones(terminos, MAX_PATRONES);
+        List<String> patrones = TextoChat.patrones(pedido.terminos(), MAX_PATRONES);
         List<Integer> mostrados = yaMostrados == null ? List.of()
                 : yaMostrados.stream().filter(Objects::nonNull).distinct().limit(MAX_MOSTRADOS).toList();
-        boolean pideMas = otrasOpciones && !mostrados.isEmpty();
+        boolean pideMas = pedido.otrasOpciones() && !mostrados.isEmpty();
         List<Integer> excluir = pideMas ? mostrados : List.of();
 
-        // Sin términos solo tiene sentido pedir "las ofertas" en general
-        if (patrones.isEmpty() && !soloOfertas) {
+        ArbolCategorias arbol = arbolCategorias();
+        List<String> categorias = arbol.resolver(pedido.categorias());
+        if (pedido.esSintoma()) {
+            categorias = arbol.dentroDeSalud(categorias, categoriasSalud);
+        }
+
+        // Sin términos ni categorías solo tiene sentido pedir "las ofertas" en general
+        if (patrones.isEmpty() && categorias.isEmpty() && !pedido.soloOfertas()) {
             return new ResultadoBusqueda(List.of(), ResultadoBusqueda.Origen.SIN_RESULTADOS);
         }
 
@@ -191,15 +240,22 @@ public class ChatbotCatalogoService {
         int idSubcategoria = filtros == null ? SIN_FILTRO : idONinguno(filtros.getIdSubcategoria());
         int idMarca = filtros == null ? SIN_FILTRO : idONinguno(filtros.getIdMarca());
         boolean habiaFiltros = idCategoria != SIN_FILTRO || idSubcategoria != SIN_FILTRO || idMarca != SIN_FILTRO;
-        boolean ofertas = soloOfertas || (filtros != null && filtros.isSoloOfertas());
+        boolean ofertas = pedido.soloOfertas() || (filtros != null && filtros.isSoloOfertas());
 
         List<ProductoChatDTO> encontrados;
         try {
             encontrados = busqueda.buscar(patrones, idCategoria, idSubcategoria, idMarca, ofertas,
-                    excluir, hoy, PRODUCTOS_POR_PAGINA);
+                    excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
             if (encontrados.isEmpty() && habiaFiltros) {
-                encontrados = busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, soloOfertas,
-                        excluir, hoy, PRODUCTOS_POR_PAGINA);
+                encontrados = busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
+                        excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
+            }
+            if (encontrados.isEmpty() && !categorias.isEmpty()) {
+                List<String> padres = arbol.padresDe(categorias);
+                if (!padres.isEmpty()) {
+                    encontrados = busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
+                            excluir, padres, hoy, PRODUCTOS_POR_PAGINA);
+                }
             }
             if (encontrados.isEmpty() && pideMas) {
                 List<ProductoChatDTO> similares = busqueda.similares(mostrados, hoy, PRODUCTOS_POR_PAGINA);
@@ -207,9 +263,21 @@ public class ChatbotCatalogoService {
                         ? new ResultadoBusqueda(List.of(), ResultadoBusqueda.Origen.SIN_MAS_OPCIONES)
                         : new ResultadoBusqueda(similares, ResultadoBusqueda.Origen.SIMILARES);
             }
+            if (encontrados.isEmpty() && !categorias.isEmpty() && !patrones.isEmpty()) {
+                List<ProductoChatDTO> deLaSeccion = busqueda.buscar(List.of(), SIN_FILTRO, SIN_FILTRO, SIN_FILTRO,
+                        pedido.soloOfertas(), excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
+                if (!deLaSeccion.isEmpty()) {
+                    return new ResultadoBusqueda(deLaSeccion, ResultadoBusqueda.Origen.CATEGORIA);
+                }
+            }
         } catch (RuntimeException e) {
-            log.error("[Chatbot] Falló la búsqueda avanzada; se usa la búsqueda simple por nombre.", e);
-            encontrados = busquedaSimple(terminos, idCategoria, idSubcategoria, idMarca, ofertas, soloOfertas, hoy);
+            log.error("[Chatbot] Falló la búsqueda avanzada.", e);
+            if (pedido.esSintoma()) {
+                return new ResultadoBusqueda(List.of(), ResultadoBusqueda.Origen.SIN_RESULTADOS);
+            }
+            log.warn("[Chatbot] Se usa la búsqueda simple por nombre.");
+            encontrados = busquedaSimple(pedido.terminos(), idCategoria, idSubcategoria, idMarca, ofertas,
+                    pedido.soloOfertas(), hoy);
         }
 
         return encontrados.isEmpty()

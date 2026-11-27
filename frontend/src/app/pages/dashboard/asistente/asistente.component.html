@@ -195,7 +195,7 @@
             </div>
           } @else {
             <div class="cart-items">
-              @for (item of carrito(); track item.producto.idProducto) {
+              @for (item of carrito(); track claveLinea(item)) {
                 <div class="cart-item">
                   <div class="cart-item-thumb">
                     @if (item.producto.imgUrl) {
@@ -206,16 +206,19 @@
                   </div>
                   <div class="cart-item-info">
                     <span class="cart-item-name">{{ item.producto.nombre }}</span>
-                    <span class="cart-item-unit">S/ {{ item.producto.precioVenta.toFixed(2) }} c/u</span>
+                    @if (item.presentacion) {
+                      <span class="cart-item-presentacion">{{ item.presentacion.etiqueta }}</span>
+                    }
+                    <span class="cart-item-unit">S/ {{ precioUnitario(item).toFixed(2) }} c/u</span>
                   </div>
                   <div class="cart-item-actions">
                     <div class="cart-item-qty">
-                      <button type="button" (click)="cambiarCantidad(item.producto.idProducto, -1)" aria-label="Quitar uno">−</button>
+                      <button type="button" (click)="cambiarCantidad(item, -1)" aria-label="Quitar uno">−</button>
                       <span>{{ item.cantidad }}</span>
-                      <button type="button" (click)="cambiarCantidad(item.producto.idProducto, 1)" aria-label="Agregar uno">+</button>
+                      <button type="button" (click)="cambiarCantidad(item, 1)" aria-label="Agregar uno">+</button>
                     </div>
-                    <span class="cart-item-price">S/ {{ (item.producto.precioVenta * item.cantidad).toFixed(2) }}</span>
-                    <button class="btn-remove" type="button" (click)="quitarDelCarrito(item.producto.idProducto)" aria-label="Eliminar">
+                    <span class="cart-item-price">S/ {{ (precioUnitario(item) * item.cantidad).toFixed(2) }}</span>
+                    <button class="btn-remove" type="button" (click)="quitarDelCarrito(item)" aria-label="Eliminar">
                       <i class="bi bi-x-lg"></i>
                     </button>
                   </div>
@@ -711,4 +714,28 @@
       </div>
     }
   </main>
+
+  <!-- Selector de presentación (blíster / caja) al agregar un producto que las tiene -->
+  @if (selectorPresentacion(); as sel) {
+    <div class="modal-overlay" (click)="cerrarSelectorPresentacion()">
+      <div class="modal-card presentacion-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <h3>{{ sel.producto.nombre }}</h3>
+        <p class="presentacion-sub">¿Cómo se lleva el cliente?</p>
+        <div class="presentacion-opciones">
+          @for (op of sel.opciones; track op.idPresentacion) {
+            <button type="button" class="presentacion-opcion"
+              [disabled]="!opcionDisponible(sel.producto, op)"
+              (click)="elegirPresentacion(op)">
+              <span class="presentacion-nombre">{{ op.etiqueta }}</span>
+              <span class="presentacion-precio">S/ {{ op.precioRegular.toFixed(2) }}</span>
+              @if (!opcionDisponible(sel.producto, op)) {
+                <span class="presentacion-sin-stock">Sin stock</span>
+              }
+            </button>
+          }
+        </div>
+        <button type="button" class="btn-secondary" (click)="cerrarSelectorPresentacion()">Cancelar</button>
+      </div>
+    </div>
+  }
 </div>

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { ProductoApi } from './catalogo.service';
 import { AuthService } from './auth.service';
 import { AuthModalService } from './auth-modal.service';
@@ -17,6 +17,27 @@ export interface ItemExpirado {
   mensaje?: string;
 }
 
+/** Presentación (blíster, caja...) guardada en una línea del carrito (viene de DetalleCarrito del backend). */
+export interface PresentacionLinea {
+  idPresentacion: number;
+  etiqueta: string;
+  unidades: number;             // unidades base (tabletas) que descuenta UNA presentación
+  precioVenta?: number | null;  // precio propio; null = usa el precio del producto (la caja)
+  esPredeterminada?: boolean;
+}
+
+/** Presentación lista para el selector de la tienda: GET /api/productos/{id}/presentaciones. */
+export interface PresentacionApi {
+  idPresentacion: number;
+  etiqueta: string;
+  unidades: number;
+  precio: number;          // lo que paga el cliente por UNA unidad (ya con la oferta del producto)
+  precioRegular: number;   // precio sin oferta (para mostrarlo tachado)
+  esPredeterminada: boolean;
+  disponible: boolean;     // false si el stock no alcanza ni para una unidad de esta presentación
+  maxPorPedido: number;    // máximo que se puede pedir de una vez (stock y límite de 10)
+}
+
 /**
  * Interfaz que representa un ítem (línea) dentro del carrito de compras.
  * Refleja la estructura de DetalleCarrito del backend.
@@ -25,6 +46,7 @@ export interface CartItem {
   idDetalleCarrito?: number;  // ID del detalle en BD (opcional: no existe antes de guardar)
   producto: ProductoApi;       // Datos completos del producto
   cantidad: number;            // Unidades del producto en el carrito
+  presentacion?: PresentacionLinea | null; // null/undefined: producto sin presentaciones
   estado?: 'ACTIVA' | 'EXPIRADA' | 'CONFIRMADA' | 'LIBERADA';
   fechaCreacion?: string;      // UTC
   fechaExpiracion?: string;    // UTC: 2 h después de entrar al carrito
@@ -110,18 +132,18 @@ export class CartService {
    * Así, aunque el backend reordene su respuesta, la lista no "salta" de posición.
    */
   private aplicarDetallesDelServidor(detalles: CartItem[]): void {
-    const pendientes = new Map<number, CartItem>();
+    // Una línea = producto + presentación (una caja y un blíster del mismo producto son dos líneas).
+    const pendientes = new Map<string, CartItem>();
     for (const detalle of detalles) {
-      const id = detalle?.producto?.idProducto;
-      if (id != null) pendientes.set(id, detalle);
+      if (detalle?.producto?.idProducto != null) pendientes.set(this.claveLinea(detalle), detalle);
     }
 
     const ordenados: CartItem[] = [];
     for (const item of this.itemsSubject.value) {
-      const id = item?.producto?.idProducto;
-      if (id != null && pendientes.has(id)) {
-        ordenados.push(pendientes.get(id)!);
-        pendientes.delete(id);
+      const clave = this.claveLinea(item);
+      if (item?.producto?.idProducto != null && pendientes.has(clave)) {
+        ordenados.push(pendientes.get(clave)!);
+        pendientes.delete(clave);
       }
     }
     // Ítems nuevos (no estaban en pantalla): al final, en orden del servidor.
@@ -129,6 +151,11 @@ export class CartService {
 
     this.itemsSubject.next(ordenados);
     this.saveItemsToStorage(ordenados);
+  }
+
+  /** Identidad de una línea del carrito: producto + presentación. */
+  claveLinea(item: CartItem): string {
+    return `${item?.producto?.idProducto ?? 0}:${item?.presentacion?.idPresentacion ?? 0}`;
   }
 
   /**
@@ -205,14 +232,14 @@ export class CartService {
    *
    * @param producto datos del producto a agregar al carrito.
    */
-  add(producto: ProductoApi, onSuccess?: () => void): void {
+  add(producto: ProductoApi, onSuccess?: () => void, idPresentacion?: number | null): void {
     // Verificar autenticación antes de operar
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login'); // Abrir modal de login
       return;
     }
 
-    const url = `${this.apiUrl}/agregar?idProducto=${producto.idProducto}&cantidad=1`;
+    const url = `${this.apiUrl}/agregar?idProducto=${producto.idProducto}&cantidad=1${this.paramPresentacion(idPresentacion)}`;
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         this.procesarRespuestaCarrito(carrito);
@@ -261,13 +288,13 @@ export class CartService {
    * @param cantidad   número de unidades a agregar.
    * @returns Observable con el carrito actualizado si la operación tiene éxito.
    */
-  addWithQty(idProducto: number, cantidad: number): Observable<any> {
+  addWithQty(idProducto: number, cantidad: number, idPresentacion?: number | null): Observable<any> {
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login');
       return throwError(() => ({ status: 401, mensaje: 'Debes iniciar sesión para agregar productos al carrito.' }));
     }
 
-    const url = `${this.apiUrl}/agregar?idProducto=${idProducto}&cantidad=${cantidad}`;
+    const url = `${this.apiUrl}/agregar?idProducto=${idProducto}&cantidad=${cantidad}${this.paramPresentacion(idPresentacion)}`;
     return this.http.post<any>(url, {}, { headers: this.getHeaders() }).pipe(
       tap((carrito) => {
         this.procesarRespuestaCarrito(carrito);
@@ -281,13 +308,13 @@ export class CartService {
    *
    * @param productoId ID del producto a disminuir.
    */
-  decrease(productoId: number): void {
+  decrease(productoId: number, idPresentacion?: number | null): void {
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login');
       return;
     }
 
-    const url = `${this.apiUrl}/disminuir?idProducto=${productoId}`;
+    const url = `${this.apiUrl}/disminuir?idProducto=${productoId}${this.paramPresentacion(idPresentacion)}`;
     this.http.post<any>(url, {}, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         this.procesarRespuestaCarrito(carrito);
@@ -303,13 +330,13 @@ export class CartService {
    *
    * @param productoId ID del producto a eliminar.
    */
-  remove(productoId: number): void {
+  remove(productoId: number, idPresentacion?: number | null): void {
     if (!this.authService.isAuthenticated()) {
       this.authModalService.open('login');
       return;
     }
 
-    const url = `${this.apiUrl}/eliminar?idProducto=${productoId}`;
+    const url = `${this.apiUrl}/eliminar?idProducto=${productoId}${this.paramPresentacion(idPresentacion)}`;
     this.http.delete<any>(url, { headers: this.getHeaders() }).subscribe({
       next: (carrito) => {
         this.procesarRespuestaCarrito(carrito);
@@ -369,13 +396,55 @@ export class CartService {
    * @param idProducto ID del producto a consultar.
    * @returns unidades de ese producto ya presentes en el carrito (0 si no está).
    */
-  cantidadEnCarrito(idProducto: number): number {
+  cantidadEnCarrito(idProducto: number, idPresentacion?: number | null): number {
     if (idProducto == null) return 0;
-    return this.itemsSubject.value.reduce(
-      (total, item) =>
-        item?.producto?.idProducto === idProducto ? total + (Number(item.cantidad) || 0) : total,
-      0
-    );
+    return this.itemsSubject.value.reduce((total, item) => {
+      if (item?.producto?.idProducto !== idProducto) return total;
+      // Con presentación elegida solo cuenta la línea de esa presentación (el límite de 10 es por línea).
+      if (idPresentacion != null && item.presentacion?.idPresentacion !== idPresentacion) return total;
+      return total + (Number(item.cantidad) || 0);
+    }, 0);
+  }
+
+  /** Parámetro opcional de URL con la presentación elegida. */
+  private paramPresentacion(idPresentacion?: number | null): string {
+    return idPresentacion != null ? `&idPresentacion=${idPresentacion}` : '';
+  }
+
+  /**
+   * Presentaciones (blíster, caja...) de un producto para el selector. Lista vacía = el producto se vende
+   * normalmente, sin presentaciones. Si la consulta falla también devuelve lista vacía.
+   */
+  getPresentaciones(idProducto: number): Observable<PresentacionApi[]> {
+    return this.http
+      .get<PresentacionApi[]>(`${environment.apiUrl}/api/productos/${idProducto}/presentaciones`)
+      .pipe(catchError(() => of([] as PresentacionApi[])));
+  }
+
+  /** Precio SIN oferta de UNA unidad de la línea (el de su presentación o, si no tiene, el del producto). */
+  precioRegularDeLinea(item: CartItem): number {
+    const propio = item?.presentacion?.precioVenta;
+    return propio != null ? Number(propio) : Number(item?.producto?.precioVenta) || 0;
+  }
+
+  /**
+   * Precio que paga el cliente por UNA unidad de la línea. Igual que el backend: sin precio propio se usa el
+   * del producto (con su oferta); con precio propio (blíster) se le aplica el mismo % de descuento del producto.
+   */
+  precioFinalDeLinea(item: CartItem): number {
+    const producto: any = item?.producto;
+    const propio = item?.presentacion?.precioVenta;
+    if (propio == null) return this.getFinalPrice(producto);
+    const venta = Number(producto?.precioVenta) || 0;
+    const conDescuento = producto?.precioConDescuento != null ? Number(producto.precioConDescuento) : null;
+    const hayOferta = venta > 0 && conDescuento != null && conDescuento < venta;
+    if (!hayOferta) return Number(propio);
+    return Math.round(Number(propio) * (conDescuento! / venta) * 100) / 100;
+  }
+
+  /** Etiqueta de la presentación de la línea ("Blíster x10") o texto vacío si no tiene. */
+  etiquetaDeLinea(item: CartItem): string {
+    return item?.presentacion?.etiqueta ?? '';
   }
 
   getFecha(producto: any): string {
@@ -519,7 +588,7 @@ export class CartService {
     return this.itemsSubject.value.reduce((total, item) => {
       const discountInfo = this.getDiscountInfo(item.producto);
       if (discountInfo.isExpired) return total;
-      return total + this.getFinalPrice(item.producto) * item.cantidad;
+      return total + this.precioFinalDeLinea(item) * item.cantidad;
     }, 0);
   }
 
@@ -537,16 +606,58 @@ export class CartService {
    * Carga los ítems del carrito desde localStorage.
    * Usado como fallback cuando el backend no está disponible.
    *
+   * Sanea automáticamente los ítems guardados por versiones antiguas de la app
+   * (sin `presentacion`, con campos faltantes o basura): normaliza cada línea,
+   * descarta las irreparables (sin producto) y reescribe la versión limpia.
+   *
    * @returns array de CartItem del localStorage, o [] si está vacío o inválido.
    */
   private loadItemsFromStorage(): CartItem[] {
     const stored = localStorage.getItem(this.storageKey);
     if (!stored) return [];
     try {
-      return JSON.parse(stored) as CartItem[];
+      const parsed: unknown = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return [];
+
+      const saneados: CartItem[] = [];
+      for (const raw of parsed) {
+        const item = this.sanearItemAlmacenado(raw);
+        if (item) saneados.push(item);
+      }
+
+      // Si algo cambió respecto a lo guardado, persistimos la versión normalizada
+      // para que la próxima lectura ya sea limpia.
+      if (JSON.stringify(saneados) !== JSON.stringify(parsed)) {
+        this.saveItemsToStorage(saneados);
+      }
+      return saneados;
     } catch {
       return []; // Si el JSON está corrupto, retornar carrito vacío
     }
+  }
+
+  /**
+   * Normaliza una línea leída de localStorage (formatos viejos de la app).
+   * Devuelve null si la línea no tiene reparación posible (sin producto).
+   */
+  private sanearItemAlmacenado(raw: unknown): CartItem | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const bruto = raw as Partial<CartItem> & Record<string, unknown>;
+    const producto = bruto.producto as ProductoApi | null | undefined;
+    if (!producto || (producto as { idProducto?: unknown }).idProducto == null) return null;
+
+    const cantidad = Number(bruto.cantidad);
+    const presentacion = bruto.presentacion as PresentacionLinea | null | undefined;
+    const tienePresentacion =
+      !!presentacion && typeof presentacion === 'object' && presentacion.idPresentacion != null;
+
+    return {
+      ...bruto,
+      producto,
+      cantidad: Number.isFinite(cantidad) && cantidad > 0 ? Math.floor(cantidad) : 1,
+      // Ítems viejos sin presentación: queda undefined = producto en su unidad base.
+      presentacion: tienePresentacion ? presentacion! : undefined,
+    };
   }
 
   /**

@@ -29,13 +29,16 @@ public class ReservaExpiracionScheduler {
     private final DetalleCarritoRepository detalleCarritoRepository;
     private final CarritoRepository carritoRepository;
     private final StockService stockService;
+    private final PresentacionService presentacionService;
 
     public ReservaExpiracionScheduler(DetalleCarritoRepository detalleCarritoRepository,
                                       CarritoRepository carritoRepository,
-                                      StockService stockService) {
+                                      StockService stockService,
+                                      PresentacionService presentacionService) {
         this.detalleCarritoRepository = detalleCarritoRepository;
         this.carritoRepository = carritoRepository;
         this.stockService = stockService;
+        this.presentacionService = presentacionService;
     }
 
     @Scheduled(
@@ -61,7 +64,7 @@ public class ReservaExpiracionScheduler {
             if (actualizadas > 0) {
                 stockService.liberar(
                         detalle.getProducto().getIdProducto(),
-                        detalle.getCantidad() != null ? detalle.getCantidad() : 0);
+                        presentacionService.unidadesDeLinea(detalle));
                 log.info("Reserva expirada: producto {} ({} unidades) del carrito {}",
                         detalle.getProducto().getIdProducto(),
                         detalle.getCantidad(),

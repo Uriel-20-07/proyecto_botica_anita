@@ -22,6 +22,10 @@
 
         <div class="item-info">
           <h3>{{ item.producto.nombre }}</h3>
+          <span class="item-presentacion" *ngIf="etiqueta(item)"
+            style="display:inline-block; margin:2px 0 6px; padding:2px 10px; border-radius:999px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; font-size:0.78rem; font-weight:700;">
+            {{ etiqueta(item) }}
+          </span>
           <p>{{ item.producto.descripcion }}</p>
           <span class="item-category">{{ item.producto.categoria?.nombre || 'General' }}</span>
 
@@ -41,24 +45,24 @@
 
         <div class="item-actions">
           <div class="qty-control" *ngIf="!getDiscountInfo(item.producto).isExpired && !esReservaVencida(item)">
-            <button type="button" (click)="decrease(item.producto.idProducto)">-</button>
+            <button type="button" (click)="decrease(item)">-</button>
             <span>{{ item.cantidad }}</span>
-            <button type="button" (click)="increase(item.producto.idProducto)"
+            <button type="button" (click)="increase(item)"
               [disabled]="!puedeAumentar(item)"
-              [title]="puedeAumentar(item) ? 'Aumentar cantidad' : 'Máximo alcanzado (10 unidades o stock disponible)'">+</button>
+              [title]="puedeAumentar(item) ? 'Aumentar cantidad' : 'Máximo alcanzado (10 por presentación o stock disponible)'">+</button>
           </div>
 
           <div class="price-block">
             <span class="old-price" style="text-decoration: line-through; color: #888; font-size: 0.9em;"
               *ngIf="getDiscountInfo(item.producto).percentage > 0 && !getDiscountInfo(item.producto).isExpired">
-              S/ {{ (item.producto.precioVenta * item.cantidad) | number:'1.2-2' }}
+              S/ {{ (precioRegularLinea(item) * item.cantidad) | number:'1.2-2' }}
             </span>
 
             <strong *ngIf="!getDiscountInfo(item.producto).isExpired">
-              S/ {{ (getFinalPrice(item.producto) * item.cantidad) | number:'1.2-2' }}
+              S/ {{ (precioLinea(item) * item.cantidad) | number:'1.2-2' }}
             </strong>
 
-            <button type="button" class="remove-link" (click)="remove(item.producto.idProducto)">Quitar</button>
+            <button type="button" class="remove-link" (click)="remove(item)">Quitar</button>
           </div>
         </div>
       </div>

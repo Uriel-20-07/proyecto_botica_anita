@@ -83,6 +83,7 @@ public class PedidoEmailDTO {
                 }
                 items.add(ItemPedidoEmailDTO.builder()
                         .nombre(det.getProducto() != null ? det.getProducto().getNombre() : "Producto")
+                        .presentacion(det.getEtiquetaPresentacion())
                         .cantidad(det.getCantidad() != null ? det.getCantidad() : 0)
                         .precioUnitario(det.getPrecioHistorico())
                         .build());

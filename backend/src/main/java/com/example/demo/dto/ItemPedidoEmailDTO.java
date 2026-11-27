@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
 public class ItemPedidoEmailDTO {
 
     private String nombre;
+    /** Etiqueta de la presentación vendida ("Blíster x10"); null si el producto no tiene presentaciones. */
+    private String presentacion;
     private int cantidad;
     private BigDecimal precioUnitario;
 }

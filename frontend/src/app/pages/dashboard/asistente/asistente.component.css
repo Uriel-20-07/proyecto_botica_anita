@@ -2857,3 +2857,84 @@
     gap: 10px;
   }
 }
+
+/* ============================= Presentaciones (blíster / caja) ============================= */
+.cart-item-presentacion {
+  display: inline-block;
+  align-self: flex-start;
+  margin: 1px 0 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--orange-50);
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.presentacion-card {
+  width: min(92vw, 380px);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.presentacion-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--navy-700);
+}
+
+.presentacion-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--slate-500);
+}
+
+.presentacion-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.presentacion-opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--slate-200);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.presentacion-opcion:hover:not(:disabled) {
+  border-color: var(--orange-400);
+  background: var(--orange-50);
+}
+
+.presentacion-opcion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.presentacion-nombre {
+  font-weight: 700;
+  color: var(--navy-700);
+}
+
+.presentacion-precio {
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--orange-600);
+}
+
+.presentacion-sin-stock {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b91c1c;
+}

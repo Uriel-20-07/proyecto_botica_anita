@@ -51,12 +51,12 @@
 
       <!-- PRECIOS -->
       <div class="price-section">
-        <div class="price-wrapper" *ngIf="descuentoInfo && descuentoInfo.percentage > 0">
+        <div class="price-wrapper" *ngIf="hayDescuentoMostrado">
           <span class="label-regular">Precio regular:</span>
-          <span class="price-regular">S/ {{ producto.precioVenta | number:'1.2-2' }}</span>
+          <span class="price-regular">S/ {{ precioRegularMostrado | number:'1.2-2' }}</span>
         </div>
         <div class="price-wrapper promo">
-          <span class="label-promo" *ngIf="descuentoInfo && descuentoInfo.percentage > 0">Precio promocional:</span>
+          <span class="label-promo" *ngIf="hayDescuentoMostrado">Precio promocional:</span>
           <span class="price-final">S/ {{ getPrecioFinal() | number:'1.2-2' }}</span>
         </div>
       </div>
@@ -65,7 +65,17 @@
       <div class="section-presentation">
         <span class="label-section">Presentación</span>
         <div class="presentation-chips">
-          <button class="chip active">Estándar</button>
+          <!-- Producto sin presentaciones: se vende como siempre -->
+          <button class="chip active" *ngIf="presentaciones.length === 0">Estándar</button>
+
+          <!-- Producto con presentaciones: blíster / caja (comparten el mismo stock) -->
+          <button type="button" class="chip" *ngFor="let p of presentaciones"
+            [class.active]="presentacionSeleccionada?.idPresentacion === p.idPresentacion"
+            [disabled]="!p.disponible"
+            [title]="p.disponible ? p.etiqueta + ' · S/ ' + (p.precio | number:'1.2-2') : 'Sin stock suficiente de esta presentación'"
+            (click)="seleccionarPresentacion(p)">
+            {{ p.etiqueta }} · S/ {{ p.precio | number:'1.2-2' }}
+          </button>
         </div>
       </div>
 
@@ -101,22 +111,23 @@
 
       <!-- ACCIONES -->
       <p *ngIf="agotado" class="msg-agotado">Estamos trabajando para reabastecer este producto.</p>
-      <p *ngIf="!agotado && mensajeLimite" class="msg-limite">{{ mensajeLimite }}</p>
+      <p *ngIf="!agotado && noDisponible" class="msg-agotado">No hay stock suficiente de esta presentación. Prueba con otra.</p>
+      <p *ngIf="!noDisponible && mensajeLimite" class="msg-limite">{{ mensajeLimite }}</p>
       <div class="actions-section">
         <!-- Selector de Cantidad (máximo 10 en total por producto, o el stock si es menor) -->
-        <div class="qty-selector" [class.qty-agotado]="agotado || limiteAlcanzado">
+        <div class="qty-selector" [class.qty-agotado]="noDisponible || limiteAlcanzado">
           <button (click)="decrementar()" class="qty-btn"
-            [disabled]="agotado || limiteAlcanzado || cantidad <= 1">-</button>
-          <span class="qty-value">{{ agotado || limiteAlcanzado ? 0 : cantidad }}</span>
+            [disabled]="noDisponible || limiteAlcanzado || cantidad <= 1">-</button>
+          <span class="qty-value">{{ noDisponible || limiteAlcanzado ? 0 : cantidad }}</span>
           <button (click)="incrementar()" class="qty-btn"
-            [disabled]="agotado || limiteAlcanzado || cantidad >= maxPermitido">+</button>
+            [disabled]="noDisponible || limiteAlcanzado || cantidad >= maxPermitido">+</button>
         </div>
 
         <!-- Botón Agregar -->
         <button (click)="agregarAlCarrito()" class="btn-add-to-cart"
-          [class.btn-agotado]="agotado || limiteAlcanzado"
-          [disabled]="agotado || limiteAlcanzado">
-          {{ agotado ? 'Agotado' : (limiteAlcanzado ? 'Máximo en carrito' : 'Agregar al carrito') }}
+          [class.btn-agotado]="noDisponible || limiteAlcanzado"
+          [disabled]="noDisponible || limiteAlcanzado">
+          {{ noDisponible ? 'Agotado' : (limiteAlcanzado ? 'Máximo en carrito' : 'Agregar al carrito') }}
         </button>
 
         <!-- Botón Favoritos -->

@@ -452,3 +452,14 @@
   color: var(--primary-orange);
   text-decoration: underline;
 }
+
+/* Presentaciones (blíster / caja): chips que pueden quedar sin stock */
+.presentation-chips {
+  flex-wrap: wrap;
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}

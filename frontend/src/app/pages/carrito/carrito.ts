@@ -128,9 +128,19 @@ export class CarritoComponent implements OnInit, OnDestroy {
    * Como getItems() retorna un arreglo nuevo en cada detección de cambios,
    * sin trackBy Angular destruiría y recrearía todos los nodos (y cualquier
    * reorden del servidor movería los productos de sitio).
+   *
+   * IMPORTANTE: Angular invoca esta función como función suelta (el `this` NO es
+   * el componente), por lo que aquí no puede usarse `this.cartService`. La clave
+   * se calcula en línea con el mismo formato de CartService.claveLinea().
    */
-  trackByItem(index: number, item: CartItem): number {
-    return item?.producto?.idProducto ?? index;
+  trackByItem(index: number, item?: CartItem | null): string {
+    // Producto + presentación: una caja y un blíster del mismo producto son filas distintas.
+    const idProducto = item?.producto?.idProducto;
+    if (idProducto == null) {
+      // Ítem inválido o vacío (p. ej. entradas viejas en localStorage): clave única por posición.
+      return `item-${index}`;
+    }
+    return `${idProducto}:${item?.presentacion?.idPresentacion ?? 0}`;
   }
 
   /**
@@ -141,8 +151,25 @@ export class CarritoComponent implements OnInit, OnDestroy {
     if (!item) return false;
     if (item.cantidad >= 10) return false;
     if (this.cartService.estaReservaVencida(item)) return false;
+    // El stock está en unidades base: una caja de 100 necesita 100 disponibles, un blíster de 10 necesita 10.
     const disponible = this.cartService.stockVendible(item.producto);
-    return disponible == null || disponible > 0;
+    const unidades = item.presentacion?.unidades ?? 1;
+    return disponible == null || disponible >= unidades;
+  }
+
+  /** Etiqueta de la presentación de la línea ("Blíster x10"), vacía si no tiene. */
+  etiqueta(item: CartItem): string {
+    return this.cartService.etiquetaDeLinea(item);
+  }
+
+  /** Precio de UNA unidad de la línea (con oferta y presentación). */
+  precioLinea(item: CartItem): number {
+    return this.cartService.precioFinalDeLinea(item);
+  }
+
+  /** Precio regular de UNA unidad de la línea (sin oferta), para mostrarlo tachado. */
+  precioRegularLinea(item: CartItem): number {
+    return this.cartService.precioRegularDeLinea(item);
   }
 
   getProductImage(producto: any): string {
@@ -186,18 +213,17 @@ export class CarritoComponent implements OnInit, OnDestroy {
     return this.cartService.getCount();
   }
 
-  increase(productoId: number): void {
-    const item = this.getItems().find((entry) => entry.producto.idProducto === productoId);
+  increase(item: CartItem): void {
     if (!item || !this.puedeAumentar(item)) return;
-    this.cartService.add(item.producto);
+    this.cartService.add(item.producto, undefined, item.presentacion?.idPresentacion ?? null);
   }
 
-  decrease(productoId: number): void {
-    this.cartService.decrease(productoId);
+  decrease(item: CartItem): void {
+    this.cartService.decrease(item.producto.idProducto, item.presentacion?.idPresentacion ?? null);
   }
 
-  remove(productoId: number): void {
-    this.cartService.remove(productoId);
+  remove(item: CartItem): void {
+    this.cartService.remove(item.producto.idProducto, item.presentacion?.idPresentacion ?? null);
   }
 
   clear(): void {

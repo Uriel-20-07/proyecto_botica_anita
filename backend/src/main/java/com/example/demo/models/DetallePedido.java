@@ -29,4 +29,17 @@ public class DetallePedido {
 
     @Column(name = "precio_historico")
     private BigDecimal precioHistorico;
+
+    /** Presentación vendida (null si el producto se vendió sin presentaciones). */
+    @ManyToOne
+    @JoinColumn(name = "id_presentacion")
+    private PresentacionProducto presentacion;
+
+    /** Copia de la etiqueta al momento de la venta ("Blíster x10"): el historial no cambia si luego se edita. */
+    @Column(name = "etiqueta_presentacion", length = 60)
+    private String etiquetaPresentacion;
+
+    /** Unidades base que descuenta cada unidad vendida (tabletas por blíster o caja). */
+    @Column(name = "unidades_presentacion")
+    private Integer unidadesPresentacion;
 }

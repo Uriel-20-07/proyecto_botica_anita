@@ -20,9 +20,22 @@ interface ProductoPOS {
   categoria?: { nombre: string };
 }
 
+/** Presentación (blíster, caja...) de un producto: GET /api/productos/{id}/presentaciones. */
+interface PresentacionPOS {
+  idPresentacion: number;
+  etiqueta: string;
+  unidades: number;        // unidades base (tabletas) que descuenta UNA presentación
+  precio: number;          // con la oferta de la tienda online (el POS cobra precioRegular)
+  precioRegular: number;   // precio sin oferta: el que se cobra en tienda
+  esPredeterminada: boolean;
+  disponible: boolean;
+  maxPorPedido: number;
+}
+
 interface ItemCarrito {
   producto: ProductoPOS;
   cantidad: number;
+  presentacion?: PresentacionPOS | null; // null: producto sin presentaciones
 }
 
 interface PedidoPendiente {
@@ -92,8 +105,14 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
   });
   carrito = signal<ItemCarrito[]>([]);
   totalCarrito = computed(() =>
-    this.carrito().reduce((s, i) => s + i.producto.precioVenta * i.cantidad, 0)
+    this.carrito().reduce((s, i) => s + this.precioUnitario(i) * i.cantidad, 0)
   );
+
+  /** Presentaciones ya consultadas por producto (se vacía al recargar productos: el stock cambia). */
+  private presentacionesCache = new Map<number, PresentacionPOS[]>();
+  /** Producto cuyas presentaciones se están eligiendo (abre el selector blíster / caja). */
+  selectorPresentacion = signal<{ producto: ProductoPOS; opciones: PresentacionPOS[] } | null>(null);
+  cargandoPresentaciones = signal(false);
   cantidadCarrito = computed(() =>
     this.carrito().reduce((s, i) => s + i.cantidad, 0)
   );
@@ -397,6 +416,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
 
   // ---------- POS ----------
   cargarProductos(): void {
+    this.presentacionesCache.clear();
     this.cargando.set(true);
     this.asistenteService.listarProductos().subscribe({
       next: (data: any) => {
@@ -427,41 +447,124 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     return p.stockDisponible != null ? Number(p.stockDisponible) : Number(p.stock) || 0;
   }
 
+  /** Precio que se cobra en tienda por UNA unidad de la línea (el de su presentación o el del producto). */
+  precioUnitario(i: ItemCarrito): number {
+    return i.presentacion ? Number(i.presentacion.precioRegular) : Number(i.producto.precioVenta);
+  }
+
+  /** Identidad de una línea: producto + presentación (una caja y un blíster son líneas distintas). */
+  claveLinea(i: ItemCarrito): string {
+    return `${i.producto.idProducto}:${i.presentacion?.idPresentacion ?? 0}`;
+  }
+
+  /** Unidades base (tabletas) que ya reserva el carrito del POS para un producto, sumando todas sus líneas. */
+  private unidadesEnCarrito(idProducto: number): number {
+    return this.carrito()
+      .filter((i) => i.producto.idProducto === idProducto)
+      .reduce((s, i) => s + i.cantidad * (i.presentacion?.unidades ?? 1), 0);
+  }
+
+  /** Unidades base que todavía se pueden vender de un producto (stock vendible menos lo ya en el carrito del POS). */
+  private unidadesLibres(p: ProductoPOS): number {
+    return this.stockVendible(p) - this.unidadesEnCarrito(p.idProducto);
+  }
+
+  /** true si aún alcanza el stock para sumar una unidad de esta presentación (se calcula con el carrito actual). */
+  opcionDisponible(p: ProductoPOS, op: PresentacionPOS): boolean {
+    return this.unidadesLibres(p) >= op.unidades;
+  }
+
+  /**
+   * Clic en un producto: si no tiene presentaciones se agrega directo; si las tiene, se abre el selector
+   * (blíster / caja). Las presentaciones se consultan una vez por producto.
+   */
   agregarAlCarrito(p: ProductoPOS): void {
-    const carrito = [...this.carrito()];
-    const idx = carrito.findIndex((i) => i.producto.idProducto === p.idProducto);
-    if (idx >= 0) {
-      if (carrito[idx].cantidad + 1 > this.stockVendible(p)) {
-        this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
-        return;
-      }
-      carrito[idx].cantidad++;
+    const guardadas = this.presentacionesCache.get(p.idProducto);
+    if (guardadas) {
+      this.agregarSegunPresentaciones(p, guardadas);
+      return;
+    }
+    if (this.cargandoPresentaciones()) return;
+    this.cargandoPresentaciones.set(true);
+    this.asistenteService.listarPresentaciones(p.idProducto).subscribe({
+      next: (lista: any) => {
+        const opciones: PresentacionPOS[] = Array.isArray(lista) ? lista : [];
+        this.presentacionesCache.set(p.idProducto, opciones);
+        this.cargandoPresentaciones.set(false);
+        this.agregarSegunPresentaciones(p, opciones);
+      },
+      error: () => {
+        // Si no se pueden consultar, se vende como producto normal (el backend valida el stock igualmente).
+        this.cargandoPresentaciones.set(false);
+        this.agregarSegunPresentaciones(p, []);
+      },
+    });
+  }
+
+  private agregarSegunPresentaciones(p: ProductoPOS, opciones: PresentacionPOS[]): void {
+    if (opciones.length === 0) {
+      this.agregarLinea(p, null);
     } else {
-      if (this.stockVendible(p) < 1) {
-        this.toast.mostrar('Producto sin stock disponible', 'error');
-        return;
-      }
-      carrito.push({ producto: p, cantidad: 1 });
+      this.selectorPresentacion.set({ producto: p, opciones });
+    }
+  }
+
+  /** El asistente eligió una presentación en el selector. */
+  elegirPresentacion(op: PresentacionPOS): void {
+    const sel = this.selectorPresentacion();
+    if (!sel) return;
+    if (!this.opcionDisponible(sel.producto, op)) {
+      this.toast.mostrar('Stock insuficiente para esta presentación', 'error');
+      return;
+    }
+    this.agregarLinea(sel.producto, op);
+    this.selectorPresentacion.set(null);
+  }
+
+  cerrarSelectorPresentacion(): void {
+    this.selectorPresentacion.set(null);
+  }
+
+  /** Suma una unidad de la presentación indicada (o del producto, si no tiene) al carrito del POS. */
+  private agregarLinea(p: ProductoPOS, presentacion: PresentacionPOS | null): void {
+    const unidades = presentacion?.unidades ?? 1;
+    if (this.stockVendible(p) < unidades) {
+      this.toast.mostrar('Producto sin stock disponible', 'error');
+      return;
+    }
+    if (this.unidadesLibres(p) < unidades) {
+      this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
+      return;
+    }
+    const carrito = [...this.carrito()];
+    const idPres = presentacion?.idPresentacion ?? null;
+    const idx = carrito.findIndex(
+      (i) => i.producto.idProducto === p.idProducto && (i.presentacion?.idPresentacion ?? null) === idPres
+    );
+    if (idx >= 0) {
+      carrito[idx] = { ...carrito[idx], cantidad: carrito[idx].cantidad + 1 };
+    } else {
+      carrito.push({ producto: p, cantidad: 1, presentacion });
     }
     this.carrito.set(carrito);
   }
 
-  quitarDelCarrito(idProducto: number): void {
-    this.carrito.set(this.carrito().filter((i) => i.producto.idProducto !== idProducto));
+  quitarDelCarrito(item: ItemCarrito): void {
+    const clave = this.claveLinea(item);
+    this.carrito.set(this.carrito().filter((i) => this.claveLinea(i) !== clave));
   }
 
-  cambiarCantidad(idProducto: number, delta: number): void {
+  cambiarCantidad(item: ItemCarrito, delta: number): void {
+    const clave = this.claveLinea(item);
     const carrito = this.carrito().map((i) => {
-      if (i.producto.idProducto === idProducto) {
-        const nueva = i.cantidad + delta;
-        if (nueva < 1) return i;
-        if (nueva > this.stockVendible(i.producto)) {
-          this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
-          return i;
-        }
-        return { ...i, cantidad: nueva };
+      if (this.claveLinea(i) !== clave) return i;
+      const nueva = i.cantidad + delta;
+      if (nueva < 1) return i;
+      if (delta > 0 && this.unidadesLibres(i.producto) < (i.presentacion?.unidades ?? 1)) {
+        this.toast.mostrar('Stock insuficiente (las unidades reservadas en carritos no se pueden vender en tienda)', 'error');
+        return i;
       }
-      return i;
+      return { ...i, cantidad: nueva };
     });
     this.carrito.set(carrito);
   }
@@ -480,6 +583,7 @@ export class AsistenteDashboardComponent implements OnInit, OnDestroy {
     const items = this.carrito().map((i) => ({
       idProducto: i.producto.idProducto,
       cantidad: i.cantidad,
+      idPresentacion: i.presentacion?.idPresentacion ?? null,
     }));
     this.asistenteService.crearVenta({
       items,

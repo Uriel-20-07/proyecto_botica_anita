@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.demo.dto.PedidoEmailDTO;
 import com.example.demo.models.DetallePedido;
 import com.example.demo.models.Pedido;
+import com.example.demo.models.PresentacionProducto;
 import com.example.demo.models.Producto;
 import com.example.demo.repositories.DetallePedidoRepository;
 import com.example.demo.repositories.PedidoRepository;
@@ -33,17 +34,20 @@ public class VentaPresencialService {
     private final DetallePedidoRepository detallePedidoRepository;
     private final StockService stockService;
     private final EmailService emailService;
+    private final PresentacionService presentacionService;
 
     public VentaPresencialService(ProductoRepository productoRepository,
                                   PedidoRepository pedidoRepository,
                                   DetallePedidoRepository detallePedidoRepository,
                                   StockService stockService,
-                                  EmailService emailService) {
+                                  EmailService emailService,
+                                  PresentacionService presentacionService) {
         this.productoRepository = productoRepository;
         this.pedidoRepository = pedidoRepository;
         this.detallePedidoRepository = detallePedidoRepository;
         this.stockService = stockService;
         this.emailService = emailService;
+        this.presentacionService = presentacionService;
     }
 
     @Transactional
@@ -73,19 +77,30 @@ public class VentaPresencialService {
             Producto producto = productoRepository.findById(idProd)
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + idProd));
 
-            if (producto.getStockDisponible() < cantidad) {
+            // Con presentaciones (blíster, caja) el stock está en unidades base: 2 cajas de 100 = 200 tabletas.
+            PresentacionProducto presentacion = presentacionService.resolver(producto, idPresentacionDe(item));
+            int unidadesNecesarias = cantidad * presentacionService.unidadesDe(presentacion);
+
+            if (producto.getStockDisponible() < unidadesNecesarias) {
                 throw new RuntimeException("Stock disponible insuficiente para " + producto.getNombre()
                         + ". Disponible: " + producto.getStockDisponible() + " unidad(es).");
             }
 
-            double precio = producto.getPrecioVenta() != null ? producto.getPrecioVenta().doubleValue() : 0.0;
+            // La venta en tienda usa el precio regular (sin ofertas), como siempre; con presentación, el de ella.
+            BigDecimal precioRegular = presentacionService.precioRegular(producto, presentacion);
+            double precio = precioRegular != null ? precioRegular.doubleValue() : 0.0;
             total += precio * cantidad;
 
             DetallePedido detalle = new DetallePedido();
             detalle.setPedido(pedido);
             detalle.setProducto(producto);
             detalle.setCantidad(cantidad);
-            detalle.setPrecioHistorico(producto.getPrecioVenta());
+            detalle.setPrecioHistorico(precioRegular);
+            if (presentacion != null) {
+                detalle.setPresentacion(presentacion);
+                detalle.setEtiquetaPresentacion(presentacion.getEtiqueta());
+                detalle.setUnidadesPresentacion(presentacionService.unidadesDe(presentacion));
+            }
             detalles.add(detalle);
         }
 
@@ -95,7 +110,9 @@ public class VentaPresencialService {
         // Guardar detalles y descontar stock físico (sin tocar reservas online).
         for (DetallePedido detalle : detalles) {
             detallePedidoRepository.save(detalle);
-            stockService.venderSinReserva(detalle.getProducto().getIdProducto(), detalle.getCantidad());
+            int unidadesVendidas = detalle.getCantidad()
+                    * (detalle.getUnidadesPresentacion() != null ? detalle.getUnidadesPresentacion() : 1);
+            stockService.venderSinReserva(detalle.getProducto().getIdProducto(), unidadesVendidas);
         }
 
         // La boleta sale después del commit para no enviar correos de ventas revertidas.
@@ -112,5 +129,14 @@ public class VentaPresencialService {
         response.put("total", pedido.getTotal());
         response.put("nroBoleta", String.format("%06d", pedido.getIdPedido()));
         return response;
+    }
+
+    /** Presentación elegida en un ítem de venta (opcional): null si no viene o viene vacía. */
+    private static Integer idPresentacionDe(Map<String, Object> item) {
+        Object valor = item.get("idPresentacion");
+        if (valor == null || String.valueOf(valor).isBlank() || "null".equals(String.valueOf(valor))) {
+            return null;
+        }
+        return Integer.valueOf(String.valueOf(valor));
     }
 }

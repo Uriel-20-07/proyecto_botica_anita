@@ -5,11 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, firstValueFrom } from 'rxjs';
 
 // Servicios de tu proyecto
-import { CartService } from '../../services/cart.service';
+import { CartService, CartItem } from '../../services/cart.service';
 import { PagoService } from '../../services/pago.service';
 import { PedidoService } from '../../services/pedido.service';
 import { AuthService } from '../../services/auth.service';
 import { RecetasService, RecetaMedica } from '../../services/recetas.service';
+import { PromocionService, PromoAplicada, Promocion } from '../../services/promocion.service';
 import { MapaRutaService, RADIO_COBERTURA_KM, BOTICA_ANITA } from '../../services/mapa-ruta.service';
 import { MapaEntregaComponent, UbicacionEntrega } from '../../components/mapa-entrega/mapa-entrega.component';
 import { environment } from '../../../environments/environment';
@@ -34,6 +35,9 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   /** Suscripción al carrito para mantener los totales al día si una reserva vence. */
   private cartSub?: Subscription;
+
+  /** Suscripción a las reglas de promociones por conjunto. */
+  private promosSub?: Subscription;
 
   /** Temporizador de la pantalla de éxito antes de redirigir. */
   private redireccionTimer?: ReturnType<typeof setTimeout>;
@@ -60,10 +64,24 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
   total: number = 0;
   costoEnvio: number = 0;
   productosCarrito: { producto: any; cantidad: number }[] = [];
+  /** Suma de los precios REGULARES de las filas (sin ofertas ni promociones). */
   subtotalOriginal: number = 0;
-  descuentoTotal: number = 0;
+  /** Ahorro de las ofertas de catálogo (ya aplicado en el precio de cada línea). */
+  ahorroOferta: number = 0;
+  /** Promociones por conjunto/regla vigentes (3x2, combos...) según el contenido del carrito. */
+  promosAplicadas: PromoAplicada[] = [];
+  /** Reglas completas de esas promociones (títulos e integrantes), para etiquetar cada fila. */
+  private reglasPromo: Promocion[] = [];
+  /** Descuento de promociones repartido por línea: clave de línea → monto. */
+  private descuentoPorLinea = new Map<string, number>();
+  /** Descuento total de las promociones por conjunto. */
+  descuentoPromos: number = 0;
+  /** ahorroOferta + promociones + cupón: lo que el cliente ahorra en total. */
+  ahorroTotal: number = 0;
   subtotalBase: number = 0;
   igv: number = 0;
+  /** Aviso cuando el cupón no alcanza a aplicarse (solo sirve para productos sin oferta). */
+  avisoCupon: string = '';
 
   codigoCupon: string = '';
   cuponAplicado: boolean = false;
@@ -241,7 +259,8 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
     private readonly pedidoService: PedidoService,
     private readonly authService: AuthService,
     private readonly recetasService: RecetasService,
-    private readonly mapaService: MapaRutaService
+    private readonly mapaService: MapaRutaService,
+    private readonly promocionService: PromocionService
   ) {}
 
   async ngOnInit() {
@@ -264,6 +283,13 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   this.productosCarrito = this.cartService.getItems();
   this.calcularTotales();
+
+  // Reglas de promociones por conjunto: se necesitan para repartir el descuento entre las filas.
+  this.promosSub = this.promocionService.reglas$.subscribe((reglas) => {
+    this.reglasPromo = reglas;
+    this.calcularTotales();
+  });
+  this.promocionService.cargarReglas().subscribe({ error: () => {} });
 
     this.subtotal = this.cartService.getTotal();
     this.productosCarrito = this.cartService.getItems();
@@ -295,6 +321,7 @@ export class PagoComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
+    this.promosSub?.unsubscribe();
     if (this.redireccionTimer) clearTimeout(this.redireccionTimer);
   }
 
@@ -504,6 +531,107 @@ private precioFinal(producto: any): number {
   return oferta > 0 && oferta < normal ? oferta : normal;
 }
 
+/** Precio regular de UNA unidad de la línea (sin oferta), para mostrarlo tachado. */
+precioRegularLinea(item: any): number {
+  return this.cartService.precioRegularDeLinea(item);
+}
+
+/** Oferta de catálogo del producto: porcentaje, etiqueta ("Liquidación 30% dscto.") y si expiró. */
+getDiscountInfo(producto: any): { percentage: number; message: string; isExpired: boolean } {
+  return this.cartService.getDiscountInfo(producto);
+}
+
+/** Total de la línea SIN promociones por conjunto (precio de catálogo ya con oferta). */
+private montoLinea(item: CartItem): number {
+  return this.redondear(this.cartService.precioFinalDeLinea(item as any) * item.cantidad);
+}
+
+/** Descuento de promociones por conjunto que le corresponde a esta línea. */
+descuentoPromoDeLinea(item: CartItem): number {
+  return this.descuentoPorLinea.get(this.cartService.claveLinea(item)) ?? 0;
+}
+
+/** Total de la línea YA con la promoción aplicada: lo que se cobra por esa fila. */
+precioNetoLinea(item: CartItem): number {
+  return this.redondear(this.montoLinea(item) - this.descuentoPromoDeLinea(item));
+}
+
+/** true si la fila tiene algún descuento que mostrar tachando el precio anterior. */
+hayDescuentoLinea(item: CartItem): boolean {
+  const regular = this.redondear(this.cartService.precioRegularDeLinea(item as any) * item.cantidad);
+  return this.precioNetoLinea(item) < regular;
+}
+
+/** Etiqueta de la promoción aplicada a esta línea ("Promo: Pañales Pampers 3x2") o null. */
+promoDeLinea(item: CartItem): string | null {
+  if (this.descuentoPromoDeLinea(item) <= 0) return null;
+  const idProducto = item?.producto?.idProducto;
+  const promo = this.reglasPromo.find(
+    (p) => p.items.some((i) => i.idProducto === idProducto)
+      && this.promosAplicadas.some((a) => a.id === p.id));
+  return promo ? `Promo: ${promo.titulo}` : null;
+}
+
+/**
+ * Reparte el descuento de cada promoción entre las líneas que participan en ella,
+ * en proporción al monto de catálogo de cada fila. Así el precio neto que se
+ * muestra arriba suma exacto al subtotal del desglose de abajo.
+ */
+private asignarDescuentosPorLinea(): void {
+  this.descuentoPorLinea = new Map<string, number>();
+  if (this.descuentoPromos <= 0) return;
+
+  const lineas = this.productosCarrito.filter(
+    (it) => it?.producto?.idProducto != null
+      && !this.cartService.getDiscountInfo(it.producto).isExpired);
+  const montos = new Map<string, number>();
+  for (const linea of lineas) montos.set(this.cartService.claveLinea(linea), this.montoLinea(linea));
+
+  for (const promo of this.reglasPromo) {
+    const aplicada = this.promosAplicadas.find((p) => p.id === promo.id);
+    if (!aplicada || aplicada.descuento <= 0) continue;
+
+    const idsPromo = new Set(promo.items.map((i) => i.idProducto));
+    const participantes = lineas.filter((l) => idsPromo.has(l.producto.idProducto));
+    if (participantes.length === 0) continue;
+
+    const pesoTotal = participantes.reduce((s, l) => s + (montos.get(this.cartService.claveLinea(l)) ?? 0), 0);
+    if (pesoTotal <= 0) continue;
+
+    // Proporción por monto + ajuste de redondeo en la fila de mayor monto,
+    // para que la suma de las partes sea exactamente el descuento de la promo.
+    const claves = participantes.map((l) => this.cartService.claveLinea(l));
+    const partes = claves.map((k) =>
+      this.redondear(aplicada.descuento * ((montos.get(k) ?? 0) / pesoTotal)));
+    const dif = this.redondear(aplicada.descuento - partes.reduce((a, b) => a + b, 0));
+    if (dif !== 0) {
+      let iMax = 0;
+      claves.forEach((k, i) => { if ((montos.get(k) ?? 0) > (montos.get(claves[iMax]) ?? 0)) iMax = i; });
+      partes[iMax] = this.redondear(partes[iMax] + dif);
+    }
+
+    claves.forEach((k, i) => {
+      this.descuentoPorLinea.set(k, this.redondear((this.descuentoPorLinea.get(k) ?? 0) + partes[i]));
+    });
+  }
+}
+
+/**
+ * Monto sobre el que se calcula el cupón: solo los productos SIN oferta de catálogo.
+ * Misma regla que PagoService.calcularDescuentoCupon del backend, para que el
+ * descuento mostrado sea exactamente el que se cobra.
+ */
+private baseCuponElegible(): number {
+  return this.redondear(this.productosCarrito.reduce((acc, item) => {
+    const producto = item.producto;
+    const venta = Number(producto?.precioVenta) || 0;
+    const conDescuento = producto?.precioConDescuento != null ? Number(producto.precioConDescuento) : null;
+    const tieneOferta = venta > 0 && conDescuento != null && conDescuento < venta;
+    if (tieneOferta) return acc; // el cupón no aplica a productos ya rebajados
+    return acc + this.cartService.precioFinalDeLinea(item as any) * item.cantidad;
+  }, 0));
+}
+
 
 private quitarCupon(): void {
   this.cuponAplicado = false;
@@ -556,26 +684,43 @@ calcularTotales() {
   } else {
     this.costoEnvio = 5;
   }
+  this.costoEnvio = this.redondear(this.costoEnvio);
 
-  // 1. Precio normal y precio con ofertas
+  // 1. Precios de catálogo (sin promociones por conjunto).
   this.subtotalOriginal = this.redondear(this.productosCarrito.reduce(
-    (acc, item) => acc + Number(item.producto.precioVenta) * item.cantidad, 0));
-  this.subtotal = this.redondear(this.productosCarrito.reduce(
-    (acc, item) => acc + this.precioFinal(item.producto) * item.cantidad, 0));
-  const descuentoPromo = this.redondear(this.subtotalOriginal - this.subtotal);
+    (acc, item) => acc + this.cartService.precioRegularDeLinea(item as any) * item.cantidad, 0));
+  const subtotalCatalogo = this.redondear(this.productosCarrito.reduce(
+    (acc, item) => acc + this.montoLinea(item as CartItem), 0));
+  this.ahorroOferta = this.redondear(this.subtotalOriginal - subtotalCatalogo);
 
-  // 2. El cupón se aplica sobre el precio que ya tiene las ofertas
-  this.descuento = this.cuponAplicado
-    ? this.redondear(this.subtotal * this.porcentajeCupon / 100)
+  // 2. Promociones por conjunto (3x2, combos...): se reparten entre las filas que
+  //    participan, de modo que el precio neto de cada producto ya las incluya.
+  const promos = this.promocionService.calcularDescuento(this.productosCarrito);
+  this.promosAplicadas = promos.aplicadas;
+  this.descuentoPromos = promos.total;
+  this.asignarDescuentosPorLinea();
+
+  // 3. Cupón: única promoción que se descuenta aparte (solo productos sin oferta).
+  const baseCupon = this.baseCuponElegible();
+  this.descuento = this.cuponAplicado && baseCupon > 0
+    ? this.redondear(baseCupon * this.porcentajeCupon / 100)
     : 0;
+  this.avisoCupon = this.cuponAplicado && baseCupon <= 0
+    ? 'El cupón solo aplica a productos sin descuento.'
+    : '';
 
-  // 3. Ambos descuentos se suman
-  this.descuentoTotal = this.redondear(descuentoPromo + this.descuento);
+  // 4. Subtotal del desglose: suma de los precios NETOS que se muestran en cada fila.
+  this.subtotal = this.redondear(this.productosCarrito.reduce(
+    (acc, item) => acc + this.precioNetoLinea(item as CartItem), 0));
 
-  const subtotalNeto = this.redondear(this.subtotalOriginal - this.descuentoTotal);
-  this.subtotalBase = this.redondear(subtotalNeto / 1.18);
-  this.igv = this.redondear(subtotalNeto - this.subtotalBase);
-  this.total = this.redondear(subtotalNeto + this.costoEnvio);
+  // 5. Ahorro total (resumen destacado; no forma parte de la suma del desglose).
+  this.ahorroTotal = this.redondear(this.ahorroOferta + this.descuentoPromos + this.descuento);
+
+  // 6. Desglose que cuadra al centavo con el total:
+  //    base + IGV = suma de las filas  →  base + IGV − cupón + envío = total
+  this.subtotalBase = this.redondear(this.subtotal / 1.18);
+  this.igv = this.redondear(this.subtotal - this.subtotalBase);
+  this.total = this.redondear(this.subtotal - this.descuento + this.costoEnvio);
 }
 
   // --- PAGO PRINCIPAL ---
