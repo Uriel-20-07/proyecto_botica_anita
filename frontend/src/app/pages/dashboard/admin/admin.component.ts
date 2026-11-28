@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -9,6 +9,11 @@ import { fechaComoDate } from '../../../services/fecha-util';
 import { environment } from '../../../../environments/environment';
 
 /** Fila de la tabla "Alertas de inventario": producto con poco stock o lote por vencer. */
+/** Fila de la tabla de inventario: cabecera de categoría, cabecera de subcategoría o producto. */
+type FilaInventario =
+  | { tipo: 'categoria' | 'subcategoria'; nombre: string; total: number; continuacion: boolean }
+  | { tipo: 'producto'; prod: any };
+
 type AlertaInventario =
   | { tipo: 'stock'; prod: any; categoria: string }
   | { tipo: 'lote'; lote: any };
@@ -152,19 +157,127 @@ ocultarDemandaEstacional(): void {
   prevVentasPage() { if (this.ventasPage > 1) this.ventasPage--; }
   setVentasPage(p: number) { this.ventasPage = Math.max(1, Math.min(p, this.totalVentasPages)); }
 
-  get productosPaginadoAgrupado(): { categoria: string; productos: any[] }[] {
+  /**
+   * Filas de la página actual del inventario: cabecera de categoría, cabecera de subcategoría y productos.
+   * Los productos se ORDENAN antes de paginar (categoría → subcategoría → nombre), así cada categoría queda en un
+   * solo bloque continuo; si no cabe en una página, sigue en la siguiente marcada como "continuación".
+   * Los contadores de las cabeceras son totales reales (con los filtros activos), no solo de la página.
+   */
+  get filasInventario(): FilaInventario[] {
+    const { ordenados, totalPorCategoria, totalPorSubcategoria } = this.inventarioOrdenado;
     const start = (this.productosPage - 1) * this.productosPageSize;
-    const paginados = this.filteredProductos.slice(start, start + this.productosPageSize);
-    const grupos = new Map<string, any[]>();
-    paginados.forEach((p) => {
-      const cat = this.getCategoriaNombre(p);
-      if (!grupos.has(cat)) grupos.set(cat, []);
-      grupos.get(cat)!.push(p);
+    const pagina = ordenados.slice(start, start + this.productosPageSize);
+    const anterior = start > 0 ? ordenados[start - 1] : null;
+
+    const filas: FilaInventario[] = [];
+    let catActual: string | null = null;
+    let subActual: string | null = null;
+    pagina.forEach((prod, i) => {
+      const categoria = this.getCategoriaNombre(prod);
+      const sub = this.getSubcategoriaNombre(prod);
+      const previo = i === 0 ? anterior : pagina[i - 1];
+      if (categoria !== catActual) {
+        catActual = categoria;
+        subActual = null;
+        filas.push({
+          tipo: 'categoria',
+          nombre: categoria,
+          total: totalPorCategoria.get(categoria) ?? 0,
+          continuacion: i === 0 && !!previo && this.getCategoriaNombre(previo) === categoria,
+        });
+      }
+      if (sub && sub !== subActual) {
+        subActual = sub;
+        const clave = categoria + '›' + sub;
+        filas.push({
+          tipo: 'subcategoria',
+          nombre: sub,
+          total: totalPorSubcategoria.get(clave) ?? 0,
+          continuacion: i === 0 && !!previo && this.getCategoriaNombre(previo) === categoria
+            && this.getSubcategoriaNombre(previo) === sub,
+        });
+      }
+      filas.push({ tipo: 'producto', prod });
     });
-    return Array.from(grupos.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
-      .map(([categoria, productos]) => ({ categoria, productos }));
+    return filas;
   }
+
+  trackByFila(_: number, fila: FilaInventario): string {
+    return fila.tipo === 'producto' ? 'p' + fila.prod.idProducto : fila.tipo + ':' + fila.nombre;
+  }
+
+  /** Pestañas de categoría con su cantidad (respetan la búsqueda escrita, no la pestaña elegida). */
+  get pestanasCategoria(): { nombre: string; total: number }[] {
+    const query = this.searchProducto.trim().toLowerCase();
+    const conteo = new Map<string, number>();
+    for (const p of this.productos) {
+      if (query && !this.coincideBusqueda(p, query)) continue;
+      const cat = this.getCategoriaNombre(p);
+      conteo.set(cat, (conteo.get(cat) ?? 0) + 1);
+    }
+    return Array.from(conteo.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+      .map(([nombre, total]) => ({ nombre, total }));
+  }
+
+  get totalPestanas(): number {
+    return this.pestanasCategoria.reduce((s, c) => s + c.total, 0);
+  }
+
+  elegirCategoria(nombre: string): void {
+    this.categoriaFiltro = nombre;
+    this.productosPage = 1;
+  }
+
+  alBuscarProducto(): void {
+    this.productosPage = 1;
+  }
+
+  /** Orden y conteos del inventario. Se recalcula solo cuando cambian los productos o los filtros. */
+  private cacheInventario: {
+    productos: any[]; categoria: string; busqueda: string;
+    ordenados: any[]; totalPorCategoria: Map<string, number>; totalPorSubcategoria: Map<string, number>;
+  } | null = null;
+
+  private get inventarioOrdenado() {
+    const c = this.cacheInventario;
+    if (c && c.productos === this.productos && c.categoria === this.categoriaFiltro
+        && c.busqueda === this.searchProducto) {
+      return c;
+    }
+    const ordenados = [...this.filteredProductos].sort((a, b) =>
+      this.getCategoriaNombre(a).localeCompare(this.getCategoriaNombre(b), 'es')
+      || this.ordenSubcategoria(a) - this.ordenSubcategoria(b)
+      || (this.getSubcategoriaNombre(a) ?? '').localeCompare(this.getSubcategoriaNombre(b) ?? '', 'es')
+      || String(a.nombre ?? '').localeCompare(String(b.nombre ?? ''), 'es'));
+    const totalPorCategoria = new Map<string, number>();
+    const totalPorSubcategoria = new Map<string, number>();
+    for (const p of ordenados) {
+      const cat = this.getCategoriaNombre(p);
+      totalPorCategoria.set(cat, (totalPorCategoria.get(cat) ?? 0) + 1);
+      const sub = this.getSubcategoriaNombre(p);
+      if (sub) {
+        const clave = cat + '›' + sub;
+        totalPorSubcategoria.set(clave, (totalPorSubcategoria.get(clave) ?? 0) + 1);
+      }
+    }
+    this.cacheInventario = {
+      productos: this.productos, categoria: this.categoriaFiltro, busqueda: this.searchProducto,
+      ordenados, totalPorCategoria, totalPorSubcategoria,
+    };
+    return this.cacheInventario;
+  }
+
+  getSubcategoriaNombre(p: any): string | null {
+    return p?.subcategoria?.nombre || null;
+  }
+
+  /** Orden configurado de la subcategoría; los productos sin subcategoría van al final de su categoría. */
+  private ordenSubcategoria(p: any): number {
+    if (!p?.subcategoria) return Number.MAX_SAFE_INTEGER;
+    return typeof p.subcategoria.orden === 'number' ? p.subcategoria.orden : 0;
+  }
+
   get totalProductosPages(): number { return Math.ceil(this.filteredProductos.length / this.productosPageSize) || 1; }
   nextProductosPage() { if (this.productosPage < this.totalProductosPages) this.productosPage++; }
   prevProductosPage() { if (this.productosPage > 1) this.productosPage--; }
@@ -626,12 +739,17 @@ ocultarDemandaEstacional(): void {
     return this.productos.filter((p) => {
       const coincideCategoria =
         !this.categoriaFiltro || this.getCategoriaNombre(p) === this.categoriaFiltro;
-      const coincideTexto =
-        !query ||
-        p.nombre.toLowerCase().includes(query) ||
-        (p.descripcion && p.descripcion.toLowerCase().includes(query));
-      return coincideCategoria && coincideTexto;
+      return coincideCategoria && (!query || this.coincideBusqueda(p, query));
     });
+  }
+
+  /** Busca en nombre, descripción, subcategoría e ID ("35" o "#35"). */
+  private coincideBusqueda(p: any, query: string): boolean {
+    const id = query.startsWith('#') ? query.slice(1) : query;
+    return String(p.nombre ?? '').toLowerCase().includes(query)
+      || String(p.descripcion ?? '').toLowerCase().includes(query)
+      || String(this.getSubcategoriaNombre(p) ?? '').toLowerCase().includes(query)
+      || (id !== '' && String(p.idProducto) === id);
   }
 
   get productosPorCategoria(): { categoria: string; productos: any[] }[] {
@@ -646,11 +764,24 @@ ocultarDemandaEstacional(): void {
       .map(([categoria, productos]) => ({ categoria, productos }));
   }
 
-  trackByCategoria(_: number, grupo: { categoria: string }): string {
-    return grupo.categoria;
+  /** Drawer de navegación en móvil (≤ 768px). En escritorio no tiene efecto visual. */
+  menuMovilAbierto = false;
+
+  toggleMenuMovil(): void {
+    this.menuMovilAbierto = !this.menuMovilAbierto;
+  }
+
+  cerrarMenuMovil(): void {
+    this.menuMovilAbierto = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.cerrarMenuMovil();
   }
 
   setTab(tab: 'resumen' | 'ventas' | 'inventario' | 'reportes' | 'predicciones' | 'recetas' | 'cupones'): void {
+    this.cerrarMenuMovil();
     this.activeTab = tab;
     this.router.navigate(['/dashboard/admin', tab]);
     if (tab === 'reportes') {

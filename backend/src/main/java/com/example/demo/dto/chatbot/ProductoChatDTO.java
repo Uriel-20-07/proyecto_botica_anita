@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Getter;
 
 /**
@@ -43,9 +45,25 @@ public class ProductoChatDTO {
 
     private final String imgUrl;
 
+    /** Marca y línea de tallas: solo se usan en el backend para variar las sugerencias (no se envían al navegador). */
+    @JsonIgnore
+    private final Integer idMarca;
+
+    @JsonIgnore
+    private final String grupoVariantes;
+
     /** Constructor usado por la consulta JPQL "select new ...". El orden de los parámetros importa. */
     public ProductoChatDTO(Integer idProducto, String nombre, BigDecimal precioVenta, BigDecimal precioOferta,
                            Boolean enOferta, Integer stock, LocalDate fechaCaducidad, String imgUrl) {
+        this(idProducto, nombre, precioVenta, precioOferta, enOferta, stock, fechaCaducidad, imgUrl, null, null);
+    }
+
+    /** Igual que el anterior, más la marca y la línea de tallas (búsqueda por texto del chatbot). */
+    public ProductoChatDTO(Integer idProducto, String nombre, BigDecimal precioVenta, BigDecimal precioOferta,
+                           Boolean enOferta, Integer stock, LocalDate fechaCaducidad, String imgUrl,
+                           Integer idMarca, String grupoVariantes) {
+        this.idMarca = idMarca;
+        this.grupoVariantes = grupoVariantes;
         this.idProducto = idProducto;
         this.nombre = nombre;
         this.precioRegular = precioVenta;

@@ -40,6 +40,33 @@ public interface ChatbotCatalogoRepository extends Repository<Producto, Integer>
     String EN_OFERTA = "(p.enOferta = true and p.precioOferta is not null and p.precioOferta < p.precioVenta)";
 
     String FILTRO_OFERTAS = "(:soloOfertas = false or " + EN_OFERTA + ")";
+
+    /**
+     * Prioridad de un producto dentro de su línea de tallas (menor = mejor): disponible, que cumpla el filtro de
+     * ofertas y que sea el representante de la línea. Se escribe una vez para "p" y otra para "q" porque las
+     * anotaciones solo aceptan constantes.
+     */
+    String RANGO_LINEA_P = "((case when " + DISPONIBLE + " then 0 else 4 end) "
+            + "+ (case when " + FILTRO_OFERTAS + " then 0 else 2 end) "
+            + "+ (case when p.esRepresentante = false then 1 else 0 end))";
+
+    String RANGO_LINEA_Q = "((case when ((q.stock - coalesce(q.stockEnCarrito, 0)) > 0 "
+            + "and (q.fechaCaducidad is null or q.fechaCaducidad >= :hoy)) then 0 else 4 end) "
+            + "+ (case when (:soloOfertas = false or (q.enOferta = true and q.precioOferta is not null "
+            + "and q.precioOferta < q.precioVenta)) then 0 else 2 end) "
+            + "+ (case when q.esRepresentante = false then 1 else 0 end))";
+
+    /**
+     * Una sola tarjeta por línea de tallas (pañales, ortopedia...): de cada línea solo pasa el producto mejor
+     * ubicado según RANGO_LINEA (y, a igualdad, la talla más pequeña). Así el chat no muestra el mismo pañal tres
+     * veces en tallas distintas; la talla se elige luego en el detalle del producto.
+     * Requiere los parámetros :hoy y :soloOfertas.
+     */
+    String UNA_POR_LINEA = "(p.grupoVariantes is null or not exists (select q.idProducto from Producto q "
+            + "where q.grupoVariantes = p.grupoVariantes and q.idProducto <> p.idProducto and ("
+            + RANGO_LINEA_Q + " < " + RANGO_LINEA_P + " or (" + RANGO_LINEA_Q + " = " + RANGO_LINEA_P + " and ("
+            + "coalesce(q.varianteOrden, 0) < coalesce(p.varianteOrden, 0) or (coalesce(q.varianteOrden, 0) = "
+            + "coalesce(p.varianteOrden, 0) and q.idProducto < p.idProducto))))))";
     String FILTRO_CATEGORIA = "(:idCategoria = -1 or p.categoria.idCategoria = :idCategoria)";
     String FILTRO_SUBCATEGORIA = "(:idSubcategoria = -1 or p.subcategoria.idSubcategoria = :idSubcategoria)";
     String FILTRO_MARCA = "(:idMarca = -1 or p.marca.idMarca = :idMarca)";
@@ -114,6 +141,7 @@ public interface ChatbotCatalogoRepository extends Repository<Producto, Integer>
             + "from Producto p "
             + "where " + FILTRO_CATEGORIA + " and " + FILTRO_SUBCATEGORIA + " and " + FILTRO_MARCA + " and "
             + FILTRO_OFERTAS + " and (:soloDisponibles = false or " + DISPONIBLE + ") and "
+            + UNA_POR_LINEA + " and "
             + "(lower(p.nombre) like :patron or lower(p.descripcion) like :patron) "
             + "order by case when " + DISPONIBLE + " then 0 else 1 end, "
             + "case when " + EN_OFERTA + " then 0 else 1 end, "

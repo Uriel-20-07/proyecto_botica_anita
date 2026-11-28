@@ -77,16 +77,19 @@
             <div class="chatbot-cards">
               @for (p of msg.productos; track p.idProducto) {
                 <article class="chatbot-card" [class.agotado]="p.agotado">
-                  <div class="chatbot-card-img">
+                  <a class="chatbot-card-img" href="#" (click)="verDetalle(p, $event)"
+                     [attr.aria-label]="'Ver detalle de ' + p.nombre" title="Ver detalle del producto">
                     @if (p.imgUrl) {
                       <img [src]="p.imgUrl" [alt]="p.nombre" loading="lazy" />
                     } @else {
                       <i class="bi bi-box-seam" aria-hidden="true"></i>
                     }
-                  </div>
+                  </a>
 
                   <div class="chatbot-card-info">
-                    <h5 class="chatbot-card-nombre">{{ p.nombre }}</h5>
+                    <h5 class="chatbot-card-nombre">
+                      <a href="#" (click)="verDetalle(p, $event)" title="Ver detalle del producto">{{ p.nombre }}</a>
+                    </h5>
                     <div class="chatbot-card-precios">
                       <span class="chatbot-precio">S/ {{ p.precioFinal | number:'1.2-2' }}</span>
                       @if (p.enOferta) {

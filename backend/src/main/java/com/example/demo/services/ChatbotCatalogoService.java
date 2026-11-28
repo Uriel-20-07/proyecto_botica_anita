@@ -56,6 +56,9 @@ public class ChatbotCatalogoService {
     private static final int MAX_LARGO_BUSQUEDA = 60;
     private static final int MAX_PAGINA = 50;
 
+    /** Candidatos que se traen de la base de datos para luego elegir PRODUCTOS_POR_PAGINA variados. */
+    private static final int CANDIDATOS = PRODUCTOS_POR_PAGINA * 5;
+
     private final ChatbotCatalogoRepository repo;
     private final ChatbotBusquedaRepository busqueda;
 
@@ -74,9 +77,19 @@ public class ChatbotCatalogoService {
                 .map(String::trim).filter(t -> !t.isEmpty()).toList();
     }
 
-    /** Lo que SofIA pidió buscar. */
+    /**
+     * Lo que SofIA pidió buscar.
+     *
+     * @param forma forma farmacéutica que pidió el cliente ("solida", "liquida", "topica") o null.
+     */
     public record PedidoBusqueda(List<String> terminos, List<String> categorias, boolean esSintoma,
-                                 boolean soloOfertas, boolean otrasOpciones) { }
+                                 boolean soloOfertas, boolean otrasOpciones, String forma) {
+
+        public PedidoBusqueda(List<String> terminos, List<String> categorias, boolean esSintoma,
+                              boolean soloOfertas, boolean otrasOpciones) {
+            this(terminos, categorias, esSintoma, soloOfertas, otrasOpciones, null);
+        }
+    }
 
     /**
      * Resultado de una búsqueda por texto, con el motivo, para que el chatbot responda con el mensaje adecuado.
@@ -241,31 +254,32 @@ public class ChatbotCatalogoService {
         int idMarca = filtros == null ? SIN_FILTRO : idONinguno(filtros.getIdMarca());
         boolean habiaFiltros = idCategoria != SIN_FILTRO || idSubcategoria != SIN_FILTRO || idMarca != SIN_FILTRO;
         boolean ofertas = pedido.soloOfertas() || (filtros != null && filtros.isSoloOfertas());
+        SeleccionChat.Forma forma = SeleccionChat.formaPedida(pedido.forma(), pedido.terminos());
 
         List<ProductoChatDTO> encontrados;
         try {
-            encontrados = busqueda.buscar(patrones, idCategoria, idSubcategoria, idMarca, ofertas,
-                    excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
+            encontrados = variados(busqueda.buscar(patrones, idCategoria, idSubcategoria, idMarca, ofertas,
+                    excluir, categorias, hoy, CANDIDATOS), forma);
             if (encontrados.isEmpty() && habiaFiltros) {
-                encontrados = busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
-                        excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
+                encontrados = variados(busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
+                        excluir, categorias, hoy, CANDIDATOS), forma);
             }
             if (encontrados.isEmpty() && !categorias.isEmpty()) {
                 List<String> padres = arbol.padresDe(categorias);
                 if (!padres.isEmpty()) {
-                    encontrados = busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
-                            excluir, padres, hoy, PRODUCTOS_POR_PAGINA);
+                    encontrados = variados(busqueda.buscar(patrones, SIN_FILTRO, SIN_FILTRO, SIN_FILTRO, pedido.soloOfertas(),
+                            excluir, padres, hoy, CANDIDATOS), forma);
                 }
             }
             if (encontrados.isEmpty() && pideMas) {
-                List<ProductoChatDTO> similares = busqueda.similares(mostrados, hoy, PRODUCTOS_POR_PAGINA);
+                List<ProductoChatDTO> similares = variados(busqueda.similares(mostrados, hoy, CANDIDATOS), forma);
                 return similares.isEmpty()
                         ? new ResultadoBusqueda(List.of(), ResultadoBusqueda.Origen.SIN_MAS_OPCIONES)
                         : new ResultadoBusqueda(similares, ResultadoBusqueda.Origen.SIMILARES);
             }
             if (encontrados.isEmpty() && !categorias.isEmpty() && !patrones.isEmpty()) {
-                List<ProductoChatDTO> deLaSeccion = busqueda.buscar(List.of(), SIN_FILTRO, SIN_FILTRO, SIN_FILTRO,
-                        pedido.soloOfertas(), excluir, categorias, hoy, PRODUCTOS_POR_PAGINA);
+                List<ProductoChatDTO> deLaSeccion = variados(busqueda.buscar(List.of(), SIN_FILTRO, SIN_FILTRO, SIN_FILTRO,
+                        pedido.soloOfertas(), excluir, categorias, hoy, CANDIDATOS), forma);
                 if (!deLaSeccion.isEmpty()) {
                     return new ResultadoBusqueda(deLaSeccion, ResultadoBusqueda.Origen.CATEGORIA);
                 }
@@ -284,6 +298,11 @@ public class ChatbotCatalogoService {
                 ? new ResultadoBusqueda(List.of(), pideMas ? ResultadoBusqueda.Origen.SIN_MAS_OPCIONES
                         : ResultadoBusqueda.Origen.SIN_RESULTADOS)
                 : new ResultadoBusqueda(encontrados, ResultadoBusqueda.Origen.COINCIDENCIAS);
+    }
+
+    /** Elige hasta PRODUCTOS_POR_PAGINA productos variados (forma pedida, marcas distintas) de los candidatos. */
+    private static List<ProductoChatDTO> variados(List<ProductoChatDTO> candidatos, SeleccionChat.Forma forma) {
+        return SeleccionChat.elegir(candidatos, forma, PRODUCTOS_POR_PAGINA);
     }
 
     /** Búsqueda de respaldo: solo por nombre y descripción, con el primer término. */

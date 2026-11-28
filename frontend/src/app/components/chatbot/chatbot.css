@@ -494,6 +494,27 @@
   overflow: hidden;
 }
 
+a.chatbot-card-img {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+a.chatbot-card-img:hover,
+a.chatbot-card-img:focus-visible {
+  box-shadow: 0 0 0 2px #0057b8;
+}
+
+.chatbot-card-nombre a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.chatbot-card-nombre a:hover,
+.chatbot-card-nombre a:focus-visible {
+  color: #0057b8;
+  text-decoration: underline;
+}
+
 .chatbot-card-img img {
   width: 100%;
   height: 100%;

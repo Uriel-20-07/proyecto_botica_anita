@@ -90,6 +90,16 @@ public class ChatbotController {
     @Value("${gemini.model.fallback:gemini-3.5-flash-lite}")
     private String geminiModelFallback;
 
+    /**
+     * Cuánto "piensa" Gemini antes de responder. "minimal" es lo más rápido y basta para este chat (entender el
+     * pedido y elegir la función); "low" razona un poco más a costa de demorar más.
+     */
+    @Value("${gemini.thinking-level:minimal}")
+    private String nivelRazonamiento;
+
+    /** Se pone en true si el modelo rechaza el nivel configurado; desde entonces se usa "low". */
+    private volatile boolean nivelRechazado;
+
     private final RestTemplate restTemplate = crearRestTemplate();
 
     private static RestTemplate crearRestTemplate() {
@@ -245,6 +255,7 @@ public class ChatbotController {
         boolean soloOfertas = Boolean.TRUE.equals(args.get("soloOfertas"));
         boolean otrasOpciones = Boolean.TRUE.equals(args.get("otrasOpciones"));
         int cantidadAgregar = args.get("cantidadAgregar") instanceof Number n ? n.intValue() : 0;
+        String forma = args.get("forma") instanceof String f ? f : null;
         String mensaje = TextoChat.limpiarMensaje(
                 args.get("mensaje") instanceof String m ? m : textoModelo, MAX_LARGO_MENSAJE_SOFIA);
 
@@ -252,10 +263,10 @@ public class ChatbotController {
 
         long t0 = System.currentTimeMillis();
         ResultadoBusqueda resultado = catalogoService.buscarPorTexto(
-                new PedidoBusqueda(terminos, categorias, esSintoma, soloOfertas, otrasOpciones), filtros, idsMostrados);
+                new PedidoBusqueda(terminos, categorias, esSintoma, soloOfertas, otrasOpciones, forma), filtros, idsMostrados);
         List<ProductoChatDTO> productos = resultado.productos();
-        log.info("[Chatbot] buscarProductos(terminos={}, categorias={}, sintoma={}, ofertas={}, otras={}) → {} ({} productos) en {} ms",
-                terminos, categorias, esSintoma, soloOfertas, otrasOpciones, resultado.origen(), productos.size(),
+        log.info("[Chatbot] buscarProductos(terminos={}, categorias={}, forma={}, sintoma={}, ofertas={}, otras={}) → {} ({} productos) en {} ms",
+                terminos, categorias, forma, esSintoma, soloOfertas, otrasOpciones, resultado.origen(), productos.size(),
                 System.currentTimeMillis() - t0);
 
         // El cliente ya vio todo lo que hay: se le dice con amabilidad y se le ofrecen otros caminos
@@ -456,7 +467,15 @@ public class ChatbotController {
 
         long t0 = System.currentTimeMillis();
         try {
-            ResponseEntity<Map> r = restTemplate.postForEntity(urlGemini(geminiModelPrimary), entity, Map.class);
+            ResponseEntity<Map> r;
+            try {
+                r = restTemplate.postForEntity(urlGemini(geminiModelPrimary), entity, Map.class);
+            } catch (HttpStatusCodeException e) {
+                if (!rechazaNivel(e, payload)) {
+                    throw e;
+                }
+                r = restTemplate.postForEntity(urlGemini(geminiModelPrimary), entity, Map.class);
+            }
             log.info("[Chatbot] Gemini {} respondió en {} ms", geminiModelPrimary, System.currentTimeMillis() - t0);
             return r;
         } catch (RuntimeException e) {
@@ -472,12 +491,39 @@ public class ChatbotController {
             if (reintentable && geminiModelFallback != null && !geminiModelFallback.isBlank()
                     && !geminiModelFallback.equals(geminiModelPrimary)) {
                 long t1 = System.currentTimeMillis();
-                ResponseEntity<Map> r = restTemplate.postForEntity(urlGemini(geminiModelFallback), entity, Map.class);
+                ResponseEntity<Map> r;
+                try {
+                    r = restTemplate.postForEntity(urlGemini(geminiModelFallback), entity, Map.class);
+                } catch (HttpStatusCodeException e2) {
+                    if (!rechazaNivel(e2, payload)) {
+                        throw e2;
+                    }
+                    r = restTemplate.postForEntity(urlGemini(geminiModelFallback), entity, Map.class);
+                }
                 log.info("[Chatbot] Respaldo {} respondió en {} ms", geminiModelFallback, System.currentTimeMillis() - t1);
                 return r;
             }
             throw e;
         }
+    }
+
+    /**
+     * Si Gemini responde 400 porque el modelo no admite el nivel de razonamiento configurado, cambia el payload a
+     * "low" (y lo recuerda para los siguientes mensajes). Devuelve true si vale la pena reintentar.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean rechazaNivel(HttpStatusCodeException e, Map<String, Object> payload) {
+        if (e.getStatusCode().value() != 400 || !e.getResponseBodyAsString().toLowerCase().contains("thinking")
+                || !(payload.get("generationConfig") instanceof Map<?, ?> config)
+                || !(config.get("thinkingConfig") instanceof Map<?, ?> thinking)
+                || "low".equals(thinking.get("thinkingLevel"))) {
+            return false;
+        }
+        log.warn("[Chatbot] El modelo no admite thinkingLevel={}; se usará \"low\". Detalle: {}",
+                thinking.get("thinkingLevel"), e.getResponseBodyAsString());
+        nivelRechazado = true;
+        ((Map<String, Object>) thinking).put("thinkingLevel", "low");
+        return true;
     }
 
     private static final String INSTRUCCIONES = """
@@ -507,6 +553,7 @@ public class ChatbotController {
                - NUNCA escribas frases como "te muestro las opciones" o "aquí tienes los productos" sin llamar a la función en ese mismo turno. Si no la llamas, no aparece ningún producto y el cliente se queda esperando. Cuando el cliente pida ver productos u opciones, SIEMPRE llama a la función, aunque en la conversación aparezcan mensajes tuyos anteriores que solo tenían texto.
                - En el parámetro "mensaje" escribe UNA frase breve y cálida (máximo 30 palabras) que se mostrará antes de las tarjetas. Si el cliente mencionó un malestar, empieza con empatía. No nombres productos, precios ni cantidades.
                - En "terminos" pon de 2 a 5 palabras clave deducidas de TODA la conversación, no solo del último mensaje: el síntoma o necesidad, el tipo de medicamento, el principio activo y la forma. Por ejemplo: dolor de cabeza con pastillas → ["analgésico", "paracetamol", "dolor de cabeza"]; congestión nasal → ["descongestionante", "congestión nasal", "antigripal"]; tos → ["jarabe para la tos", "antitusivo"]. Nunca uses como único término solo la forma ("pastillas", "jarabe").
+               - Si el cliente pidió una forma concreta (pastillas, jarabe, crema...), indícala en "forma" e inclúyela en los términos: por ejemplo, "pastillas para el dolor de garganta" → terminos ["pastillas para la garganta", "garganta", "antiséptico bucal"] y forma "solida". Así no se le sugiere un jarabe si pidió pastillas.
                - En "categorias" pon los nombres EXACTOS de la lista "CATEGORÍAS DE LA TIENDA" (al final de estas instrucciones) donde debe buscar el sistema: la subcategoría que corresponda (por ejemplo "Digestivo" para dolor de estómago, "Dolor, fiebre e inflamación" para dolor de cabeza o fiebre, "Gripe, tos y garganta" para resfríos). Si el cliente pide un producto concreto (por ejemplo "paracetamol" o "pañales") puedes omitirlo.
                - Pon "esSintoma" en true siempre que el cliente busque algo para un síntoma, malestar o enfermedad. Así el sistema busca únicamente entre los medicamentos.
                - No inventes productos, precios, descuentos ni información sobre disponibilidad.
@@ -615,7 +662,7 @@ public class ChatbotController {
         payload.put("contents", contents);
 
         Map<String, Object> thinking = new HashMap<>();
-        thinking.put("thinkingLevel", "low");
+        thinking.put("thinkingLevel", nivelActual());
         Map<String, Object> generationConfig = new HashMap<>();
         generationConfig.put("thinkingConfig", thinking);
         generationConfig.put("maxOutputTokens", 1024);
@@ -656,6 +703,12 @@ public class ChatbotController {
                 "true si el cliente pide otras opciones, más opciones o algo distinto a lo que ya se le mostró."));
         buscarProps.put("soloOfertas", propiedad("BOOLEAN",
                 "true para mostrar solamente productos en oferta."));
+        Map<String, Object> formaProp = propiedad("STRING",
+                "Forma farmacéutica que pidió el cliente: 'solida' (pastillas, tabletas, cápsulas, caramelos), "
+                        + "'liquida' (jarabe, gotas, suspensión) o 'topica' (crema, gel, ungüento). "
+                        + "Omítelo si el cliente no pidió una forma concreta.");
+        formaProp.put("enum", List.of("solida", "liquida", "topica"));
+        buscarProps.put("forma", formaProp);
         buscarProps.put("cantidadAgregar", propiedad("INTEGER",
                 "Solo si el cliente pidió explícitamente agregar el producto al carrito: la cantidad solicitada."));
         buscarProductos.put("parameters", parametros(buscarProps, "terminos", "mensaje"));
@@ -679,6 +732,10 @@ public class ChatbotController {
         }
 
         return payload;
+    }
+
+    private String nivelActual() {
+        return nivelRechazado || nivelRazonamiento == null || nivelRazonamiento.isBlank() ? "low" : nivelRazonamiento.trim();
     }
 
     private static Map<String, Object> propiedad(String tipo, String descripcion) {

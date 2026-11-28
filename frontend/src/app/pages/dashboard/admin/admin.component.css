@@ -671,7 +671,7 @@
 }
 
 .btn-close-modal:hover {
-  color: white;
+  color: #475569;
 }
 
 .modal-body {
@@ -769,17 +769,20 @@
 }
 
 .btn-secondary-modal {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  color: #cbd5e0;
+  color: #475569;
   padding: 10px 20px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.18s ease;
 }
 
 .btn-secondary-modal:hover {
-  background: rgba(255,255,255,0.1);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
 }
 
 /* Edit Stock Modal specific styles */
@@ -948,6 +951,135 @@
   font-size: 12px;
   color: #9a3412;
   font-weight: 500;
+}
+
+.categoria-continua {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Subcategoría: título más discreto, con sangría, debajo de la categoría */
+.dashboard-table tr.subcategoria-row td,
+.dashboard-table tr.subcategoria-row:hover td {
+  background: #f8fafc;
+  border-bottom: 1px solid #eef2f6;
+  padding: 8px 24px 8px 40px;
+}
+
+.subcategoria-titulo {
+  font-weight: 600;
+  font-size: 13px;
+  color: #334155;
+}
+
+.subcategoria-row .categoria-count {
+  color: #94a3b8;
+}
+
+/* ID: referencia discreta junto a la descripción */
+.prod-id {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Anchos del inventario: imagen angosta y más espacio para el nombre */
+.inventario-table th:first-child {
+  width: 80px;
+}
+
+.inventario-table th.col-nombre {
+  width: 28%;
+}
+
+.inventario-table th.col-venc {
+  width: 140px;
+}
+
+.inventario-table .date-badge {
+  white-space: nowrap;
+}
+
+.inventario-table th:last-child {
+  width: 160px;
+}
+
+.inventario-table .edit-btn {
+  white-space: nowrap;
+}
+
+/* Pestañas de categoría del inventario */
+.categoria-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.categoria-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.categoria-tab:hover {
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.categoria-tab:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}
+
+.categoria-tab.activa {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+}
+
+.categoria-tab-count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+
+.categoria-tab.activa .categoria-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* En el celular las pestañas se deslizan en una sola fila en vez de ocupar varias */
+@media (max-width: 768px) {
+  .categoria-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 12px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 
@@ -1438,4 +1570,395 @@
   gap: 12px;
   width: 100%;
   max-width: 600px;
+}
+
+/* =====================================================================
+   RESPONSIVE: tablet (≤ 1024px) y móvil (≤ 768px / ≤ 480px)
+   La vista de escritorio (> 1024px) no se ve afectada por estas reglas.
+   ===================================================================== */
+
+/* Elementos solo para móvil: ocultos en escritorio */
+.mobile-topbar,
+.sidebar-backdrop {
+  display: none;
+}
+
+/* ---------- Tablet (≤ 1024px) ---------- */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 230px;
+    padding: 20px 12px;
+  }
+
+  .main-content {
+    min-width: 0;
+    padding: 28px 24px;
+  }
+
+  /* KPIs y tarjetas: 2 columnas */
+  .metrics-grid,
+  .grid-auto-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .card {
+    padding: 22px;
+  }
+}
+
+/* Paneles de 2 columnas (predicciones, venta cruzada, cupones) → 1 columna */
+@media (max-width: 900px) {
+  .grid-responsive {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Los campos del formulario del modal siguen en 2 columnas hasta móvil */
+  .modal-body .grid-responsive {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ---------- Móvil (≤ 768px) ---------- */
+@media (max-width: 768px) {
+  /* Sidebar como drawer deslizante */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 85vw);
+    height: 100vh;
+    height: 100dvh;
+    padding: 24px 16px;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1050;
+    box-shadow: none;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 11, 16, 0.55);
+    z-index: 1040;
+    animation: fadeInBackdrop 0.2s ease;
+  }
+
+  /* Barra superior con hamburguesa */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    margin: 0 -16px 18px;
+    padding: 10px 16px;
+    background: #111d2e;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .btn-hamburguesa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    background: transparent;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-hamburguesa:focus-visible {
+    outline: 2px solid #ea580c;
+    outline-offset: 2px;
+  }
+
+  .mobile-brand {
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .main-content {
+    width: 100%;
+    padding: 0 16px 24px;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .main-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 22px !important;
+  }
+
+  .header-title h1 {
+    font-size: 22px;
+  }
+
+  /* Solo el correo de la cabecera puede partirse; los badges de fecha de las tablas no */
+  .header-actions .date-badge {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .card-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  /* Filtros y buscadores */
+  .table-actions {
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .categoria-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .search-box {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* Tablas: scroll horizontal limpio en lugar de columnas aplastadas */
+  .table-responsive,
+  .details-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-table {
+    min-width: 720px;
+  }
+
+  .reportes-grid .dashboard-table {
+    min-width: 540px;
+  }
+
+  .dashboard-table th,
+  .dashboard-table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .modal-table {
+    min-width: 480px;
+  }
+
+  /* Tabla de lotes del modal: encabezados, códigos y fechas en una línea */
+  .modal-table th,
+  .modal-table td {
+    white-space: nowrap;
+    padding: 10px 12px;
+  }
+
+  /* Títulos largos del modal ("Gestión de Lotes: ...") no empujan la X */
+  .modal-header {
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .modal-header h2 {
+    font-size: 16px;
+    line-height: 1.3;
+    min-width: 0;
+  }
+
+  .btn-close-modal {
+    flex-shrink: 0;
+  }
+
+  /* Tablas de todas las pestañas: ancho natural + scroll horizontal.
+     Prefijo .main-content para ganar a .reportes-vertical / .reportes-grid. */
+  .main-content .dashboard-table,
+  .main-content .reportes-grid .dashboard-table,
+  .main-content .reportes-vertical .dashboard-table {
+    table-layout: auto;
+    min-width: 720px;
+  }
+
+  .main-content .dashboard-table th {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .main-content .dashboard-table td,
+  .main-content .reportes-grid .dashboard-table td {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  /* Columna Producto / Cliente: nombres en líneas normales */
+  .main-content .dashboard-table th.col-nombre {
+    width: 200px;
+    min-width: 180px;
+  }
+
+  .main-content .dashboard-table th.col-motivo {
+    width: 240px;
+    min-width: 220px;
+  }
+
+  /* Vencimiento: la fecha nunca se parte */
+  .main-content .dashboard-table th.col-venc {
+    min-width: 115px;
+  }
+
+  .main-content .dashboard-table .date-badge {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  /* Columnas numéricas (precios, unidades, días), códigos de lote y estados en una línea */
+  .main-content .dashboard-table td[style*="text-align:center"],
+  .main-content .dashboard-table td[style*="text-align: center"],
+  .main-content .dashboard-table td[style*="text-align:right"],
+  .main-content .dashboard-table td[style*="text-align: right"],
+  .main-content .dashboard-table .nowrap-cell,
+  .main-content .dashboard-table td .status-badge {
+    white-space: nowrap;
+  }
+
+  /* Fila de categoría: la etiqueta sigue visible al hacer scroll horizontal */
+  .categoria-label {
+    position: sticky;
+    left: 12px;
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  /* Botones y badges no se parten ni se aplastan */
+  .btn-action,
+  .status-badge,
+  .stock-badge,
+  .btn-secondary,
+  .alertas-table button,
+  .alertas-table span {
+    white-space: nowrap;
+  }
+
+  /* Paginación compacta */
+  .pagination {
+    gap: 6px;
+  }
+
+  .pagination button {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .pagination span {
+    padding: 7px 8px;
+    font-size: 12px;
+    margin: 0;
+  }
+
+  /* Modales */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-card,
+  .modal-card.modal-large {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 92vh;
+    border-radius: 16px;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-body {
+    padding: 16px !important;
+    gap: 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+
+  /* Avisos flotantes dentro de la pantalla */
+  .toast-flotante {
+    top: 12px !important;
+    right: 12px !important;
+    left: 12px;
+    padding: 12px 16px !important;
+  }
+}
+
+/* ---------- Móvil pequeño (≤ 480px) ---------- */
+@media (max-width: 480px) {
+  .metrics-grid,
+  .grid-auto-cards,
+  .modal-body .grid-responsive {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Con una sola columna, "span 2" crearía una columna implícita que aplasta los campos */
+  .modal-body .grid-responsive > * {
+    grid-column: auto !important;
+  }
+
+  .main-content {
+    padding: 0 12px 20px;
+  }
+
+  .mobile-topbar {
+    margin: 0 -12px 16px;
+    padding: 8px 12px;
+  }
+
+  .header-title h1 {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .modal-footer > button {
+    flex: 1 1 100%;
+  }
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

@@ -585,6 +585,18 @@ export class ChatbotComponent implements OnInit {
     this.scrollToBottom();
   }
 
+  /**
+   * Abre el detalle del producto de una tarjeta. En pantallas pequeñas el chat tapa la página, así que se cierra;
+   * en escritorio se queda abierto para que el cliente pueda seguir viendo las demás opciones.
+   */
+  verDetalle(p: ProductoChat, evento: Event): void {
+    evento.preventDefault();
+    this.router.navigate(['/catalogo/producto'], { queryParams: { producto: p.idProducto } });
+    if (window.innerWidth < 768) {
+      this.isOpen = false;
+    }
+  }
+
   private irA(ruta: string, mensaje: string): void {
     this.mensajeModelo(mensaje);
     this.router.navigate([ruta]);

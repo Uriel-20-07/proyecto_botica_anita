@@ -63,7 +63,7 @@
             <strong *ngIf="!getDiscountInfo(item.producto).isExpired">
               S/ {{ (precioLinea(item) * item.cantidad) | number:'1.2-2' }}
             </strong>
-            <span class="unit-price" *ngIf="!getDiscountInfo(item.producto).isExpired">
+            <span class="unit-price" *ngIf="item.cantidad > 1 && !getDiscountInfo(item.producto).isExpired">
               {{ item.cantidad }} × S/ {{ precioLinea(item) | number:'1.2-2' }}
             </span>
 

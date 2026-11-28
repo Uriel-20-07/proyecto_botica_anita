@@ -36,12 +36,19 @@ public class ChatbotBusquedaRepository {
 
     private static final String SELECT_DTO = "select new com.example.demo.dto.chatbot.ProductoChatDTO("
             + "p.idProducto, p.nombre, p.precioVenta, p.precioOferta, p.enOferta, "
-            + "(p.stock - coalesce(p.stockEnCarrito, 0)), p.fechaCaducidad, p.imgUrl) ";
+            + "(p.stock - coalesce(p.stockEnCarrito, 0)), p.fechaCaducidad, p.imgUrl, m.idMarca, p.grupoVariantes) ";
 
     /** Texto donde se busca, en minúsculas y sin tildes (la "ñ" pasa a "n"). */
     private static final String TEXTO_BUSCABLE = sinAcentos(
             "concat(coalesce(p.nombre, ''), ' ', coalesce(p.descripcion, ''), ' ', "
                     + "coalesce(c.nombre, ''), ' ', coalesce(s.nombre, ''))");
+
+    /** Nombre + descripción, SIN la categoría: una coincidencia aquí habla del producto en sí. */
+    private static final String TEXTO_PRODUCTO = sinAcentos(
+            "concat(coalesce(p.nombre, ''), ' ', coalesce(p.descripcion, ''))");
+
+    /** Solo el nombre del producto, normalizado: pesa más que una coincidencia en la descripción. */
+    private static final String NOMBRE_BUSCABLE = sinAcentos("coalesce(p.nombre, '')");
 
     private static final String NOMBRE_CATEGORIA = sinAcentos("coalesce(c.nombre, '')");
     private static final String NOMBRE_SUBCATEGORIA = sinAcentos("coalesce(s.nombre, '')");
@@ -62,8 +69,8 @@ public class ChatbotBusquedaRepository {
                                         boolean ofertas, Collection<Integer> excluir, Collection<String> categorias,
                                         LocalDate hoy, int limite) {
         StringBuilder q = new StringBuilder(SELECT_DTO)
-                .append("from Producto p left join p.categoria c left join p.subcategoria s ")
-                .append("where p.idProducto not in (:excluir)");
+                .append("from Producto p left join p.categoria c left join p.subcategoria s left join p.marca m ")
+                .append("where p.idProducto not in (:excluir) and ").append(ChatbotCatalogoRepository.UNA_POR_LINEA);
 
         if (idCategoria != SIN_FILTRO) {
             q.append(" and p.categoria.idCategoria = :idCategoria");
@@ -90,13 +97,28 @@ public class ChatbotBusquedaRepository {
             q.append(")");
         }
 
-        // Orden: disponibles primero; luego los que coinciden con más términos; luego ofertas; luego alfabético
+        // Orden: disponibles primero; luego los que mencionan los términos en su nombre o descripción (y no solo por
+        // estar en una categoría como "Gripe, tos y garganta"); luego en el nombre; luego más términos en total;
+        // luego ofertas; luego alfabético
         q.append(" order by case when ").append(ChatbotCatalogoRepository.DISPONIBLE).append(" then 0 else 1 end");
         if (!patrones.isEmpty()) {
             q.append(", (");
             for (int i = 0; i < patrones.size(); i++) {
                 q.append(i > 0 ? " + " : "")
+                        .append("case when ").append(TEXTO_PRODUCTO).append(" like :t").append(i)
+                        .append(" then 1 else 0 end");
+            }
+            q.append(") desc, (");
+            for (int i = 0; i < patrones.size(); i++) {
+                q.append(i > 0 ? " + " : "")
                         .append("case when ").append(TEXTO_BUSCABLE).append(" like :t").append(i)
+                        .append(" then 1 else 0 end");
+            }
+            q.append(") desc, (");
+            // A igual cantidad de coincidencias, primero los que las tienen en el NOMBRE (no solo en la descripción)
+            for (int i = 0; i < patrones.size(); i++) {
+                q.append(i > 0 ? " + " : "")
+                        .append("case when ").append(NOMBRE_BUSCABLE).append(" like :t").append(i)
                         .append(" then 1 else 0 end");
             }
             q.append(") desc");
@@ -106,6 +128,7 @@ public class ChatbotBusquedaRepository {
         TypedQuery<ProductoChatDTO> query = em.createQuery(q.toString(), ProductoChatDTO.class);
         query.setParameter("excluir", listaNoVacia(excluir));
         query.setParameter("hoy", hoy);
+        query.setParameter("soloOfertas", ofertas);
         if (idCategoria != SIN_FILTRO) {
             query.setParameter("idCategoria", idCategoria);
         }
@@ -132,8 +155,9 @@ public class ChatbotBusquedaRepository {
      * amplia mezcla medicamentos para cosas muy distintas, y sugerir un producto fuera de su línea no es seguro.
      */
     public List<ProductoChatDTO> similares(Collection<Integer> mostrados, LocalDate hoy, int limite) {
-        String q = SELECT_DTO + "from Producto p "
+        String q = SELECT_DTO + "from Producto p left join p.marca m "
                 + "where p.idProducto not in (:mostrados) and " + ChatbotCatalogoRepository.DISPONIBLE + " "
+                + "and " + ChatbotCatalogoRepository.UNA_POR_LINEA + " "
                 + "and p.subcategoria.idSubcategoria in ("
                 + "select m.subcategoria.idSubcategoria from Producto m "
                 + "where m.idProducto in (:mostrados) and m.subcategoria is not null) "
@@ -142,6 +166,7 @@ public class ChatbotBusquedaRepository {
         TypedQuery<ProductoChatDTO> query = em.createQuery(q, ProductoChatDTO.class);
         query.setParameter("mostrados", listaNoVacia(mostrados));
         query.setParameter("hoy", hoy);
+        query.setParameter("soloOfertas", false);
         query.setMaxResults(limite);
         return query.getResultList();
     }

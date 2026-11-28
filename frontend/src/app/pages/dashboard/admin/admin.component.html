@@ -1,5 +1,8 @@
 <div class="dashboard-container">
-  <aside class="sidebar">
+  <!-- Backdrop del drawer móvil -->
+  <div class="sidebar-backdrop" *ngIf="menuMovilAbierto" (click)="cerrarMenuMovil()"></div>
+
+  <aside class="sidebar" [class.open]="menuMovilAbierto" id="admin-sidebar">
     <div class="sidebar-brand">
       <span>BoticaAnita Admin</span>
     </div>
@@ -51,6 +54,16 @@
   </aside>
 
   <main class="main-content">
+    <!-- Barra superior móvil con botón hamburguesa (solo ≤ 768px) -->
+    <div class="mobile-topbar">
+      <button type="button" class="btn-hamburguesa" (click)="toggleMenuMovil()"
+        aria-controls="admin-sidebar" [attr.aria-expanded]="menuMovilAbierto"
+        [attr.aria-label]="menuMovilAbierto ? 'Cerrar menú' : 'Abrir menú'">
+        <i class="bi" [class.bi-list]="!menuMovilAbierto" [class.bi-x-lg]="menuMovilAbierto"></i>
+      </button>
+      <span class="mobile-brand">BoticaAnita Admin</span>
+    </div>
+
     <header class="main-header">
       <div class="header-title">
         <h1>Dashboard Corporativo</h1>
@@ -333,14 +346,10 @@
               <div class="card table-card">
               <div class="table-actions">
           <div class="filter-group">
-            <select [(ngModel)]="categoriaFiltro" class="categoria-select">
-              <option value="">Todas las categorías</option>
-              <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
-            </select>
-            
             <div class="search-box">
               <i class="bi bi-search search-icon"></i>
-              <input type="text" [(ngModel)]="searchProducto" placeholder="Buscar producto o descripción..." />
+              <input type="text" [(ngModel)]="searchProducto" (ngModelChange)="alBuscarProducto()"
+                placeholder="Buscar por nombre, descripción, subcategoría o #ID..." />
             </div>
           </div>
           <button class="btn-secondary" type="button" (click)="recargarInventario()"
@@ -348,14 +357,25 @@
             <i class="bi bi-arrow-clockwise"></i> Actualizar
           </button>
         </div>
+        <!-- Pestañas de categoría con su cantidad -->
+        <div class="categoria-tabs" role="tablist" aria-label="Filtrar inventario por categoría">
+          <button type="button" role="tab" class="categoria-tab" [class.activa]="!categoriaFiltro"
+            [attr.aria-selected]="!categoriaFiltro" (click)="elegirCategoria('')">
+            Todas <span class="categoria-tab-count">{{ totalPestanas }}</span>
+          </button>
+          <button *ngFor="let c of pestanasCategoria" type="button" role="tab" class="categoria-tab"
+            [class.activa]="categoriaFiltro === c.nombre" [attr.aria-selected]="categoriaFiltro === c.nombre"
+            (click)="elegirCategoria(c.nombre)">
+            {{ c.nombre }} <span class="categoria-tab-count">{{ c.total }}</span>
+          </button>
+        </div>
         <div class="table-responsive">
-          <table class="dashboard-table">
+          <table class="dashboard-table inventario-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Imagen</th>
-                <th>Nombre</th>
-                <th>Venc. Próximo</th>
+                <th class="col-nombre">Nombre</th>
+                <th class="col-venc">Venc. Próximo</th>
                 <th>Precio Venta</th>
                 <th>Stock Real</th>
                 <th>Oferta</th>
@@ -363,20 +383,32 @@
               </tr>
             </thead>
             <tbody>
-                <ng-container *ngFor="let grupo of productosPaginadoAgrupado; trackBy: trackByCategoria">
-                  <tr class="categoria-row">
-                    <td colspan="8">
-                      <span class="categoria-titulo">{{ grupo.categoria }}</span>
-                      <span class="categoria-count">{{ grupo.productos.length }} producto(s)</span>
+                <ng-container *ngFor="let fila of filasInventario; trackBy: trackByFila">
+                  <tr *ngIf="fila.tipo === 'categoria'" class="categoria-row">
+                    <td colspan="7">
+                      <div class="categoria-label">
+                        <span class="categoria-titulo">{{ fila.nombre }}</span>
+                        <span class="categoria-count">{{ fila.total }} producto(s)</span>
+                        <span *ngIf="fila.continuacion" class="categoria-continua">(continuación)</span>
+                      </div>
                     </td>
                   </tr>
-                  <tr *ngFor="let prod of grupo.productos">
-                    <td>#{{ prod.idProducto }}</td>
+                  <tr *ngIf="fila.tipo === 'subcategoria'" class="subcategoria-row">
+                    <td colspan="7">
+                      <div class="categoria-label">
+                        <span class="subcategoria-titulo">{{ fila.nombre }}</span>
+                        <span class="categoria-count">{{ fila.total }}</span>
+                        <span *ngIf="fila.continuacion" class="categoria-continua">(continuación)</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <ng-container *ngIf="fila.tipo === 'producto'">
+                  <tr *ngIf="fila.prod as prod">
                     <td><img [src]="prod.imgUrl" alt="Producto" class="prod-thumbnail" /></td>
                     <td>
                       <div class="prod-title-desc">
                         <span class="prod-title">{{ prod.nombre }}</span>
-                        <span class="prod-desc">{{ prod.descripcion }}</span>
+                        <span class="prod-desc"><span class="prod-id">#{{ prod.idProducto }}</span>{{ prod.descripcion }}</span>
                       </div>
                     </td>
                     <td>
@@ -417,12 +449,13 @@
                       <button (click)="openLotesModal(prod)" class="btn-action edit-btn">Gestionar Lotes</button>
                     </td>
                   </tr>
+                  </ng-container>
                 </ng-container>
                 <tr *ngIf="filteredProductos.length === 0">
-                  <td colspan="8" class="empty-message">No se encontraron productos en el inventario.</td>
+                  <td colspan="7" class="empty-message">No se encontraron productos en el inventario.</td>
                 </tr>
-                <tr *ngIf="filteredProductos.length > 0 && productosPaginadoAgrupado.length === 0">
-                  <td colspan="8" class="empty-message">No hay productos en esta página.</td>
+                <tr *ngIf="filteredProductos.length > 0 && filasInventario.length === 0">
+                  <td colspan="7" class="empty-message">No hay productos en esta página.</td>
                 </tr>
               </tbody>
           </table>
@@ -541,7 +574,7 @@
         <thead>
           <tr>
             <th style="width:44px;text-align:center;">#</th>
-            <th>Cliente</th>
+            <th class="col-nombre">Cliente</th>
             <th style="text-align:center;">Pedidos</th>
             <th style="text-align:right;">Gasto Total</th>
           </tr>
@@ -635,7 +668,7 @@
         <thead>
           <tr>
             <th style="width:40px;">#</th>
-            <th>Producto</th>
+            <th class="col-nombre">Producto</th>
             <th style="text-align:center;">Unidades</th>
             <th style="text-align:right;">Ingresos</th>
           </tr>
@@ -665,7 +698,7 @@
           <thead>
             <tr>
               <th style="width:40px;">#</th>
-              <th>Producto</th>
+              <th class="col-nombre">Producto</th>
               <th style="text-align:center;">Unidades</th>
               <th style="text-align:right;">Ingresos</th>
             </tr>
@@ -712,7 +745,7 @@
                 <thead style="position:sticky;top:0;background:#f8fafc;z-index:1;">
                   <tr>
                     <th style="padding:10px 12px;">Lote</th>
-                    <th style="padding:10px 12px;">Producto</th>
+                    <th class="col-nombre" style="padding:10px 12px;">Producto</th>
                     <th style="text-align:center;padding:10px 12px;">Stock</th>
                     <th style="text-align:center;padding:10px 12px;">Días</th>
                     <th style="text-align:center;padding:10px 12px;">Alerta</th>
@@ -720,7 +753,7 @@
                 </thead>
                 <tbody>
                   <tr *ngFor="let lote of lotesPaginado">
-                    <td style="font-family:monospace;font-size:11px;padding:10px 12px;">{{ lote.codigoLote }}</td>
+                    <td class="nowrap-cell" style="font-family:monospace;font-size:11px;padding:10px 12px;">{{ lote.codigoLote }}</td>
                     <td style="padding:10px 12px;"><span class="bold-text" style="font-size:13px;">{{ lote.producto
                         }}</span></td>
                     <td style="text-align:center;font-weight:600;padding:10px 12px;">{{ lote.stock }}</td>
@@ -760,11 +793,11 @@
     <div *ngIf="activeTab === 'predicciones'" class="tab-pane animated-fade">
 
       <div *ngIf="mensajeExito"
-        style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: rgba(17, 29, 46, 0.95); border: 1px solid rgba(234, 88, 12, 0.4); border-radius: 12px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); backdrop-filter: blur(10px); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        class="toast-flotante" style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: rgba(17, 29, 46, 0.95); border: 1px solid rgba(234, 88, 12, 0.4); border-radius: 12px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); backdrop-filter: blur(10px); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
         <i class="bi bi-check-circle" style="font-size:20px;color:#ea580c"></i>
         <span style="font-size: 14px; font-weight: 600; font-family: 'Outfit', sans-serif;">{{ mensajeExito }}</span>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 10px;">
+      <div class="grid-responsive" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 10px;">
         <div class="card" style="grid-column: 1 / -1; transition: transform 0.2s;"
           onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
           <div class="card-header"
@@ -785,7 +818,7 @@
             <table class="dashboard-table">
               <thead>
                 <tr>
-                  <th>Producto</th>
+                  <th class="col-nombre">Producto</th>
                   <th style="text-align:center;">Stock Actual</th>
                   <th style="text-align:center;">Consumo Diario</th>
                   <th style="text-align:center;">Días Restantes</th>
@@ -854,24 +887,27 @@
   </div>
 
   <!-- Grid horizontal para aprovechar el ancho completo si hay varias alertas -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+  <div class="grid-auto-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
     <div *ngFor="let est of prediccionDemandaEstacional"
       style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: #f8fafc; position: relative; transition: border-color 0.2s; display: flex; flex-direction: column; justify-content: space-between;"
       onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
       <div>
-        <span class="status-badge"
-          style="position: absolute; top: 16px; right: 16px; background: rgba(234,88,12,0.1); color: #ea580c; border: 1px solid rgba(234,88,12,0.25); font-weight: 700; font-size: 11px;">
-          +{{ est.incremento }}% Demanda
-        </span>
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-          <img *ngIf="est.producto.imgUrl" [src]="est.producto.imgUrl" class="prod-thumbnail" />
-          <div class="prod-title-desc">
-            <h4 style="margin: 0; font-size: 14.5px; color: #111d2e; font-weight: 700;">{{ est.producto.nombre }}</h4>
-            <span style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 3px; margin-top: 2px;">
-              <i class="bi bi-calendar-event" style="font-size: 10px"></i>
-              Periodo: {{ est.estacion }}
-            </span>
+        <div class="estacional-head"
+          style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1 1 140px; min-width: 0;">
+            <img *ngIf="est.producto.imgUrl" [src]="est.producto.imgUrl" class="prod-thumbnail" />
+            <div class="prod-title-desc">
+              <h4 style="margin: 0; font-size: 14.5px; color: #111d2e; font-weight: 700;">{{ est.producto.nombre }}</h4>
+              <span style="font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 3px; margin-top: 2px;">
+                <i class="bi bi-calendar-event" style="font-size: 10px"></i>
+                Periodo: {{ est.estacion }}
+              </span>
+            </div>
           </div>
+          <span class="status-badge"
+            style="background: rgba(234,88,12,0.1); color: #ea580c; border: 1px solid rgba(234,88,12,0.25); font-weight: 700; font-size: 11px; white-space: nowrap; flex-shrink: 0;">
+            +{{ est.incremento }}% Demanda
+          </span>
         </div>
         <p style="font-size: 12.5px; color: #475569; margin: 0 0 14px 0; line-height: 1.4;">
           {{ est.recomendacion }}
@@ -898,7 +934,7 @@
                 probabilidad</span>
             </div>
           </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; grid-auto-rows:1fr;">
+          <div class="grid-responsive" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; grid-auto-rows:1fr;">
             <div *ngFor="let combo of ventaCruzadaPaginado"
               style="border:1px solid #e2e8f0; border-radius:14px; padding:18px; background:#f8fafc; display:flex; flex-direction:column; transition: border-color 0.2s; height:100%;"
               onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#e2e8f0'">
@@ -992,10 +1028,10 @@
     <table class="dashboard-table">
       <thead>
         <tr>
-          <th>Producto</th>
+          <th class="col-nombre">Producto</th>
           <th style="text-align:center;">Stock Actual</th>
           <th style="text-align:center;">Ventas (30d)</th>
-          <th>Motivo / Diagnóstico</th>
+          <th class="col-motivo">Motivo / Diagnóstico</th>
           <th style="text-align:center;">Descuento Sugerido</th>
           <th style="text-align:center;">Precio Sugerido</th>
           <th style="text-align:center;">Estado Oferta</th>
@@ -1202,9 +1238,9 @@
       </div>
     </div>
 
-    <div style="width:100%;overflow-x:auto;">
+    <div class="table-responsive" style="width:100%;overflow-x:auto;">
 
-      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
+      <table class="alertas-table" style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
 
         <thead>
           <tr style="background:#f8fafc;text-align:left;">
@@ -1347,12 +1383,12 @@
 
     <div *ngIf="activeTab === 'cupones'" class="tab-pane animated-fade">
       <div *ngIf="mensajeExito"
-        style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: rgba(17, 29, 46, 0.95); border: 1px solid rgba(234, 88, 12, 0.4); border-radius: 12px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); backdrop-filter: blur(10px); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        class="toast-flotante" style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: rgba(17, 29, 46, 0.95); border: 1px solid rgba(234, 88, 12, 0.4); border-radius: 12px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); backdrop-filter: blur(10px); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
         <i class="bi bi-check-circle" style="font-size:20px;color:#22c55e"></i>
         <span style="font-size: 14px; font-weight: 600; font-family: 'Outfit', sans-serif;">{{ mensajeExito }}</span>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-top: 10px; align-items: start;">
+      <div class="grid-responsive" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-top: 10px; align-items: start;">
         
         <!-- COLUMNA IZQUIERDA: LISTA DE USUARIOS -->
         <div class="card">
@@ -1525,7 +1561,7 @@
           <h3>Información del Cliente</h3>
           <p><strong>Nombre:</strong> {{ selectedVenta.usuario.nombre }} {{ selectedVenta.usuario.apellido }}</p>
           <p><strong>Email:</strong> {{ selectedVenta.usuario.email }}</p>
-          <p><strong>Fecha Compra:</strong> {{ fechaVenta(selectedVenta) | date:'dd MMMM yyyy, HH:mm' }}</p>
+          <p><strong>Fecha Compra:</strong> {{ fechaVenta(selectedVenta) | date:"d 'de' MMMM 'de' y, HH:mm":'':'es-PE' }}</p>
           <p>
             <strong>Método de Pago:</strong>
             <span *ngIf="selectedVenta.metodoPago === 'YAPE'"
@@ -1551,11 +1587,11 @@
           </p>
           <p *ngIf="selectedVenta.metodoPago === 'PLIN' && selectedVenta.numeroOperacion">
             <strong>N.º de operación Plin:</strong>
-            <span style="font-family:monospace;font-weight:700;">{{ selectedVenta.numeroOperacion }}</span>
+            <span style="font-family:monospace;font-weight:700;margin-left:4px;">{{ selectedVenta.numeroOperacion }}</span>
           </p>
           <p *ngIf="selectedVenta.metodoPago === 'SIP' && selectedVenta.numeroOperacion">
             <strong>N.º de operación SIP:</strong>
-            <span style="font-family:monospace;font-weight:700;">{{ selectedVenta.numeroOperacion }}</span>
+            <span style="font-family:monospace;font-weight:700;margin-left:4px;">{{ selectedVenta.numeroOperacion }}</span>
           </p>
           <p *ngIf="selectedVenta.distrito">
             <strong>Distrito:</strong> {{ selectedVenta.distrito }}
@@ -1607,7 +1643,7 @@
       <div class="modal-body">
         <div class="info-block" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <h3 style="margin-top: 0;">Registrar Nuevo Ingreso (Lote)</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+          <div class="grid-responsive" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
             <div>
               <label style="display: block; font-size: 12px; color: #666; font-weight: bold; margin-bottom: 5px;">Código
                 del Lote</label>
